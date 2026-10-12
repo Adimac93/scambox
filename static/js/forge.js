@@ -9,12 +9,12 @@ const FORGE = {
   upg: { inputs: new Set(), target: null, variant: "all", search: "", angle: 0 },
 };
 const PICK_LIMIT = 300;
-const PICK_TAGS = { reverse: "REV", holo: "HOLO", alt: "ALT", gold: "GOLD" };
+const PICK_TAGS = { bw: "B&W", reverse: "REV", silver: "SILV", holo: "HOLO", gold: "GOLD", diamond: "💎" };
 
 function pickHTML(item, { sel = false, extra = "" } = {}) {
   const p = person(item.person);
   const v = item.variant || "normal";
-  const img = p.rarity === "secret" && p.masked ? `/img/${p.id}` : imgUrl(p.id, v === "alt");
+  const img = p.rarity === "secret" && p.masked ? `/img/${p.id}` : imgUrl(p.id);
   return `<div class="pick r-${p.rarity} v-${v}${sel ? " sel" : ""}" data-id="${item.id}" style="--rc:${S.cfg.rarities[p.rarity].color}">
     <img src="${img}" alt="" loading="lazy" draggable="false">
     ${isSpecial(v) ? `<span class="ph vt-${v}">${PICK_TAGS[v]}</span>` : ""}
@@ -288,7 +288,7 @@ function upgChance(stake, goal) {
 
 function allTargets() {
   const out = [];
-  Object.values(S.cfg.people).forEach(p => {
+  Object.values(S.cfg.people).filter(p => p.rarity !== "secret").forEach(p => {
     S.cfg.variantOrder.forEach(v => out.push({ key: `${p.id}|${v}`, person: p.id, variant: v, value: cardValue(p.id, v) }));
   });
   return out.sort((a, b) => a.value - b.value || person(a.person).name.localeCompare(person(b.person).name, "pl"));

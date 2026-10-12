@@ -30,6 +30,15 @@ function openDialog(html, cls = "") {
 function closeDialogs() { $$(".sdialog").forEach(d => d.remove()); }
 function dialogOpen() { return !!document.querySelector(".sdialog"); }
 
+// Tajna karta znajomego w aktywności: na czas rysowania podmieniamy zamaskowane dane na prawdziwe
+let FEED_CACHE = [];
+function withReveal(f, fn) {
+  if (!f.reveal) return fn();
+  const orig = S.cfg.people[f.person];
+  S.cfg.people[f.person] = { ...f.reveal, imgq: `feed=${f.id}` };
+  try { return fn(); } finally { S.cfg.people[f.person] = orig; }
+}
+
 function userLink(u) {
   return `<button class="ulink" data-user="${esc(u.username)}"><span class="av">${esc(u.avatar)}</span>${esc(u.username)}</button>`;
 }
@@ -303,14 +312,14 @@ async function renderFriends() {
         <h3>📣 Aktywność</h3>
         <p class="muted small">Karty, które pokazują ci znajomi, i ich legendarne dropy. Swoją kartę pokażesz przyciskiem <b>📣</b> w podglądzie karty.</p>
         <div class="feed">${fd.feed.length ? fd.feed.map(f => `
-          <div class="feed-item${!f.mine && f.id > fd.seen ? " unread" : ""}${f.kind !== "show" ? " fi-auto" : ""}">
+          <div class="feed-item${!f.mine && f.id > fd.seen ? " unread" : ""}${f.kind !== "show" ? " fi-auto" : ""}${(f.reveal || person(f.person)).rarity === "secret" ? " fi-secret" : ""}">
             <div class="fi-head">${f.mine ? '<span class="ulink me"><span class="av">' + esc(S.me.avatar) + "</span>Ty</span>" : userLink(f.author)}
               <span class="muted">${feedText(f)}</span><span class="fi-time">${timeAgo(f.created)}</span></div>
             <div class="fi-body">
-              <div class="fi-card">${cardHTML(f.person, f.variant)}</div>
+              <div class="fi-card" data-feed="${f.id}">${withReveal(f, () => cardHTML(f.person, f.variant))}</div>
               <div class="fi-side">
                 ${f.message ? `<div class="fi-msg">„${esc(f.message)}”</div>` : ""}
-                <div class="fi-name">${esc(person(f.person).name)}</div>
+                <div class="fi-name">${esc((f.reveal || person(f.person)).name)}</div>
                 <div class="fi-meta"><span style="color:${S.cfg.rarities[person(f.person).rarity].color}">${S.cfg.rarities[person(f.person).rarity].name}</span>${isSpecial(f.variant) ? ` · <span class="holo-txt">${variantName(f.variant)}</span>` : ""}</div>
                 <div class="fi-val">${fmt(f.value)}</div>
               </div>
@@ -319,6 +328,7 @@ async function renderFriends() {
         </div>
       </div>
     </div>`;
+  FEED_CACHE = fd.feed;
   if (fd.feed.some(f => !f.mine && f.id > fd.seen)) {
     api("/api/feed/seen", {}).then(refreshBadgesSoon).catch(() => {});
   }
@@ -596,7 +606,10 @@ function bindSocial() {
       return friendAction(() => api("/api/friends/remove", { username: rem.dataset.remove }));
     }
     const c = t.closest(".fi-card .card");
-    if (c) openViewer(c.dataset.pid, c.dataset.variant);
+    if (c) {
+      const f = FEED_CACHE.find(x => String(x.id) === c.closest(".fi-card").dataset.feed);
+      withReveal(f || {}, () => openViewer(c.dataset.pid, c.dataset.variant));
+    }
   });
 
   // ranking

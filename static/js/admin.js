@@ -123,7 +123,6 @@ function renderCards() {
           ${c.modified ? '<i class="mod">zmieniona</i>' : ""}
           ${c.hidden ? '<i class="hid">ukryta</i>' : ""}
           ${!c.hasImage ? '<i class="warn">brak zdjęcia</i>' : ""}
-          ${c.hasAlt ? '<i>alt</i>' : ""}
           ${c.owned ? `<i>masz ×${c.owned}</i>` : ""}
         </span>
       </span>
@@ -142,7 +141,6 @@ function openCardForm(id) {
   $("#cardForm").innerHTML = `
     <div class="a-card-preview">
       <div class="a-img-box"><img src="${id ? imgSrc(c, false, true) : ""}" alt="" id="prevMain" ${id ? "" : "hidden"}><span>Zdjęcie główne</span></div>
-      <div class="a-img-box"><img src="${id && c.hasAlt ? imgSrc(c, true, true) : ""}" alt="" id="prevAlt" ${id && c.hasAlt ? "" : "hidden"}><span>Zdjęcie Alt Art</span></div>
     </div>
     <div class="a-card-fields">
       <h3>${isNew ? "Nowa karta" : `Edytuj: ${esc(c.name)}`}</h3>
@@ -166,19 +164,10 @@ function openCardForm(id) {
           <label class="wide">…albo plik z dysku<input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif" data-prev="prevMain"></label>
         </div>
       </fieldset>
-      <fieldset>
-        <legend>Zdjęcie Alt Art (opcjonalne)</legend>
-        <div class="a-grid">
-          <label class="wide">Adres obrazka (URL)<input type="text" name="image_url_alt" placeholder="https://…"></label>
-          <label class="wide">…albo plik z dysku<input type="file" name="image_alt" accept="image/jpeg,image/png,image/webp,image/gif" data-prev="prevAlt"></label>
-          ${c.hasAlt ? '<label class="chk wide"><input type="checkbox" name="remove_alt" value="1"> usuń obecne zdjęcie Alt Art</label>' : ""}
-        </div>
-        <p class="muted small">Bez zdjęcia Alt Art wariant Alt użyje zdjęcia głównego w innym stylu. „Pobierz ponownie” spróbuje znaleźć drugie zdjęcie na Wikimedia Commons.</p>
-      </fieldset>
 
       <div class="a-actions">
         <button class="btn primary" type="submit">💾 ${isNew ? "Dodaj kartę" : "Zapisz"}</button>
-        ${!isNew && !c.hidden ? '<button class="btn" type="button" data-act="refetch">🔄 Pobierz zdjęcia ponownie</button>' : ""}
+        ${!isNew && !c.hidden ? '<button class="btn" type="button" data-act="refetch">🔄 Pobierz zdjęcie ponownie</button>' : ""}
         ${!isNew && c.builtin && (c.modified || c.hidden) ? `<button class="btn" type="button" data-act="restore-card">↩️ ${c.hidden ? "Przywróć kartę" : "Przywróć domyślne"}</button>` : ""}
         ${!isNew && !c.hidden ? `<button class="btn danger" type="button" data-act="delete-card">${c.builtin ? "🙈 Ukryj kartę" : "🗑️ Usuń kartę"}</button>` : ""}
         <button class="btn" type="button" data-act="close-card">Anuluj</button>
@@ -370,7 +359,7 @@ function bind() {
       if (act === "refetch") {
         e.target.disabled = true; e.target.textContent = "Pobieram…";
         const r = await api(`/api/admin/cards/${encodeURIComponent(id)}/refetch`, { method: "POST" });
-        toast(`Zdjęcie główne: ${r.main ? "✔" : "✘"} · Alt Art: ${r.alt ? "✔" : "nie znaleziono"}`, !r.main);
+        toast(`Zdjęcie: ${r.main ? "pobrane ✔" : "nie znaleziono ✘"}`, !r.main);
       }
       if (act === "delete-card") {
         const msg = c.builtin ? `Ukryć kartę „${c.name}”? (Można ją przywrócić.)` : `Usunąć kartę „${c.name}”? Tego nie da się cofnąć.`;

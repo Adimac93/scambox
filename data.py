@@ -19,15 +19,17 @@ MAX_OPEN = 20
 # Warianty kart: szansa na wariant przy każdym dropie i mnożnik wartości
 VARIANTS = {
     "normal":  {"name": "Zwykła",       "chance": 0.0,   "mult": 1.0},
-    "reverse": {"name": "Reverse Holo", "chance": 0.06,  "mult": 1.5},
-    "holo":    {"name": "Holo",         "chance": 0.04,  "mult": 2.5},
-    "alt":     {"name": "Alt Art",      "chance": 0.025, "mult": 3.0},
-    "gold":    {"name": "Golden",       "chance": 0.01,  "mult": 6.0},
+    "bw":      {"name": "Czarno-biała", "chance": 0.05,  "mult": 1.3},
+    "reverse": {"name": "Reverse Holo", "chance": 0.05,  "mult": 1.5},
+    "silver":  {"name": "Srebrna",      "chance": 0.03,  "mult": 2.0},
+    "holo":    {"name": "Holo",         "chance": 0.025, "mult": 2.5},
+    "gold":    {"name": "Złota",        "chance": 0.01,  "mult": 6.0},
+    "diamond": {"name": "Diamentowa",   "chance": 0.003, "mult": 15.0},
 }
 VARIANT_ORDER = list(VARIANTS)   # od najpospolitszego do najrzadszego
 
 # Kuźnia - kontrakt: ile kart danej rzadkości daje 1 kartę rzadkości wyższej
-CONTRACT_SIZE = {"green": 3, "blue": 3, "purple": 3, "red": 3, "gold": 4, "ultra": 5}
+CONTRACT_SIZE = {"green": 3, "blue": 3, "purple": 3, "red": 3, "gold": 4}   # tajnych kart nie da się wytworzyć
 CONTRACT_VARIANT_BONUS = 0.5   # każda karta w specjalnym wariancie zwiększa szanse na wariant o 50%
 # Kuźnia - ulepszacz: szansa = wartość wkładu / wartość celu * UPGRADE_EDGE (max UPGRADE_MAX)
 UPGRADE_EDGE = 0.9

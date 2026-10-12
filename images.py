@@ -337,10 +337,6 @@ def prefetch_all_async():
         with _lock:
             res = fetch(list(catalog.PEOPLE))
         print(f"[zdjęcia] główne: {sum(res.values())}/{len(res)}")
-        with _lock:
-            n = fetch_alt(list(catalog.PEOPLE))
-        if n:
-            print(f"[zdjęcia] nowe zdjęcia alternatywne: {n}")
     threading.Thread(target=run, daemon=True).start()
 
 

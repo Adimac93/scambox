@@ -117,6 +117,9 @@ def init_db():
     if "variant" not in cols:  # migracja: holo (0/1) -> variant
         conn.execute("ALTER TABLE items ADD COLUMN variant TEXT NOT NULL DEFAULT 'normal'")
         conn.execute("UPDATE items SET variant = 'holo' WHERE holo = 1")
+    # migracja: wariant Alt Art został usunięty -> karty Alt Art zamieniamy na Holo (najbliższa wartość)
+    conn.execute("UPDATE items SET variant = 'holo' WHERE variant = 'alt'")
+    conn.execute("UPDATE feed SET variant = 'holo' WHERE variant = 'alt'")
     if "user_id" not in cols:  # migracja: karty należą do kont
         conn.execute("ALTER TABLE items ADD COLUMN user_id INTEGER")
     conn.execute("CREATE INDEX IF NOT EXISTS items_user ON items (user_id)")
@@ -385,9 +388,10 @@ def image(person_id, kind="main"):
     if p is None:
         return "", 404
     if p["rarity"] == "secret" and person_id not in discovered():
-        # ?admin=1 - podgląd w panelu admina (po kliknięciu "Pokaż tajne karty")
+        # ?admin=1 - podgląd w panelu admina, ?feed=ID - tajna karta pokazana w aktywności znajomych
         u = current_user()
-        if not (request.args.get("admin") == "1" and u and u["is_admin"]):
+        allowed = (request.args.get("admin") == "1" and u and u["is_admin"]) or                   (u and feed_entry_visible(request.args.get("feed"), person_id))
+        if not allowed:
             return svg_response(MYSTERY_SVG)
     path = images.ensure(person_id, alt=(kind == "alt"))
     if path:
@@ -595,6 +599,8 @@ def contract():
         return jsonify({"error": "Nie masz tych kart"}), 400
     rarities = {catalog.PEOPLE[r["person_id"]]["rarity"] for r in rows}
     rarity = rarities.pop() if len(rarities) == 1 else None
+    if rarity is not None and rarity not in CONTRACT_SIZE:
+        return jsonify({"error": "Z tych kart nie da się nic wytworzyć — tajnych kart nie można zrobić w kuźni"}), 400
     if rarity not in CONTRACT_SIZE:
         return jsonify({"error": "Wszystkie karty muszą mieć tę samą rzadkość"}), 400
     if len(rows) != CONTRACT_SIZE[rarity]:
@@ -625,6 +631,8 @@ def upgrade():
     rows = owned_rows(ids)
     if rows is None or not 1 <= len(rows) <= UPGRADE_MAX_ITEMS or target is None or variant not in VARIANTS:
         return jsonify({"error": "Nieprawidłowy wybór kart"}), 400
+    if target["rarity"] == "secret":
+        return jsonify({"error": "Tajnych kart nie da się wytworzyć w kuźni"}), 400
     stake = sum(row_value(r) for r in rows)
     goal = card_value(target, variant)
     if goal <= stake:
@@ -828,6 +836,17 @@ def visible_feed_sql():
                  OR (f.to_user_id IS NULL AND f.author_id IN (SELECT value FROM json_each(:friends))))"""
 
 
+def feed_entry_visible(feed_id, person_id):
+    try:
+        feed_id = int(feed_id)
+    except (TypeError, ValueError):
+        return False
+    me = uid()
+    row = db().execute(f"SELECT f.id {visible_feed_sql()} AND f.id = :fid AND f.person_id = :pid",
+                       {"me": me, "friends": json.dumps(sorted(friend_ids(me))), "fid": feed_id, "pid": person_id}).fetchone()
+    return row is not None
+
+
 @app.get("/api/feed")
 @login_required
 def feed():
@@ -836,10 +855,14 @@ def feed():
     rows = db().execute(f"SELECT f.*, u.username, u.avatar, (SELECT username FROM users WHERE id = f.to_user_id) AS to_name "
                         f"{visible_feed_sql()} ORDER BY f.id DESC LIMIT 60", params).fetchall()
     out = []
+    found = discovered()
     for r in rows:
-        if r["person_id"] not in catalog.PEOPLE:
+        p = catalog.PEOPLE.get(r["person_id"])
+        if p is None:
             continue
-        out.append({"id": r["id"], "kind": r["kind"], "person": r["person_id"], "variant": r["variant"],
+        # tajną kartę znajomego widać w aktywności, nawet jeśli samemu jej jeszcze nie odkryłeś
+        reveal = public_person(p, {p["id"]}) if p["rarity"] == "secret" and p["id"] not in found else None
+        out.append({"id": r["id"], "kind": r["kind"], "person": r["person_id"], "variant": r["variant"], "reveal": reveal,
                     "message": r["message"], "created": r["created_at"], "mine": r["author_id"] == me,
                     "author": {"username": r["username"], "avatar": r["avatar"]}, "to": r["to_name"],
                     "value": card_value(catalog.PEOPLE[r["person_id"]], r["variant"])})
@@ -1159,8 +1182,7 @@ def admin_refetch(pid):
     if pid not in catalog.PEOPLE:
         return jsonify({"error": "Nie ma takiej karty"}), 404
     main = images.fetch([pid], force=True).get(pid)
-    alt = images.fetch_alt([pid], force=True)
-    return jsonify({"ok": True, "main": bool(main), "alt": bool(alt)})
+    return jsonify({"ok": True, "main": bool(main)})
 
 
 @app.get("/api/admin/users")

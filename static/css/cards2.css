@@ -293,3 +293,92 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 .sreveal.ready .sr-hint { animation: riseIn .4s both, blink 1.4s ease-in-out .4s infinite; }
 .sr-flash { position: absolute; inset: 0; z-index: 6; pointer-events: none; opacity: 0; background: radial-gradient(circle, #fff 30%, #fff6d0 60%, #ffd54a); }
 .sreveal.p-reveal .sr-flash { animation: flash 1.2s ease-out; }
+
+/* ============================================================ NOWE WARIANTY: czarno-biała, srebrna, diamentowa */
+/* tagi */
+.var-tag.vt-bw, .ph.vt-bw { background: #000; color: #fff; border: 1px solid #fff; box-shadow: .15em .15em 0 #fff8; }
+.var-tag.vt-silver, .ph.vt-silver { background: linear-gradient(90deg, #6f7a88, #f4f7fb, #9aa5b4); color: #1e2430; text-shadow: none; box-shadow: 0 0 .6em #dfe6f0; }
+.var-tag.vt-diamond, .ph.vt-diamond {
+  background: linear-gradient(90deg, #9ff6ff, #ffffff, #c9b8ff, #9ff6ff); background-size: 200% 100%; color: #123047; text-shadow: none;
+  box-shadow: 0 0 .8em #9ff6ff, 0 0 1.6em #c9b8ff88; animation: rainbowSlide 2.5s linear infinite;
+}
+.vdot.vt-bw { background: linear-gradient(90deg, #000 50%, #fff 50%); border: 1px solid #888; }
+.vdot.vt-silver { background: #c9d1dc; }
+.vdot.vt-diamond { background: linear-gradient(135deg, #9ff6ff, #fff, #c9b8ff); box-shadow: 0 0 6px #9ff6ff; }
+.odd.odd-v.vt-bw { border-left-color: #fff; }
+.odd.odd-v.vt-silver { border-left-color: #c9d1dc; }
+.odd.odd-v.vt-diamond { border-left-color: #9ff6ff; }
+
+/* Czarno-biała - cała karta w czerni i bieli, mocny kontrast, czarna ramka */
+.card.v-bw { filter: grayscale(1) contrast(1.18); --frame: linear-gradient(145deg, #2a2a2a, #000 50%, #2a2a2a); box-shadow: 0 6px 18px #000a, 0 0 0 1px #fff4; }
+.card.v-bw .card-inner { background: linear-gradient(170deg, #ffffff, #dcdcdc); }
+.card.v-bw .card-photo { border-image: none; border-color: #000; }
+.card.v-bw .card-photo img, .r-secret.v-bw .sc-art img { filter: contrast(1.25) brightness(1.05); }
+.card.v-bw .var-tag { filter: none; }
+.pick.v-bw img { filter: grayscale(1) contrast(1.2); }
+
+/* Srebrna - srebrny metal, zdjęcie w chłodnej szarości */
+.card.v-silver {
+  --frame: linear-gradient(115deg, #5d6673, #f4f7fb 18%, #8f9aa8 36%, #ffffff 50%, #7c8796 66%, #e3e8ef 84%, #5d6673);
+  background-size: 250% 250%; animation: goldShift 3.5s ease-in-out infinite;
+  box-shadow: 0 6px 18px #000a, 0 0 22px #dfe6f0aa;
+}
+.card.v-silver .card-inner {
+  background: repeating-linear-gradient(90deg, #ffffff20 0 1px, transparent 1px 3px),
+              linear-gradient(160deg, #f6f8fb, #c4ccd7 35%, #f1f4f8 55%, #a8b2bf 80%, #e9edf2);
+  color: #1e2430;
+}
+.card.v-silver .card-photo img, .r-secret.v-silver .sc-art img { filter: grayscale(1) brightness(1.08) contrast(1.15) sepia(.15) hue-rotate(180deg); }
+.card.v-silver .card-name { background: linear-gradient(180deg, #3b4350, #10141b); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.card.v-silver .card-photo { border-image: linear-gradient(135deg, #ffffff, #8f9aa8, #f4f7fb, #5d6673) 1; }
+.pick.v-silver img { filter: grayscale(1) brightness(1.1) contrast(1.1); }
+.pick.v-silver { box-shadow: inset 0 0 0 2px #dfe6f0, inset 0 -26px 26px -18px var(--rc); }
+
+/* Diamentowa - lodowe, pryzmatyczne fasety, mieniąca się ramka i błyski */
+.card.v-diamond {
+  --frame: conic-gradient(from var(--ang, 0deg), #9ff6ff, #ffffff, #c9b8ff, #e8fbff, #7fd8ff, #ffffff, #d9c9ff, #9ff6ff);
+  animation: ultraSpin 5s linear infinite;
+  box-shadow: 0 6px 18px #000a, 0 0 24px #9ff6ffcc, 0 0 50px #c9b8ff88;
+}
+.card.v-diamond .card-inner {
+  background:
+    repeating-conic-gradient(from 0deg at 30% 20%, #ffffff55 0 12deg, #d8f6ff33 12deg 24deg),
+    repeating-conic-gradient(from 45deg at 75% 80%, #e6dcff44 0 15deg, transparent 15deg 30deg),
+    linear-gradient(160deg, #f4feff, #d6f3ff 40%, #efe9ff 75%, #ffffff);
+}
+.card.v-diamond .card-photo { border-image: linear-gradient(135deg, #ffffff, #9ff6ff, #c9b8ff, #ffffff) 1; }
+.card.v-diamond .card-photo img, .r-secret.v-diamond .sc-art img { filter: brightness(1.06) saturate(1.1) contrast(1.05); }
+.diamond-layer {
+  position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none; mix-blend-mode: screen; opacity: .55;
+  background:
+    linear-gradient(115deg, transparent 30%, #ffffffcc 42%, #b8f4ff88 47%, transparent 58%),
+    linear-gradient(65deg, transparent 40%, #e6dcff99 50%, transparent 60%);
+  background-size: 260% 100%, 300% 100%;
+  animation: diamondSweep 3.2s ease-in-out infinite;
+}
+@keyframes diamondSweep { 0% { background-position: 160% 0, -120% 0; } 100% { background-position: -100% 0, 180% 0; } }
+.diamond-glints { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.diamond-glints i {
+  position: absolute; width: 9%; aspect-ratio: 1; opacity: 0;
+  background: radial-gradient(circle, #fff 0 12%, transparent 13%),
+              linear-gradient(0deg, transparent 46%, #fff 50%, transparent 54%),
+              linear-gradient(90deg, transparent 46%, #fff 50%, transparent 54%);
+  filter: drop-shadow(0 0 4px #9ff6ff);
+  animation: glint 2.4s ease-in-out infinite;
+}
+.diamond-glints i:nth-child(1) { left: 12%; top: 18%; animation-delay: 0s; }
+.diamond-glints i:nth-child(2) { left: 78%; top: 12%; animation-delay: .5s; }
+.diamond-glints i:nth-child(3) { left: 66%; top: 52%; animation-delay: 1s; }
+.diamond-glints i:nth-child(4) { left: 20%; top: 70%; animation-delay: 1.5s; }
+.diamond-glints i:nth-child(5) { left: 84%; top: 84%; animation-delay: 1.9s; }
+@keyframes glint { 0%, 100% { opacity: 0; transform: scale(.3) rotate(0deg); } 45% { opacity: 1; transform: scale(1.15) rotate(45deg); } 60% { opacity: 0; } }
+.pick.v-diamond { box-shadow: inset 0 0 0 2px #9ff6ff, 0 0 10px #9ff6ff88, inset 0 -26px 26px -18px var(--rc); }
+.pick.v-diamond::after, .pick.v-silver::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(115deg, transparent 30%, #ffffff60 45%, transparent 60%); background-size: 250% 100%;
+  animation: photoGlint 2.6s ease-in-out infinite;
+}
+
+/* tajna karta znajomego w aktywności */
+.feed-item.fi-secret { background: linear-gradient(90deg, #3a2a08cc, var(--panel2)); border-color: #f3e3b088; box-shadow: 0 0 18px #ffd54a33; }
+.feed-item.fi-secret .fi-name { font-family: Cinzel, Georgia, serif; color: #f3e3b0; }

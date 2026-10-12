@@ -42,7 +42,7 @@ To stop sharing: `tailscale serve --https=443 off`.
 - 2 crates × 50 people + 1 SECRET card per crate, rarities: green → blue → purple → red → gold (1%) → ULTRA (0.2%) → ★ SECRET (1 in 2137)
 - 📦 Chests in your inventory: buy them for later ("🛒 Kup do ekwipunku"); opening uses owned chests first
 - Secret cards stay hidden ("???") until you obtain them; they have their own card design and their own reveal
-- Variants: Reverse Holo, Holo, Alt Art (different photo), Golden, each with its own odds and value multiplier
+- Variants: Black & white, Reverse Holo, Silver, Holo, Golden, Diamond, each with its own odds and value multiplier
 - ⚙️ Admin panel at /admin: add, edit and hide crates and cards (photos from Wikipedia, a URL or an uploaded file)
 - Epic full-screen reveal for Legendary and ULTRA drops
 - 🔍 Card viewer: click a card (in the Inventory use 🔍 or right-click) to enlarge, tilt and flip it
@@ -50,7 +50,7 @@ To stop sharing: `tailscale serve --https=443 off`.
 - 👥 Friends: invitations, activity feed (shown cards + legendary drops), "📣 Pokaż znajomym" button on a card
 - 👤 Profiles: showcase of 6 cards and the binder of every player; 🏆 ranking (collection value, cards, crates)
 - 💸 Bank: admin only
-- ⚒️ Forge: **Kontrakt** (N cards of one rarity → 1 card of the next) and **Ulepszacz** (upgrade wheel, CS-site style)
+- ⚒️ Forge: **Kontrakt** (N cards of one rarity → 1 card of the next) and **Ulepszacz** (upgrade wheel, CS-site style); secret cards cannot be crafted
 
 ## Files
 - `data.py` – DEFAULT cards and crates, rarities, odds, variants, prices. The easiest way to change cards is the admin panel (/admin).

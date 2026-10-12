@@ -9,7 +9,7 @@ const fmt = n => Math.round(n).toLocaleString("pl-PL") + " $";
 
 const COUNT_CHIPS = [1, 2, 3, 5, 10, 15, 20];
 const INV_PAGE = 120;
-const VARIANT_TAGS = { reverse: "REVERSE", holo: "HOLO", alt: "ALT ART", gold: "GOLDEN" };
+const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", silver: "SILVER", holo: "HOLO", gold: "GOLDEN", diamond: "💎 DIAMOND" };
 
 const S = {
   cfg: null,
@@ -54,8 +54,9 @@ function variantName(v) { return S.cfg.variants[v || "normal"].name; }
 function cardValue(pid, v = "normal") {
   return Math.round(S.cfg.rarities[person(pid).rarity].value * S.cfg.variants[v || "normal"].mult);
 }
-function imgUrl(pid, alt = false) {
-  return `/img/${pid}${alt ? "/alt" : ""}?v=${person(pid).imgv || 0}`;
+function imgUrl(pid) {
+  const p = person(pid);
+  return `/img/${pid}?v=${p.imgv || 0}${p.imgq ? "&" + p.imgq : ""}`;
 }
 function crateStyle(c) {
   return `--crate-bg: linear-gradient(180deg, ${c.color1} 0 50%, ${c.color2} 50%); --crate-lid: linear-gradient(180deg, ${c.color1}, ${c.color2})`;
@@ -66,7 +67,8 @@ function crateStyle(c) {
 function variantLayers(v) {
   let html = "";
   if (v === "holo") html += '<div class="holo-layer"></div>';
-  if (v === "gold") html += '<div class="gold-sheen"></div>';
+  if (v === "gold" || v === "silver") html += '<div class="gold-sheen"></div>';
+  if (v === "diamond") html += '<div class="diamond-layer"></div><div class="diamond-glints"><i></i><i></i><i></i><i></i><i></i></div>';
   if (isSpecial(v)) html += `<div class="var-tag vt-${v}">${VARIANT_TAGS[v]}</div>`;
   return html;
 }
@@ -89,7 +91,7 @@ function cardHTML(pid, variant = "normal") {
         <span class="card-hp"><small>HP</small>${p.hp}</span>
         <span class="card-type">${type.icon}</span>
       </div>
-      <div class="card-photo"><img src="${imgUrl(p.id, variant === "alt")}" alt="${esc(p.name)}" loading="lazy" draggable="false"></div>
+      <div class="card-photo"><img src="${imgUrl(p.id)}" alt="${esc(p.name)}" loading="lazy" draggable="false"></div>
       <div class="card-sub">${type.name} · ${esc(crate.short)}</div>
       <div class="card-attack">
         <span class="atk-cost">${cost}</span>
@@ -119,7 +121,7 @@ function secretCardHTML(p, variant) {
   return `
   <div class="card r-secret v-${variant}" data-pid="${p.id}" data-variant="${variant}">
     <div class="sc">
-      <div class="sc-art"><img src="${imgUrl(p.id, variant === "alt")}" alt="${esc(p.name)}" loading="lazy" draggable="false"></div>
+      <div class="sc-art"><img src="${imgUrl(p.id)}" alt="${esc(p.name)}" loading="lazy" draggable="false"></div>
       <div class="sc-halo"></div>
       <div class="sc-stars"></div>
       ${variant === "reverse" ? '<div class="rev-foil"></div>' : ""}
@@ -180,7 +182,7 @@ document.addEventListener("pointermove", e => {
   if (!card) return;
   const b = card.getBoundingClientRect();
   const px = (e.clientX - b.left) / b.width, py = (e.clientY - b.top) / b.height;
-  const fancy = card.matches(".r-secret, .v-holo, .v-reverse, .v-gold, .v-alt");
+  const fancy = card.matches(".r-secret, .v-holo, .v-reverse, .v-gold, .v-silver, .v-diamond, .v-bw");
   const strength = card.closest(".viewer") ? 1.5 : fancy || card.closest(".modal") ? 1 : 0.6;
   card.classList.add("tilting");
   card.style.setProperty("--rx", ((0.5 - py) * 16 * strength).toFixed(2) + "deg");
@@ -591,9 +593,12 @@ function showResults(afterEpic = false) {
   const specials = o.drops.filter(d => isSpecial(d.variant));
   if (specials.length && !afterEpic) {
     const top = specials.reduce((a, d) => varRank(d.variant) > varRank(a.variant) ? d : a);
-    const colors = { gold: ["#ffc531", "#fff3b0", "#fff"], alt: ["#ff5468", "#ffcf3f", "#fff"], holo: ["#9ff6ff", "#ff9ff3", "#fff"], reverse: ["#c9d6ff", "#ffffff", "#9ff6ff"] }[top.variant];
-    setTimeout(() => confetti(colors, top.variant === "gold" ? 140 : 60), 300);
-    if (top.variant === "gold") toast(`✨ GOLDEN: ${person(top.person).name}!`);
+    const colors = {
+      diamond: ["#e8fbff", "#9ff6ff", "#c9b8ff", "#ffffff"], gold: ["#ffc531", "#fff3b0", "#fff"], holo: ["#9ff6ff", "#ff9ff3", "#fff"],
+      silver: ["#e6ebf2", "#b8c2d0", "#ffffff"], reverse: ["#c9d6ff", "#ffffff", "#9ff6ff"], bw: ["#ffffff", "#111111", "#888888"],
+    }[top.variant];
+    setTimeout(() => confetti(colors, top.variant === "diamond" ? 260 : top.variant === "gold" ? 140 : 60), 300);
+    if (top.variant === "gold" || top.variant === "diamond") toast(`✨ ${variantName(top.variant).toUpperCase()}: ${person(top.person).name}!`);
   }
 
   updateStageBar();
