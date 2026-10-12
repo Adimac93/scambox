@@ -1478,8 +1478,20 @@ def lan_address():
         return "?"
 
 
+def port_in_use(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(0.5)
+        return s.connect_ex(("127.0.0.1", port)) == 0
+
+
 if __name__ == "__main__":
     port = 5001 if TEST_MODE else 5000
+    # na Windowsie kilka kopii gry może słuchać na tym samym porcie - wtedy część zapytań trafia do starej wersji
+    if os.environ.get("WERKZEUG_RUN_MAIN") != "true" and port_in_use(port):
+        print(f"\n  !!! Gra już działa (port {port} jest zajęty) - prawdopodobnie w innym czarnym oknie.")
+        print("  Zamknij tamto okno (Ctrl+C) i uruchom grę jeszcze raz. To okno możesz zamknąć.\n")
+        input("  Naciśnij Enter, aby zamknąć...")
+        sys.exit(1)
     # w trybie debug Flask uruchamia proces dwa razy - pobieramy zdjęcia tylko w procesie roboczym
     if not DEV_MODE or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         images.prefetch_all_async()
