@@ -85,3 +85,23 @@ legend { padding: 0 6px; color: var(--text); font-weight: 700; font-size: 14px; 
 .a-chests { font-size: 13px; }
 .a-chest-form { flex-direction: column; max-width: 460px; width: 100%; gap: 10px; }
 .a-chest-form h3 { margin: 0; }
+
+/* sklep, dostęp, szanse, gracze */
+.a-crate-txt .a-badges { margin-top: 3px; }
+.chk { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+fieldset .chk { display: flex; margin: 4px 0; color: var(--text); font-size: 14px; }
+.a-user-checks, .a-crate-checks { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; }
+.a-crate-checks { flex-direction: column; gap: 4px; }
+.a-crate-checks .chk { color: var(--text); font-size: 14px; }
+.a-weights label { border-left: 3px solid var(--rc); padding-left: 8px; }
+.a-wname { color: var(--rc); font-weight: 700; }
+.a-user.banned { opacity: .7; background: repeating-linear-gradient(45deg, #3a1520 0 10px, var(--panel2) 10px 20px); }
+.ban-tag { color: #ffb3bf; font-weight: 700; }
+.a-ucards-box { flex-direction: column; width: min(720px, 100%); max-width: 720px; gap: 10px; }
+.a-ucards-box h3, .a-access-form h3 { margin: 0; }
+.a-ucards { display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow: auto; }
+.a-ucard { display: grid; grid-template-columns: 44px 1fr auto auto; gap: 10px; align-items: center; padding: 6px 8px; border-radius: 10px; background: var(--panel2); border-left: 3px solid var(--rc); font-size: 14px; }
+.a-ucard img { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; object-position: 50% 18%; }
+.a-ucount { font-family: Bungee, Rubik, sans-serif; }
+.a-uc-actions { display: flex; gap: 4px; }
+.a-access-form { display: flex; flex-direction: column; gap: 8px; min-width: min(420px, 90vw); }

@@ -100,6 +100,8 @@ def init_db():
                                                 PRIMARY KEY (requester_id, addressee_id));
         CREATE TABLE IF NOT EXISTS showcase (user_id INTEGER NOT NULL, pos INTEGER NOT NULL, item_id INTEGER NOT NULL,
                                              PRIMARY KEY (user_id, pos));
+        CREATE TABLE IF NOT EXISTS crate_access (user_id INTEGER NOT NULL, crate_id TEXT NOT NULL,
+                                                 PRIMARY KEY (user_id, crate_id));
         CREATE TABLE IF NOT EXISTS user_chests (user_id INTEGER NOT NULL, kind TEXT NOT NULL, count INTEGER NOT NULL,
                                                 PRIMARY KEY (user_id, kind));
         CREATE TABLE IF NOT EXISTS feed (
@@ -123,6 +125,10 @@ def init_db():
     if "user_id" not in cols:  # migracja: karty należą do kont
         conn.execute("ALTER TABLE items ADD COLUMN user_id INTEGER")
     conn.execute("CREATE INDEX IF NOT EXISTS items_user ON items (user_id)")
+    ucols = [r[1] for r in conn.execute("PRAGMA table_info(users)")]
+    if "banned" not in ucols:  # migracja: blokowanie kont
+        conn.execute("ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0")
+        conn.execute("ALTER TABLE users ADD COLUMN ban_reason TEXT NOT NULL DEFAULT ''")
     catalog.init_tables(conn)
     conn.commit()
     catalog.rebuild(conn)
@@ -160,6 +166,10 @@ def uid():
 def login_required(fn):
     @functools.wraps(fn)
     def wrapper(*a, **kw):
+        u = current_user()
+        if u is not None and u["banned"]:  # zablokowane konto - wylogowujemy
+            session.clear()
+            g.user = None
         if current_user() is None:
             if request.path.startswith("/api/"):
                 return jsonify({"error": "Zaloguj się", "login": True}), 401
@@ -229,6 +239,9 @@ def login():
     if u is None or not check_password_hash(u["password_hash"], body.get("password") or ""):
         time.sleep(0.4)
         return jsonify({"error": "Zła nazwa użytkownika lub hasło"}), 400
+    if u["banned"]:
+        reason = f" Powód: {u['ban_reason']}" if u["ban_reason"] else ""
+        return jsonify({"error": f"To konto zostało zablokowane przez admina.{reason}"}), 403
     ensure_state(db(), u["id"])
     db().commit()
     session.clear()
@@ -301,6 +314,19 @@ def add_chests(kind, delta, user_id=None):
     db().execute("UPDATE user_chests SET count = MAX(0, count + ?) WHERE user_id = ? AND kind = ?", (delta, user_id, kind))
 
 
+def has_access(crate_id, user_id=None):
+    return db().execute("SELECT 1 FROM crate_access WHERE user_id = ? AND crate_id = ?",
+                        (user_id or uid(), crate_id)).fetchone() is not None
+
+
+def can_buy(crate):
+    """Czy zalogowany gracz może KUPIĆ tę skrzynkę (otwieranie posiadanych skrzynek jest zawsze możliwe)."""
+    u = current_user()
+    if u is not None and u["is_admin"]:
+        return True
+    return crate["shop"] and (not crate["restricted"] or has_access(crate["id"]))
+
+
 def roll_money(kind):
     c = MONEY_CHESTS[kind]
     amount = c["min"] + (c["max"] - c["min"]) * rng.random() ** c["curve"]
@@ -348,9 +374,9 @@ def img_version(pid):
 def public_person(p, found):
     """Karta dla klienta - tajne karty są zamaskowane, dopóki ich nie zdobędziesz."""
     if p["rarity"] == "secret" and p["id"] not in found:
-        return {"id": p["id"], "rarity": "secret", "crate": p["crate"], "number": p["number"], "masked": True,
+        return {"id": p["id"], "rarity": "secret", "crate": p["crate"], "crates": p["crates"], "number": p["number"], "masked": True,
                 "name": "???", "type": "tv", "hp": 0, "attack": "???", "dmg": 0, "imgv": 0}
-    base = {k: p.get(k) for k in ("id", "name", "rarity", "type", "hp", "attack", "dmg", "crate", "number")}
+    base = {k: p.get(k) for k in ("id", "name", "rarity", "type", "hp", "attack", "dmg", "crate", "crates", "number")}
     base["imgv"] = img_version(p["id"])
     return base
 
@@ -411,8 +437,10 @@ def image(person_id, kind="main"):
 # ---------------------------------------------------------------- API gry
 
 def crate_json(c):
-    return {k: c.get(k) for k in ("id", "name", "short", "code", "emoji", "color1", "color2", "price", "desc")} | \
-           {"people": [p["id"] for p in c["people"]]}
+    return {k: c.get(k) for k in ("id", "name", "short", "code", "emoji", "color1", "color2", "price", "desc",
+                                  "shop", "restricted")} | \
+           {"people": [p["id"] for p in c["people"]],
+            "weights": {r: catalog.crate_weight(c, r) for r in RARITY_ORDER}}
 
 
 @app.get("/api/config")
@@ -426,7 +454,7 @@ def config():
         "variantOrder": VARIANT_ORDER,
         "types": TYPES,
         "people": {pid: public_person(p, found) for pid, p in catalog.PEOPLE.items()},
-        "crates": {cid: crate_json(c) for cid, c in catalog.CRATES.items()},
+        "crates": {cid: crate_json(c) | {"canBuy": can_buy(c)} for cid, c in catalog.CRATES.items()},
         "crateOrder": list(catalog.CRATES),
         "maxOpen": MAX_OPEN,
         "startingBalance": STARTING_BALANCE,
@@ -468,7 +496,7 @@ def roll_variant(factor=1.0):
 
 def roll(crate):
     present = {p["rarity"] for p in crate["people"]}
-    weights = [RARITIES[r]["weight"] if r in present else 0 for r in RARITY_ORDER]
+    weights = [catalog.crate_weight(crate, r) if r in present else 0 for r in RARITY_ORDER]
     rarity = rng.choices(RARITY_ORDER, weights=weights)[0]
     person = rng.choice([p for p in crate["people"] if p["rarity"] == rarity])
     return person, roll_variant()
@@ -486,6 +514,9 @@ def open_crates():
         return jsonify({"error": "Ta skrzynka jest pusta"}), 400
     owned = get_chests().get(crate["id"], 0) if body.get("useOwned", True) else 0
     from_inv = min(owned, count)
+    if from_inv < count and not can_buy(crate):
+        msg = "Ta skrzynka jest dostępna tylko dla wybranych graczy" if crate["shop"] else "Tej skrzynki nie ma teraz w sklepie"
+        return jsonify({"error": msg + (f" — możesz otworzyć tylko te z ekwipunku ({owned})" if owned else "")}), 403
     cost = (count - from_inv) * crate["price"]
     if get_state()["balance"] < cost:
         return jsonify({"error": "Za mało pieniędzy!"}), 400
@@ -512,6 +543,8 @@ def buy_chests():
     count = int(body.get("count", 1))
     if crate is None or not 1 <= count <= 100:
         return jsonify({"error": "Nieprawidłowe żądanie"}), 400
+    if not can_buy(crate):
+        return jsonify({"error": "Nie możesz kupić tej skrzynki"}), 403
     cost = count * crate["price"]
     if get_state()["balance"] < cost:
         return jsonify({"error": "Za mało pieniędzy!"}), 400
@@ -823,7 +856,7 @@ def user_search():
     q = (request.args.get("q") or "").strip()
     if len(q) < 1:
         return jsonify({"users": []})
-    rows = db().execute("SELECT * FROM users WHERE username LIKE ? ORDER BY username LIMIT 10",
+    rows = db().execute("SELECT * FROM users WHERE banned = 0 AND username LIKE ? ESCAPE '\\' ORDER BY username LIMIT 10",
                         ("%" + q.replace("%", "").replace("_", "\\_") + "%",)).fetchall()
     return jsonify({"users": [user_json(u) for u in rows]})
 
@@ -987,7 +1020,7 @@ def ranking():
     opened = {r[0]: r[1] for r in db().execute("SELECT user_id, value FROM user_state WHERE key = 'opened'")}
     friends_of_me = friend_ids(uid())
     players = []
-    for u in db().execute("SELECT * FROM users"):
+    for u in db().execute("SELECT * FROM users WHERE banned = 0"):
         b = brief(u, stats)
         b["opened"] = opened.get(u["id"], 0)
         b["friend"] = u["id"] in friends_of_me
@@ -1027,7 +1060,7 @@ def unique_id(base, taken):
 
 
 def admin_card_json(p):
-    return dict({k: p.get(k) for k in ("id", "name", "rarity", "type", "hp", "attack", "dmg", "crate",
+    return dict({k: p.get(k) for k in ("id", "name", "rarity", "type", "hp", "attack", "dmg", "crate", "crates",
                                        "number", "builtin", "modified")},
                 wiki=list(p["wiki"]) if p.get("wiki") else None,
                 hasImage=bool(images.find(p["id"])), hasAlt=bool(images.find(p["id"], True)),
@@ -1042,15 +1075,22 @@ def refresh_catalog():
 @admin_required
 def admin_catalog():
     counts = {r[0]: r[1] for r in db().execute("SELECT person_id, COUNT(*) FROM items GROUP BY person_id")}
-    crates = [dict(crate_json(c), builtin=c["builtin"], modified=c["modified"], hidden=False)
+    access = {}
+    for r in db().execute("SELECT user_id, crate_id FROM crate_access"):
+        access.setdefault(r[1], []).append(r[0])
+    crates = [dict(crate_json(c), builtin=c["builtin"], modified=c["modified"], hidden=False,
+                   customWeights=c["weights"], allowed=access.get(c["id"], []))
               for c in catalog.CRATES.values()]
-    crates += [dict(crate_json(dict(c, people=[])), builtin=True, modified=False, hidden=True)
+    crates += [dict(crate_json(dict(c, people=[])), builtin=True, modified=False, hidden=True,
+                    customWeights=c.get("weights") or {}, allowed=access.get(c["id"], []))
                for c in catalog.HIDDEN_CRATES.values()]
     cards = [dict(admin_card_json(p), owned=counts.get(p["id"], 0), hidden=False) for p in catalog.PEOPLE.values()]
     cards += [dict(admin_card_json(dict(p, number=0)), owned=counts.get(p["id"], 0), hidden=True)
               for p in catalog.HIDDEN_CARDS.values() if p.get("crate") in catalog.CRATES]
+    users = [{"id": u["id"], "username": u["username"], "avatar": u["avatar"]}
+             for u in db().execute("SELECT * FROM users ORDER BY username COLLATE NOCASE")]
     return jsonify({"crates": crates, "cards": cards, "rarities": RARITIES, "rarityOrder": RARITY_ORDER,
-                    "types": TYPES, "defaultPrice": CRATE_PRICE})
+                    "types": TYPES, "defaultPrice": CRATE_PRICE, "users": users})
 
 
 @app.post("/api/admin/crates")
@@ -1073,11 +1113,25 @@ def admin_save_crate():
         "color2": body.get("color2") or "#333333",
         "price": price,
         "desc": (body.get("desc") or "").strip()[:120],
+        "shop": bool(body.get("shop", True)),
+        "restricted": bool(body.get("restricted", False)),
     }
+    weights = {}
+    for r, w in (body.get("weights") or {}).items():
+        if r in RARITIES and w not in (None, ""):
+            try:
+                weights[r] = max(0.0, min(1000.0, float(w)))
+            except (TypeError, ValueError):
+                return jsonify({"error": "Szanse muszą być liczbami"}), 400
+    fields["weights"] = weights
     cid = body.get("id")
     if not cid:
         cid = unique_id(slug(name), set(catalog.CRATES) | set(catalog.HIDDEN_CRATES))
     catalog.save_override(db(), "catalog_crates", cid, fields)
+    if "allowed" in body:  # lista graczy z dostępem do skrzynki
+        db().execute("DELETE FROM crate_access WHERE crate_id = ?", (cid,))
+        for user_id in {int(x) for x in body.get("allowed") or []}:
+            db().execute("INSERT OR IGNORE INTO crate_access (user_id, crate_id) VALUES (?, ?)", (user_id, cid))
     db().commit()
     refresh_catalog()
     return jsonify({"ok": True, "id": cid})
@@ -1094,8 +1148,9 @@ def admin_delete_crate(cid):
         catalog.mark_deleted(conn, "catalog_crates", cid)  # wbudowaną tylko ukrywamy
     else:
         catalog.remove_row(conn, "catalog_crates", cid)
+        conn.execute("DELETE FROM crate_access WHERE crate_id = ?", (cid,))
         for p in crate["people"]:
-            if not p["builtin"]:
+            if not p["builtin"] and p["crates"] == [cid]:  # karty tylko z tej skrzynki
                 catalog.remove_row(conn, "catalog_cards", p["id"])
     conn.commit()
     refresh_catalog()
@@ -1118,11 +1173,12 @@ def admin_restore_crate(cid):
 def admin_save_card():
     f = request.form
     name = (f.get("name") or "").strip()
-    crate = f.get("crate")
+    crates = [c for c in dict.fromkeys(f.getlist("crates") or [f.get("crate")]) if c in catalog.CRATES]
+    crate = crates[0] if crates else None
     if not name:
         return jsonify({"error": "Podaj nazwę karty"}), 400
-    if crate not in catalog.CRATES:
-        return jsonify({"error": "Wybierz skrzynkę"}), 400
+    if crate is None:
+        return jsonify({"error": "Wybierz co najmniej jedną skrzynkę"}), 400
     if f.get("rarity") not in RARITIES or f.get("type") not in TYPES:
         return jsonify({"error": "Nieprawidłowa rzadkość lub typ"}), 400
     try:
@@ -1131,7 +1187,7 @@ def admin_save_card():
         return jsonify({"error": "HP i obrażenia muszą być liczbami"}), 400
     wiki_title = (f.get("wiki_title") or "").strip()
     fields = {
-        "name": name[:60], "crate": crate, "rarity": f["rarity"], "type": f["type"],
+        "name": name[:60], "crate": crate, "crates": crates, "rarity": f["rarity"], "type": f["type"],
         "hp": max(0, min(9999, hp)), "dmg": max(0, min(9999, dmg)),
         "attack": (f.get("attack") or "Atak").strip()[:40],
         "wiki": [(f.get("wiki_lang") or "pl").strip()[:5], wiki_title] if wiki_title else None,
@@ -1209,11 +1265,76 @@ def admin_refetch(pid):
 def admin_users():
     stats = collection_stats()
     bal = {r[0]: r[1] for r in db().execute("SELECT user_id, value FROM user_state WHERE key = 'balance'")}
-    users = [dict(brief(u, stats), balance=bal.get(u["id"], 0), created=u["created_at"], chests=get_chests(u["id"]))
+    access = {}
+    for r in db().execute("SELECT user_id, crate_id FROM crate_access"):
+        access.setdefault(r[0], []).append(r[1])
+    users = [dict(brief(u, stats), balance=bal.get(u["id"], 0), created=u["created_at"], chests=get_chests(u["id"]),
+                  banned=bool(u["banned"]), banReason=u["ban_reason"], access=access.get(u["id"], []))
              for u in db().execute("SELECT * FROM users ORDER BY id")]
+    restricted = [{"id": c["id"], "name": c["name"], "emoji": c["emoji"], "shop": c["shop"]}
+                  for c in catalog.CRATES.values() if c["restricted"]]
     kinds = [{"kind": c["id"], "name": c["name"], "emoji": c["emoji"]} for c in catalog.CRATES.values()]
     kinds += [{"kind": "money_" + k, "name": m["name"], "emoji": m["emoji"]} for k, m in MONEY_CHESTS.items()]
-    return jsonify({"users": users, "me": uid(), "chestKinds": kinds})
+    return jsonify({"users": users, "me": uid(), "chestKinds": kinds, "restrictedCrates": restricted})
+
+
+@app.post("/api/admin/users/<int:user_id>/ban")
+@admin_required
+def admin_ban(user_id):
+    if user_id == uid():
+        return jsonify({"error": "Nie możesz zablokować samego siebie"}), 400
+    body = request.get_json(force=True)
+    ban = bool(body.get("ban", True))
+    db().execute("UPDATE users SET banned = ?, ban_reason = ? WHERE id = ?",
+                 (int(ban), (body.get("reason") or "").strip()[:200] if ban else "", user_id))
+    db().commit()
+    return jsonify({"ok": True})
+
+
+@app.get("/api/admin/users/<int:user_id>/cards")
+@admin_required
+def admin_user_cards(user_id):
+    rows = db().execute("SELECT person_id, variant, COUNT(*) AS n FROM items WHERE user_id = ? "
+                        "GROUP BY person_id, variant", (user_id,)).fetchall()
+    cards = []
+    for r in rows:
+        p = catalog.PEOPLE.get(r["person_id"])
+        if p:
+            cards.append({"person": p["id"], "name": p["name"], "rarity": p["rarity"], "variant": r["variant"],
+                          "count": r["n"], "value": card_value(p, r["variant"])})
+    order = RARITY_ORDER
+    cards.sort(key=lambda c: (-order.index(c["rarity"]), c["name"], c["variant"]))
+    return jsonify({"cards": cards, "variants": {k: v["name"] for k, v in VARIANTS.items()}})
+
+
+@app.post("/api/admin/users/<int:user_id>/cards/delete")
+@admin_required
+def admin_delete_user_cards(user_id):
+    body = request.get_json(force=True)
+    conn = db()
+    if body.get("all"):
+        ids = [r[0] for r in conn.execute("SELECT id FROM items WHERE user_id = ?", (user_id,))]
+    else:
+        n = max(1, int(body.get("count") or 1))
+        ids = [r[0] for r in conn.execute("SELECT id FROM items WHERE user_id = ? AND person_id = ? AND variant = ? "
+                                          "ORDER BY id DESC LIMIT ?", (user_id, body.get("person"), body.get("variant"), n))]
+    if ids:
+        marks = ",".join("?" * len(ids))
+        conn.execute(f"DELETE FROM items WHERE id IN ({marks})", ids)
+        conn.execute(f"DELETE FROM showcase WHERE item_id IN ({marks})", ids)
+    conn.commit()
+    return jsonify({"ok": True, "deleted": len(ids)})
+
+
+@app.post("/api/admin/users/<int:user_id>/access")
+@admin_required
+def admin_set_access(user_id):
+    crates = [c for c in request.get_json(force=True).get("crates", []) if c in catalog.CRATES]
+    db().execute("DELETE FROM crate_access WHERE user_id = ?", (user_id,))
+    for cid in crates:
+        db().execute("INSERT OR IGNORE INTO crate_access (user_id, crate_id) VALUES (?, ?)", (user_id, cid))
+    db().commit()
+    return jsonify({"ok": True})
 
 
 @app.post("/api/admin/users/<int:user_id>/chests")
@@ -1281,7 +1402,7 @@ def admin_delete_user(user_id):
     for sql in ("DELETE FROM items WHERE user_id = ?", "DELETE FROM user_state WHERE user_id = ?",
                 "DELETE FROM user_discovered WHERE user_id = ?", "DELETE FROM daily_claims WHERE user_id = ?",
                 "DELETE FROM showcase WHERE user_id = ?", "DELETE FROM feed WHERE author_id = ? OR to_user_id = ?",
-                "DELETE FROM user_chests WHERE user_id = ?",
+                "DELETE FROM user_chests WHERE user_id = ?", "DELETE FROM crate_access WHERE user_id = ?",
                 "DELETE FROM friendships WHERE requester_id = ? OR addressee_id = ?", "DELETE FROM users WHERE id = ?"):
         conn.execute(sql, (user_id,) * sql.count("?"))
     conn.commit()

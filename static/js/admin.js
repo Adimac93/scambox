@@ -51,13 +51,14 @@ function render() {
 
 function renderCrates() {
   const counts = {};
-  A.cat.cards.forEach(c => { if (!c.hidden) counts[c.crate] = (counts[c.crate] || 0) + 1; });
+  A.cat.cards.forEach(c => { if (!c.hidden) (c.crates || [c.crate]).forEach(k => { counts[k] = (counts[k] || 0) + 1; }); });
   $("#crateList").innerHTML = A.cat.crates.map(c => `
     <button class="a-crate${c.id === A.crate ? " active" : ""}${c.hidden ? " is-hidden" : ""}" data-crate="${c.id}"
             style="--c1:${esc(c.color1)}; --c2:${esc(c.color2)}">
       <span class="a-crate-ico">${esc(c.emoji)}</span>
       <span class="a-crate-txt"><b>${esc(c.name)}</b>
-        <small>${c.hidden ? "ukryta" : `${counts[c.id] || 0} kart · ${fmt(c.price)}`}${c.builtin ? " · wbudowana" : " · własna"}${c.modified ? " · zmieniona" : ""}</small></span>
+        <small>${c.hidden ? "ukryta" : `${counts[c.id] || 0} kart · ${fmt(c.price)}`}${c.builtin ? " · wbudowana" : " · własna"}${c.modified ? " · zmieniona" : ""}</small>
+        <span class="a-badges">${!c.hidden && !c.shop ? '<i class="hid">poza sklepem</i>' : ""}${c.restricted ? `<i class="mod">🔒 dla wybranych (${(c.allowed || []).length})</i>` : ""}</span></span>
     </button>`).join("");
 }
 
@@ -81,6 +82,22 @@ function crateFormHTML(c) {
       <label>Cena skrzynki ($)<input type="number" name="price" value="${esc(c.price)}" min="1" max="1000000"></label>
       <label class="wide">Opis<input type="text" name="desc" value="${esc(c.desc)}" maxlength="120" placeholder="krótki opis pod nazwą"></label>
     </div>
+    <fieldset>
+      <legend>🛒 Sklep i dostęp</legend>
+      <label class="chk"><input type="checkbox" name="shop" ${c.shop !== false ? "checked" : ""}> Dostępna w sklepie (można ją kupić)</label>
+      <label class="chk"><input type="checkbox" name="restricted" ${c.restricted ? "checked" : ""}> 🔒 Tylko dla wybranych graczy</label>
+      <div class="a-allowed" ${c.restricted ? "" : "hidden"}>
+        <div class="muted small">Gracze, którzy mogą kupować tę skrzynkę (admini mogą zawsze):</div>
+        <div class="a-user-checks">${A.cat.users.map(u => `<label class="chk"><input type="checkbox" name="allowed" value="${u.id}" ${(c.allowed || []).includes(u.id) ? "checked" : ""}> ${esc(u.avatar)} ${esc(u.username)}</label>`).join("") || '<span class="muted small">Brak graczy</span>'}</div>
+      </div>
+      <p class="muted small">Skrzynki, które gracz ma w ekwipunku, zawsze może otworzyć — nawet gdy skrzynki nie ma w sklepie.</p>
+    </fieldset>
+    <fieldset>
+      <legend>🎲 Szanse rzadkości (puste = domyślne)</legend>
+      <div class="a-grid a-weights">${A.cat.rarityOrder.map(r => `<label style="--rc:${A.cat.rarities[r].color}"><span class="a-wname">${A.cat.rarities[r].name}</span>
+        <input type="number" name="w_${r}" min="0" max="1000" step="any" value="${(c.customWeights || {})[r] ?? ""}" placeholder="${+A.cat.rarities[r].weight.toFixed(4)}"></label>`).join("")}</div>
+      <p class="muted small">To wagi, nie procenty — liczy się ich stosunek. Rzadkość bez kart w tej skrzynce jest pomijana.</p>
+    </fieldset>
     <div class="a-actions">
       <button class="btn primary" type="submit">💾 ${isNew ? "Utwórz skrzynkę" : "Zapisz"}</button>
       ${!isNew && c.hidden ? `<button class="btn" type="button" data-act="restore-crate">↩️ Przywróć skrzynkę</button>` : ""}
@@ -92,7 +109,8 @@ function crateFormHTML(c) {
 
 function renderCrateForm() {
   const c = A.crate === "__new"
-    ? { name: "", short: "", code: "", emoji: "📦", color1: "#ffcf3f", color2: "#7a3b00", price: A.cat.defaultPrice, desc: "" }
+    ? { name: "", short: "", code: "", emoji: "📦", color1: "#ffcf3f", color2: "#7a3b00", price: A.cat.defaultPrice, desc: "",
+        shop: true, restricted: false, customWeights: {}, allowed: [] }
     : A.cat.crates.find(x => x.id === A.crate);
   $("#crateForm").innerHTML = c ? crateFormHTML(c) : "<p class='muted'>Wybierz albo utwórz skrzynkę.</p>";
   $("#newCard").disabled = !c || A.crate === "__new" || c.hidden;
@@ -105,7 +123,7 @@ function renderCards() {
   if (!crate || A.crate === "__new") { $("#cardList").innerHTML = ""; $("#cardsTitle").textContent = "Karty"; return; }
   const q = A.search.toLowerCase();
   const order = A.cat.rarityOrder;
-  const cards = A.cat.cards.filter(c => c.crate === A.crate && (A.rarity === "all" || c.rarity === A.rarity) &&
+  const cards = A.cat.cards.filter(c => (c.crates || [c.crate]).includes(A.crate) && (A.rarity === "all" || c.rarity === A.rarity) &&
     (!q || (!hiddenSecret(c) && c.name.toLowerCase().includes(q))))
     .sort((a, b) => a.hidden - b.hidden || order.indexOf(b.rarity) - order.indexOf(a.rarity) || a.name.localeCompare(b.name, "pl"));
   $("#cardsTitle").textContent = `Karty — ${crate.name} (${cards.filter(c => !c.hidden).length})`;
@@ -123,7 +141,8 @@ function renderCards() {
           ${c.modified ? '<i class="mod">zmieniona</i>' : ""}
           ${c.hidden ? '<i class="hid">ukryta</i>' : ""}
           ${!c.hasImage ? '<i class="warn">brak zdjęcia</i>' : ""}
-          ${c.owned ? `<i>masz ×${c.owned}</i>` : ""}
+          ${(c.crates || []).length > 1 ? `<i class="own">też w: ${(c.crates || []).filter(k => k !== A.crate).map(k => esc(A.cat.crates.find(x => x.id === k)?.short || k)).join(", ")}</i>` : ""}
+          ${c.owned ? `<i>gracze mają ×${c.owned}</i>` : ""}
         </span>
       </span>
     </button>`;
@@ -134,7 +153,7 @@ function renderCards() {
 
 function openCardForm(id) {
   const c = id ? A.cat.cards.find(x => x.id === id)
-    : { id: "", name: "", crate: A.crate, rarity: "green", type: "polityka", hp: 60, attack: "", dmg: 40, wiki: null, builtin: false };
+    : { id: "", name: "", crate: A.crate, crates: [A.crate], rarity: "green", type: "polityka", hp: 60, attack: "", dmg: 40, wiki: null, builtin: false };
   if (id && hiddenSecret(c) && !confirm("To tajna karta. Pokazać, kto to jest?")) return;
   const isNew = !id;
   const opt = (obj, sel) => Object.entries(obj).map(([k, v]) => `<option value="${k}"${k === sel ? " selected" : ""}>${esc(v)}</option>`).join("");
@@ -147,7 +166,8 @@ function openCardForm(id) {
       <input type="hidden" name="id" value="${esc(c.id)}">
       <div class="a-grid">
         <label class="wide">Imię i nazwisko / nazwa<input type="text" name="name" value="${esc(c.name)}" required maxlength="60"></label>
-        <label>Skrzynka<select name="crate">${opt(Object.fromEntries(A.cat.crates.filter(x => !x.hidden).map(x => [x.id, x.name])), c.crate)}</select></label>
+        <div class="wide a-crate-checks"><span class="muted small">Skrzynki (karta może być w kilku; pierwsza zaznaczona to skrzynka główna — jej kod jest na karcie):</span>
+          ${A.cat.crates.filter(x => !x.hidden).map(x => `<label class="chk"><input type="checkbox" name="crates" value="${esc(x.id)}" ${(c.crates || [c.crate]).includes(x.id) ? "checked" : ""}> ${esc(x.emoji)} ${esc(x.name)}</label>`).join("")}</div>
         <label>Rzadkość<select name="rarity">${opt(Object.fromEntries(A.cat.rarityOrder.map(r => [r, A.cat.rarities[r].name])), c.rarity)}</select></label>
         <label>Typ<select name="type">${opt(Object.fromEntries(Object.entries(A.cat.types).map(([k, t]) => [k, `${t.icon} ${t.name}`])), c.type)}</select></label>
         <label>HP<input type="number" name="hp" value="${c.hp}" min="0" max="9999"></label>
@@ -182,8 +202,8 @@ function closeCardForm() { $("#cardModal").hidden = true; }
 // ================================================================ GRACZE
 
 async function loadUsers() {
-  const { users, me, chestKinds } = await api("/api/admin/users");
-  A.users = users; A.chestKinds = chestKinds;
+  const { users, me, chestKinds, restrictedCrates } = await api("/api/admin/users");
+  A.users = users; A.chestKinds = chestKinds; A.restrictedCrates = restrictedCrates;
   const chestTxt = u => Object.entries(u.chests || {}).map(([k, n]) => {
     const ck = chestKinds.find(c => c.kind === k);
     return `${ck ? ck.emoji : "📦"}×${n}`;
@@ -191,17 +211,22 @@ async function loadUsers() {
   $("#userList").innerHTML = `
     <div class="a-user head"><span>Gracz</span><span>Saldo</span><span>Kolekcja</span><span>Karty</span><span>Skrzynki</span><span></span></div>
     ${users.map(u => `
-    <div class="a-user" data-uid="${u.id}" data-name="${esc(u.username)}">
-      <span><span class="av">${esc(u.avatar)}</span> <b>${esc(u.username)}</b> ${u.isAdmin ? "👑" : ""}${u.id === me ? ' <small class="muted">(ty)</small>' : ""}</span>
+    <div class="a-user${u.banned ? " banned" : ""}" data-uid="${u.id}" data-name="${esc(u.username)}">
+      <span><span class="av">${esc(u.avatar)}</span> <b>${esc(u.username)}</b> ${u.isAdmin ? "👑" : ""}${u.id === me ? ' <small class="muted">(ty)</small>' : ""}
+        ${u.banned ? `<br><small class="ban-tag">⛔ zablokowany${u.banReason ? ": " + esc(u.banReason) : ""}</small>` : ""}
+        ${u.access.length ? `<br><small class="muted">🔑 ${u.access.map(k => esc(A.restrictedCrates.find(c => c.id === k)?.name || k)).join(", ")}</small>` : ""}</span>
       <span>${fmt(u.balance)}</span>
       <span>${fmt(u.value)}</span>
       <span>${u.unique} / ${u.total}</span>
       <span class="a-chests">${chestTxt(u)}</span>
       <span class="a-user-actions">
+        <button class="btn tiny" data-uact="cards">🗂 Karty</button>
         <button class="btn tiny" data-uact="chests">📦 Skrzynki</button>
+        <button class="btn tiny" data-uact="access">🔑 Dostęp</button>
         <button class="btn tiny" data-uact="money">💸 Pieniądze</button>
         <button class="btn tiny" data-uact="password">🔑 Hasło</button>
         ${u.id !== me ? `<button class="btn tiny" data-uact="admin">${u.isAdmin ? "Odbierz admina" : "👑 Daj admina"}</button>
+        <button class="btn tiny ${u.banned ? "" : "danger"}" data-uact="ban">${u.banned ? "✅ Odblokuj" : "⛔ Zablokuj"}</button>
         <button class="btn tiny danger" data-uact="delete">🗑</button>` : ""}
       </span>
     </div>`).join("")}`;
@@ -211,6 +236,20 @@ async function userAction(row, act) {
   const id = row.dataset.uid, name = row.dataset.name;
   try {
     if (act === "chests") return openChestDialog(id, name);
+    if (act === "cards") return openUserCards(id, name);
+    if (act === "access") return openAccessDialog(id, name);
+    if (act === "ban") {
+      const u = A.users.find(x => String(x.id) === String(id));
+      if (u.banned) {
+        await api(`/api/admin/users/${id}/ban`, { method: "POST", json: { ban: false } });
+        toast(`Odblokowano ${name}`);
+      } else {
+        const reason = prompt(`Zablokować ${name}? Gracz zostanie wylogowany i nie będzie mógł się zalogować.\nPowód (opcjonalnie):`, "");
+        if (reason === null) return;
+        await api(`/api/admin/users/${id}/ban`, { method: "POST", json: { ban: true, reason } });
+        toast(`⛔ Zablokowano ${name}`);
+      }
+    }
     if (act === "money") {
       const v = prompt(`Ile $ dodać graczowi ${name}? (ujemna kwota odejmuje)`, "5000");
       if (!v) return;
@@ -266,6 +305,79 @@ function openChestDialog(id, name) {
   });
 }
 
+function modalDialog(html, cls = "") {
+  const dlg = document.createElement("div");
+  dlg.className = "modal";
+  dlg.innerHTML = `<div class="modal-box ${cls}">${html}</div>`;
+  document.body.appendChild(dlg);
+  dlg.addEventListener("click", e => { if (e.target === dlg || e.target.closest("[data-x]")) dlg.remove(); });
+  return dlg;
+}
+
+async function openUserCards(id, name) {
+  let data;
+  try { data = await api(`/api/admin/users/${id}/cards`); } catch (e) { return toast(e.message, true); }
+  const total = data.cards.reduce((a, c) => a + c.count, 0);
+  const dlg = modalDialog(`
+    <h3>🗂 Karty gracza ${esc(name)} <small class="muted">(${total})</small></h3>
+    <input type="text" class="a-cards-search" placeholder="Szukaj…">
+    <div class="a-ucards">${data.cards.map(c => {
+      const R = A.cat.rarities[c.rarity];
+      return `<div class="a-ucard" data-person="${esc(c.person)}" data-variant="${esc(c.variant)}" data-name="${esc(c.name.toLowerCase())}" style="--rc:${R.color}">
+        <img src="/img/${esc(c.person)}?admin=1" alt="" loading="lazy">
+        <span><b>${esc(c.name)}</b><br><small style="color:${R.color}">${R.name}</small> · <small>${esc(data.variants[c.variant] || c.variant)}</small></span>
+        <span class="a-ucount">×${c.count}</span>
+        <span class="a-uc-actions"><button class="btn tiny" data-del="1">Usuń 1</button>${c.count > 1 ? `<button class="btn tiny danger" data-del="${c.count}">Usuń ×${c.count}</button>` : ""}</span>
+      </div>`;
+    }).join("") || '<div class="empty">Brak kart.</div>'}</div>
+    <div class="a-actions">${total ? '<button class="btn danger" data-delall>🗑 Usuń WSZYSTKIE karty</button>' : ""}<button class="btn" data-x>Zamknij</button></div>`, "a-ucards-box");
+  dlg.querySelector(".a-cards-search").addEventListener("input", e => {
+    const q = e.target.value.toLowerCase();
+    dlg.querySelectorAll(".a-ucard").forEach(r => { r.hidden = q && !r.dataset.name.includes(q); });
+  });
+  dlg.addEventListener("click", async e => {
+    const del = e.target.closest("[data-del]"), all = e.target.closest("[data-delall]");
+    try {
+      if (del) {
+        const row = del.closest(".a-ucard");
+        await api(`/api/admin/users/${id}/cards/delete`, { method: "POST", json: { person: row.dataset.person, variant: row.dataset.variant, count: +del.dataset.del } });
+      } else if (all) {
+        if (!confirm(`Usunąć WSZYSTKIE karty gracza ${name}? Tego nie da się cofnąć.`)) return;
+        await api(`/api/admin/users/${id}/cards/delete`, { method: "POST", json: { all: true } });
+      } else return;
+      toast("Usunięto karty");
+      dlg.remove();
+      loadUsers();
+      openUserCards(id, name);
+    } catch (err) { toast(err.message, true); }
+  });
+}
+
+function openAccessDialog(id, name) {
+  const u = A.users.find(x => String(x.id) === String(id));
+  if (!A.restrictedCrates.length) {
+    return toast("Żadna skrzynka nie jest „tylko dla wybranych”. Zaznacz to w ustawieniach skrzynki.", true);
+  }
+  const dlg = modalDialog(`
+    <form class="a-access-form">
+      <h3>🔑 Dostęp do skrzynek: ${esc(name)}</h3>
+      <p class="muted small">Skrzynki „tylko dla wybranych”, które ten gracz może kupować:</p>
+      ${A.restrictedCrates.map(c => `<label class="chk"><input type="checkbox" name="crates" value="${esc(c.id)}" ${u.access.includes(c.id) ? "checked" : ""}> ${esc(c.emoji)} ${esc(c.name)}${c.shop ? "" : ' <small class="muted">(teraz poza sklepem)</small>'}</label>`).join("")}
+      <div class="a-actions"><button class="btn primary" type="submit">💾 Zapisz</button><button class="btn" type="button" data-x>Anuluj</button></div>
+    </form>`);
+  dlg.querySelector("form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const crates = new FormData(e.target).getAll("crates");
+    try {
+      await api(`/api/admin/users/${id}/access`, { method: "POST", json: { crates } });
+      toast(`Zapisano dostęp gracza ${name}`);
+      dlg.remove();
+      loadUsers();
+      load();
+    } catch (err) { toast(err.message, true); }
+  });
+}
+
 // ================================================================ ZDARZENIA
 
 function bind() {
@@ -291,6 +403,9 @@ function bind() {
   });
 
   // podgląd skrzynki na żywo
+  $("#crateForm").addEventListener("change", e => {
+    if (e.target.name === "restricted") $(".a-allowed").hidden = !e.target.checked;
+  });
   $("#crateForm").addEventListener("input", e => {
     if (!["color1", "color2", "emoji"].includes(e.target.name)) return;
     const f = new FormData($("#crateForm"));
@@ -301,7 +416,12 @@ function bind() {
   });
   $("#crateForm").addEventListener("submit", async e => {
     e.preventDefault();
-    const data = Object.fromEntries(new FormData(e.target));
+    const fd = new FormData(e.target);
+    const data = Object.fromEntries(fd);
+    data.shop = fd.has("shop");
+    data.restricted = fd.has("restricted");
+    data.allowed = fd.getAll("allowed").map(Number);
+    data.weights = Object.fromEntries(A.cat.rarityOrder.map(r => [r, fd.get("w_" + r)]).filter(([, v]) => v !== "" && v !== null));
     try {
       const res = await api("/api/admin/crates", { method: "POST", json: data });
       A.crate = res.id;
@@ -340,6 +460,7 @@ function bind() {
   });
   $("#cardForm").addEventListener("submit", async e => {
     e.preventDefault();
+    if (!new FormData(e.target).getAll("crates").length) return toast("Zaznacz co najmniej jedną skrzynkę", true);
     const btn = $("button[type=submit]", e.target);
     btn.disabled = true; btn.textContent = "Zapisuję…";
     try {
@@ -375,7 +496,11 @@ function bind() {
       await load();
     } catch (err) { toast(err.message, true); }
   });
-  document.addEventListener("keydown", e => { if (e.key === "Escape") closeCardForm(); });
+  document.addEventListener("keydown", e => {
+    if (e.key !== "Escape") return;
+    closeCardForm();
+    $$("body > .modal:not(#cardModal)").forEach(d => d.remove());
+  });
 }
 
 bind();

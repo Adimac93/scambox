@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/cards2.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/social.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/chests.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
 </head>
 <body>
   <header class="topbar">
@@ -39,28 +40,48 @@
   <main>
     <!-- SKRZYNKI -->
     <section class="view active" id="view-crates">
-      <div class="crate-picker" id="cratePicker"></div>
+      <div class="shop-head">
+        <h2>🛒 Sklep ze skrzynkami</h2>
+        <span class="muted">Wybierz skrzynkę — kup ją od razu do otwarcia albo na później do ekwipunku.</span>
+      </div>
+      <div class="shop-grid" id="cratePicker"></div>
 
-      <div class="open-panel">
-        <div class="count-row">
-          <span class="label">Ilość skrzynek:</span>
-          <div class="count-chips" id="countChips"></div>
-          <input type="range" id="countRange" min="1" max="20" value="1">
-          <span class="count-val" id="countVal">1</span>
-        </div>
-        <div class="open-row">
-          <label class="switch">
-            <input type="checkbox" id="fastToggle">
-            <span class="slider"></span>
-            <span class="switch-label">⚡ Ultraszybko</span>
-          </label>
-          <div class="open-btns">
-            <button class="big-btn" id="openBtn">OTWÓRZ</button>
-            <button class="btn buy-btn" id="buyBtn">🛒 Kup do ekwipunku</button>
+      <div class="panel buy-panel" id="buyPanel">
+        <div class="bp-art" id="bpArt"></div>
+        <div class="bp-main">
+          <div class="bp-top">
+            <div>
+              <h3 class="bp-title" id="bpTitle"></h3>
+              <div class="muted" id="bpDesc"></div>
+            </div>
+            <div class="bp-price" id="bpPrice"></div>
+          </div>
+          <div class="bp-lock" id="bpLock" hidden></div>
+          <div class="count-row">
+            <span class="label">Ilość:</span>
+            <div class="stepper">
+              <button class="step-btn" id="cntMinus" title="Mniej">−</button>
+              <span class="count-val" id="countVal">1</span>
+              <button class="step-btn" id="cntPlus" title="Więcej">+</button>
+            </div>
+            <div class="count-chips" id="countChips"></div>
+            <input type="range" id="countRange" min="1" max="20" value="1">
+          </div>
+          <div class="bp-summary" id="bpSummary"></div>
+          <div class="open-row">
+            <label class="switch">
+              <input type="checkbox" id="fastToggle">
+              <span class="slider"></span>
+              <span class="switch-label">⚡ Ultraszybko</span>
+            </label>
+            <div class="open-btns">
+              <button class="big-btn" id="openBtn">OTWÓRZ</button>
+              <button class="btn buy-btn" id="buyBtn">🛒 Kup do ekwipunku</button>
+            </div>
           </div>
         </div>
-        <div class="stats" id="stats"></div>
       </div>
+      <div class="stats" id="stats"></div>
 
       <div class="contents">
         <h2 id="contentsTitle">Zawartość skrzynki</h2>

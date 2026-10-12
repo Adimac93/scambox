@@ -4,13 +4,16 @@ Domyślne dane pochodzą z data.py. Zmiany z panelu admina są zapisane w bazie
 (tabele catalog_crates / catalog_cards) i nakładane na dane domyślne:
   - wiersz z deleted=1 ukrywa skrzynkę/kartę,
   - wiersz z danymi nadpisuje pola wbudowanej skrzynki/karty albo dodaje nową.
+
+Karta może należeć do kilku skrzynek: pole "crates" (lista), "crate" to skrzynka główna
+(jej kod i numer są nadrukowane na karcie).
 """
 import json
 
 import data
 
-CRATE_FIELDS = ("name", "short", "code", "emoji", "color1", "color2", "price", "desc")
-CARD_FIELDS = ("name", "wiki", "rarity", "type", "hp", "attack", "dmg", "crate")
+CRATE_FIELDS = ("name", "short", "code", "emoji", "color1", "color2", "price", "desc", "shop", "restricted", "weights")
+CARD_FIELDS = ("name", "wiki", "rarity", "type", "hp", "attack", "dmg", "crate", "crates")
 
 CRATES = {}         # id -> skrzynka (z listą "people" w kolejności numerów)
 PEOPLE = {}         # id -> karta
@@ -34,8 +37,15 @@ def builtin_card(pid):
     for cid, c in data.CRATES.items():
         for p in c["people"]:
             if p["id"] == pid:
-                return dict(p, crate=cid)
+                crates = [cid] + [x for x, cc in data.CRATES.items() if pid in cc.get("shared", []) and x != cid]
+                return dict(p, crate=cid, crates=crates)
     return None
+
+
+def crate_weight(crate, rarity):
+    """Szansa (waga) rzadkości w danej skrzynce - własna albo domyślna."""
+    w = (crate.get("weights") or {}).get(rarity)
+    return float(w) if w is not None else data.RARITIES[rarity]["weight"]
 
 
 def rebuild(conn):
@@ -43,9 +53,14 @@ def rebuild(conn):
     crates, people, hidden_crates, hidden_cards = {}, {}, {}, {}
 
     for cid, c in data.CRATES.items():
-        crates[cid] = dict(builtin_crate(cid), id=cid, builtin=True, modified=False)
+        crates[cid] = dict({"shop": True, "restricted": False, "weights": {}}, **builtin_crate(cid),
+                           id=cid, builtin=True, modified=False)
         for p in c["people"]:
-            people[p["id"]] = dict(p, crate=cid, builtin=True, modified=False)
+            people[p["id"]] = dict(p, crate=cid, crates=[cid], builtin=True, modified=False)
+    for cid, c in data.CRATES.items():
+        for pid in c.get("shared", []):
+            if pid in people and cid not in people[pid]["crates"]:
+                people[pid]["crates"].append(cid)
 
     for row in conn.execute("SELECT id, data, deleted FROM catalog_crates"):
         cid, d = row[0], json.loads(row[1] or "{}")
@@ -57,8 +72,9 @@ def rebuild(conn):
             crates[cid].update(d)
             crates[cid]["modified"] = True
         else:
-            base = {"name": cid, "short": cid, "code": cid[:2].upper(), "emoji": "📦",
-                    "color1": "#888888", "color2": "#333333", "price": data.CRATE_PRICE, "desc": ""}
+            base = {"name": cid, "short": cid, "code": cid[:2].upper(), "emoji": "📦", "color1": "#888888",
+                    "color2": "#333333", "price": data.CRATE_PRICE, "desc": "", "shop": True, "restricted": False,
+                    "weights": {}}
             crates[cid] = dict(base, **d, id=cid, builtin=False, modified=False)
 
     for row in conn.execute("SELECT id, data, deleted FROM catalog_cards"):
@@ -68,10 +84,14 @@ def rebuild(conn):
                 hidden_cards[pid] = people.pop(pid)
             continue
         if pid in people:
+            old_crates = people[pid]["crates"]
             people[pid].update(d)
             people[pid]["modified"] = True
+            if "crates" not in d and "crate" in d:  # starszy zapis z jedną skrzynką - zachowaj pozostałe
+                people[pid]["crates"] = [d["crate"]] + [c for c in old_crates if c != d["crate"]]
         else:
             people[pid] = dict(d, id=pid, builtin=False, modified=False)
+            people[pid].setdefault("crates", [d.get("crate")])
 
     for p in people.values():
         if isinstance(p.get("wiki"), list):
@@ -81,17 +101,23 @@ def rebuild(conn):
             p["rarity"] = "green"
         if p.get("type") not in data.TYPES:
             p["type"] = "tv"
+        p["crates"] = [c for c in dict.fromkeys(p.get("crates") or []) if c in crates]
+        p["crate"] = p["crates"][0] if p["crates"] else None
 
     order = data.RARITY_ORDER
     final_people = {}
     for cid, crate in crates.items():
-        members = sorted((p for p in people.values() if p.get("crate") == cid),
+        members = sorted((p for p in people.values() if cid in p["crates"]),
                          key=lambda p: (-order.index(p["rarity"]), p["name"]))
         for n, p in enumerate(members, 1):
-            p["number"] = n
+            if p["crate"] == cid:
+                p["number"] = n
             final_people[p["id"]] = p
         crate["people"] = members
         crate["price"] = max(1, int(crate.get("price") or data.CRATE_PRICE))
+        crate["shop"] = bool(crate.get("shop", True))
+        crate["restricted"] = bool(crate.get("restricted", False))
+        crate["weights"] = {r: float(w) for r, w in (crate.get("weights") or {}).items() if r in data.RARITIES}
 
     CRATES, PEOPLE = crates, final_people
     HIDDEN_CRATES, HIDDEN_CARDS = hidden_crates, hidden_cards

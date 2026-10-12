@@ -59,7 +59,7 @@ function imgUrl(pid) {
   return `/img/${pid}?v=${p.imgv || 0}${p.imgq ? "&" + p.imgq : ""}`;
 }
 function crateStyle(c) {
-  return `--crate-bg: linear-gradient(180deg, ${c.color1} 0 50%, ${c.color2} 50%); --crate-lid: linear-gradient(180deg, ${c.color1}, ${c.color2})`;
+  return `--crate-bg: linear-gradient(180deg, ${c.color1} 0 50%, ${c.color2} 50%); --crate-lid: linear-gradient(180deg, ${c.color1}, ${c.color2}); --c1: ${c.color2}`;
 }
 
 // ================================================================ KARTA
@@ -164,9 +164,9 @@ function rarityShare(crateId, rarity) {
   const crate = crateOf(crateId);
   if (!crate) return 0;
   const present = new Set(crate.people.map(id => person(id).rarity));
-  const total = S.cfg.rarityOrder.filter(r => present.has(r)).reduce((a, r) => a + S.cfg.rarities[r].weight, 0);
+  const total = S.cfg.rarityOrder.filter(r => present.has(r)).reduce((a, r) => a + crate.weights[r], 0);
   const inR = crate.people.filter(id => person(id).rarity === rarity).length;
-  return present.has(rarity) ? S.cfg.rarities[rarity].weight / total / inR : 0;
+  return present.has(rarity) && total ? crate.weights[rarity] / total / inR : 0;
 }
 
 // efekt przechylania kart za kursorem
@@ -278,22 +278,57 @@ function rerenderCurrent() { switchView(currentView()); }
 
 // ================================================================ SKRZYNKI
 
+function shopCrates() {
+  return crateList().filter(c => c.shop || (S.chests[c.id] || 0) > 0 || S.me?.isAdmin);
+}
+
+function crateArtHTML(c, cls = "") {
+  return `<div class="crate-art ${cls}" style="${crateStyle(c)}">
+    <div class="crate-box"><div class="crate-emblem">${esc(c.emoji)}</div></div><div class="crate-lid"></div><div class="crate-lock"></div></div>`;
+}
+
+function crateRarities(c) {
+  const present = new Set(c.people.map(id => person(id).rarity));
+  return S.cfg.rarityOrder.filter(r => present.has(r) && c.weights[r] > 0);
+}
+
+function oddsBarHTML(c) {
+  const rs = crateRarities(c);
+  const tot = rs.reduce((a, r) => a + c.weights[r], 0) || 1;
+  // pasek w skali "pierwiastkowej", żeby rzadkie kolory były w ogóle widoczne
+  return `<div class="odds-bar">${rs.map(r => `<i style="flex:${Math.sqrt(c.weights[r] / tot)}; --rc:${S.cfg.rarities[r].color}"
+    title="${S.cfg.rarities[r].name}: ${(c.weights[r] / tot * 100).toLocaleString("pl-PL", { maximumFractionDigits: 3 })}%"></i>`).join("")}</div>`;
+}
+
 function renderCrates() {
-  $("#cratePicker").innerHTML = crateList().map(c => `
-    <div class="crate${S.crate === c.id ? " selected" : ""}" data-crate="${c.id}" style="${crateStyle(c)}">
-      <div class="crate-glow"></div>
-      <div class="crate-art">
-        <div class="crate-box"><div class="crate-emblem">${esc(c.emoji)}</div></div>
-        <div class="crate-lid"></div>
-        <div class="crate-lock"></div>
+  const visible = shopCrates();
+  if (!visible.some(c => c.id === S.crate)) S.crate = (visible.find(c => c.canBuy) || visible[0])?.id;
+  $("#cratePicker").innerHTML = visible.map(c => {
+    const owned = S.chests[c.id] || 0;
+    const locked = !c.canBuy;
+    return `<div class="shop-tile${S.crate === c.id ? " selected" : ""}${locked ? " locked" : ""}" data-crate="${c.id}" style="${crateStyle(c)}">
+      <div class="st-badges">
+        ${owned ? `<span class="stb owned">📦 ×${owned}</span>` : ""}
+        ${!c.shop ? '<span class="stb off">Poza sklepem</span>' : ""}
+        ${c.restricted ? `<span class="stb vip">${locked ? "🔒" : "⭐"} Dla wybranych</span>` : ""}
       </div>
-      ${S.chests[c.id] ? `<span class="crate-owned">📦 ×${S.chests[c.id]} w ekwipunku</span>` : ""}
-      <div class="crate-info">
-        <h3>${esc(c.name)}</h3>
-        <p>${c.people.length} kart${c.desc ? " · " + esc(c.desc) : ""}</p>
-        <div class="crate-price">${fmt(c.price)}</div>
-      </div>
-    </div>`).join("") || '<div class="empty">Brak skrzynek — dodaj je w panelu admina.</div>';
+      ${crateArtHTML(c)}
+      <div class="st-name">${esc(c.name)}</div>
+      <div class="st-meta">${c.people.length} kart${c.desc ? " · " + esc(c.desc) : ""}</div>
+      ${oddsBarHTML(c)}
+      <div class="st-price">${fmt(c.price)}</div>
+    </div>`;
+  }).join("") || '<div class="empty">Sklep jest pusty — na razie nie ma żadnych skrzynek.</div>';
+
+  const crate = crateOf(S.crate);
+  $("#buyPanel").hidden = !crate;
+  if (crate) {
+    $("#bpArt").innerHTML = crateArtHTML(crate, "bp-crate");
+    $("#buyPanel").style.cssText = crateStyle(crate);
+    $("#bpTitle").textContent = crate.name;
+    $("#bpDesc").textContent = crate.desc || "";
+    $("#bpPrice").textContent = `${fmt(crate.price)} za sztukę · ${crate.people.length} kart`;
+  }
 
   $("#countChips").innerHTML = COUNT_CHIPS.map(n =>
     `<button class="chip${S.count === n ? " active" : ""}" data-n="${n}">${n}</button>`).join("");
@@ -310,20 +345,19 @@ function renderCrates() {
     <span>Ze sprzedaży: <b>${fmt(st.earned)}</b></span>
     <span>Wartość ekwipunku: <b>${fmt(S.items.reduce((a, i) => a + i.value, 0))}</b></span>
     <span>Bilans sprzedaży: <b style="color:${profit >= 0 ? "var(--good)" : "var(--bad)"}">${profit >= 0 ? "+" : ""}${fmt(profit)}</b></span>
-    <span>Wpłacono z bankomatu: <b>${fmt(st.deposited || 0)}</b></span>
+    <span>Z codziennych skrzynek: <b>${fmt(st.daily_total || 0)}</b></span>
     <span>Kontrakty: <b>${st.contracts || 0}</b></span>
     <span>Ulepszenia: <b style="color:var(--good)">${st.upgrades_won || 0}</b> / <b style="color:var(--bad)">${st.upgrades_lost || 0}</b></span>`;
 
-  const crate = crateOf(S.crate);
   if (!crate) { $("#contentsGrid").innerHTML = ""; $("#odds").innerHTML = ""; return; }
   $("#contentsTitle").textContent = `Zawartość: ${crate.name}`;
-  const present = new Set(crate.people.map(id => person(id).rarity));
-  const totalW = S.cfg.rarityOrder.filter(r => present.has(r)).reduce((a, r) => a + S.cfg.rarities[r].weight, 0);
+  const rs = crateRarities(crate);
+  const totalW = rs.reduce((a, r) => a + crate.weights[r], 0);
   const pctTxt = x => (x * 100).toLocaleString("pl-PL", { maximumFractionDigits: x < 0.001 ? 3 : 2 }) + "%";
-  $("#odds").innerHTML = S.cfg.rarityOrder.filter(r => present.has(r)).map(r => {
+  $("#odds").innerHTML = rs.map(r => {
     const R = S.cfg.rarities[r];
     const n = crate.people.filter(id => person(id).rarity === r).length;
-    return `<span class="odd odd-${r}" style="--rc:${R.color}"><b>${R.name}</b> ${pctTxt(R.weight / totalW)} · ${n} ${plural(n, "karta", "karty", "kart")} · ${fmt(R.value)}</span>`;
+    return `<span class="odd odd-${r}" style="--rc:${R.color}"><b>${R.name}</b> ${pctTxt(crate.weights[r] / totalW)} · ${n} ${plural(n, "karta", "karty", "kart")} · ${fmt(R.value)}</span>`;
   }).join("") + `<div class="odds-variants">${S.cfg.variantOrder.filter(isSpecial).map(v => {
     const V = S.cfg.variants[v];
     return `<span class="odd odd-v vt-${v}"><b>${V.name}</b> ${pctTxt(V.chance)} · wartość ×${String(V.mult).replace(".", ",")}</span>`;
@@ -333,15 +367,40 @@ function renderCrates() {
 
 function updateOpenBtn() {
   const crate = crateOf(S.crate);
-  const btn = $("#openBtn");
-  if (!crate) { btn.disabled = true; btn.textContent = "BRAK SKRZYNEK"; return; }
-  const owned = Math.min(S.chests[crate.id] || 0, S.count);
-  const cost = (S.count - owned) * crate.price;
-  btn.innerHTML = owned
-    ? `OTWÓRZ ${S.count} <small class="ob-sub">📦 ${owned} z ekwipunku${cost ? ` + ${fmt(cost)}` : ""}</small>`
-    : `OTWÓRZ ${S.count} × ${fmt(crate.price)} = ${fmt(cost)}`;
-  btn.disabled = !!S.opening || !crate.people.length;
-  $("#buyBtn").textContent = `🛒 Kup ${S.count} do ekwipunku · ${fmt(S.count * crate.price)}`;
+  const btn = $("#openBtn"), buy = $("#buyBtn");
+  if (!crate) { btn.disabled = buy.disabled = true; btn.textContent = "BRAK SKRZYNEK"; return; }
+  const ownedAll = S.chests[crate.id] || 0;
+  const owned = Math.min(ownedAll, S.count);
+  const toBuy = S.count - owned;
+  const cost = toBuy * crate.price;
+  const blocked = toBuy > 0 && !crate.canBuy;
+  btn.innerHTML = blocked
+    ? `🔒 OTWÓRZ ${S.count}`
+    : owned
+      ? `OTWÓRZ ${S.count} <small class="ob-sub">📦 ${owned} z ekwipunku${cost ? ` + ${fmt(cost)}` : ""}</small>`
+      : `OTWÓRZ ${S.count} × ${fmt(crate.price)} = ${fmt(cost)}`;
+  btn.disabled = !!S.opening || !crate.people.length || blocked;
+  buy.textContent = `🛒 Kup ${S.count} do ekwipunku · ${fmt(S.count * crate.price)}`;
+  buy.disabled = !crate.canBuy;
+  buy.hidden = !crate.canBuy;
+  const after = S.state.balance - cost;
+  const lock = $("#bpLock");
+  lock.hidden = crate.canBuy;
+  lock.innerHTML = crate.canBuy ? "" : `🔒 ${crate.shop ? "Tę skrzynkę mogą kupować tylko wybrani gracze." : "Tej skrzynki nie ma teraz w sklepie."}
+    ${ownedAll ? `Masz <b>${ownedAll}</b> w ekwipunku — możesz je otworzyć (maks. ${ownedAll}).` : ""}`;
+  $("#bpSummary").innerHTML = `
+    <span>W ekwipunku: <b>${ownedAll}</b></span>
+    <span>Z ekwipunku: <b>${owned}</b></span>
+    <span>Do zapłaty: <b class="${after < 0 ? "neg-txt" : ""}">${fmt(cost)}</b></span>
+    <span>Saldo po: <b class="${after < 0 ? "neg-txt" : ""}">${fmt(after)}</b></span>`;
+}
+
+function setCount(n) {
+  S.count = Math.max(1, Math.min(S.cfg.maxOpen, n));
+  $("#countRange").value = S.count;
+  $("#countVal").textContent = S.count;
+  $$("#countChips .chip").forEach(c => c.classList.toggle("active", +c.dataset.n === S.count));
+  updateOpenBtn();
 }
 
 async function buyChests() {
@@ -361,26 +420,19 @@ async function buyChests() {
   }
 }
 
-function setCount(n) {
-  S.count = Math.max(1, Math.min(S.cfg.maxOpen, n));
-  $("#countRange").value = S.count;
-  $("#countVal").textContent = S.count;
-  $$("#countChips .chip").forEach(c => c.classList.toggle("active", +c.dataset.n === S.count));
-  updateOpenBtn();
-}
 
 // ================================================================ OTWIERANIE
 
 function weightedPerson(crateId) {
   // losowanie kosmetyczne do wypełnienia bębna (takie same szanse jak na serwerze)
-  const ids = crateOf(crateId).people;
+  const crate = crateOf(crateId), ids = crate.people;
   const byR = {};
   ids.forEach(id => (byR[person(id).rarity] ||= []).push(id));
   const rs = Object.keys(byR);
-  const total = rs.reduce((a, r) => a + S.cfg.rarities[r].weight, 0);
+  const total = rs.reduce((a, r) => a + crate.weights[r], 0);
   let x = Math.random() * total;
   for (const r of rs) {
-    x -= S.cfg.rarities[r].weight;
+    x -= crate.weights[r];
     if (x <= 0) return byR[r][Math.floor(Math.random() * byR[r].length)];
   }
   return ids[0];
@@ -417,7 +469,7 @@ async function openCrates() {
   const ownedBefore = new Set(S.items.map(i => i.person));
   let res;
   try {
-    const crateEl = $(`.crate[data-crate="${S.crate}"]`);
+    const crateEl = $("#buyPanel");
     crateEl?.classList.add("opening");
     Sound.open();
     [res] = await Promise.all([api("/api/open", { crate: S.crate, count: S.count }), sleep(S.fast ? 120 : 450)]);
@@ -729,7 +781,7 @@ function binderHTML(crate, owned, spread, { mine = true } = {}) {
       const p = person(id), o = owned[id];
       if (!o) {
         if (p.rarity === "secret") return `<div class="pocket secret-pocket"><div class="card-back secret-back"><div><div class="q">★</div><div class="n">TAJNA</div></div></div></div>`;
-        return `<div class="pocket"><div class="card-back"><div><div class="q">?</div><div class="n">#${String(p.number).padStart(3, "0")}</div></div></div></div>`;
+        return `<div class="pocket"><div class="card-back"><div><div class="q">?</div><div class="n">#${String(crate.people.indexOf(id) + 1).padStart(3, "0")}</div></div></div></div>`;
       }
       return `<div class="pocket owned${p.rarity === "secret" ? " secret-pocket" : ""}" data-pid="${id}" data-variant="${o.best}">${cardHTML(id, o.best)}${o.count > 1 ? `<span class="count">×${o.count}</span>` : ""}</div>`;
     }).join("")}</div>`;
@@ -824,7 +876,7 @@ function filteredItems() {
   const f = S.inv;
   const list = S.items.filter(i => {
     const p = person(i.person);
-    return (f.crate === "all" || p.crate === f.crate) &&
+    return (f.crate === "all" || (p.crates || [p.crate]).includes(f.crate)) &&
            (!f.rarities.size || f.rarities.has(p.rarity)) &&
            (f.variant === "all" || (f.variant === "special" ? isSpecial(i.variant) : i.variant === f.variant));
   });
@@ -927,9 +979,14 @@ async function sellAllDupes() {
 function bind() {
   $$(".tab").forEach(t => t.addEventListener("click", () => { Sound.click(); switchView(t.dataset.view); }));
 
+  $("#cntMinus").addEventListener("click", () => { Sound.click(); setCount(S.count - 1); });
+  $("#cntPlus").addEventListener("click", () => { Sound.click(); setCount(S.count + 1); });
   $("#cratePicker").addEventListener("click", e => {
-    const c = e.target.closest(".crate"); if (!c) return;
-    if (S.crate !== c.dataset.crate) { S.crate = c.dataset.crate; Sound.click(); renderCrates(); }
+    const c = e.target.closest(".shop-tile"); if (!c) return;
+    if (S.crate !== c.dataset.crate) {
+      S.crate = c.dataset.crate; Sound.click(); renderCrates();
+      $("#buyPanel").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
   });
   $("#countChips").addEventListener("click", e => {
     const c = e.target.closest(".chip"); if (!c) return;

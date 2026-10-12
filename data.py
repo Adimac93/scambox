@@ -224,13 +224,55 @@ PEOPLE_WORLD = [
     P("w_chan", "Jackie Chan", ("en", "Jackie Chan"), "green", "kino", 65, "Kung-fu kaskader", 50),
 ]
 
+PEOPLE_PRL = [
+    # LEGENDARNE
+    P("prl_gierek", "Edward Gierek", ("pl", "Edward Gierek"), "gold", "polityka", 200, "Pomożecie?", 175),
+    P("prl_jaruzelski", "Wojciech Jaruzelski", ("pl", "Wojciech Jaruzelski"), "gold", "polityka", 205, "Przemówienie 13 grudnia", 180),
+    # MITYCZNE
+    P("prl_gomulka", "Władysław Gomułka", ("pl", "Władysław Gomułka"), "red", "polityka", 150, "Odwilż '56", 125),
+    P("prl_urban", "Jerzy Urban", ("pl", "Jerzy Urban"), "red", "tv", 145, "Konferencja prasowa", 130),
+    P("prl_bierut", "Bolesław Bierut", ("pl", "Bolesław Bierut"), "red", "polityka", 150, "Plan sześcioletni", 120),
+    # EPICKIE
+    P("prl_kiszczak", "Czesław Kiszczak", ("pl", "Czesław Kiszczak"), "purple", "polityka", 120, "Rozmowy w Magdalence", 100),
+    P("prl_rakowski", "Mieczysław Rakowski", ("pl", "Mieczysław Rakowski"), "purple", "polityka", 115, "Ostatni premier PRL", 95),
+    P("prl_walentynowicz", "Anna Walentynowicz", ("pl", "Anna Walentynowicz"), "purple", "polityka", 120, "Strajk w Stoczni", 105),
+    P("prl_kuron", "Jacek Kuroń", ("pl", "Jacek Kuroń"), "purple", "polityka", 115, "Zupa Kuronia", 100),
+    P("prl_bareja", "Stanisław Bareja", ("pl", "Stanisław Bareja"), "purple", "kino", 120, "Miś", 105),
+    P("prl_deyna", "Kazimierz Deyna", ("pl", "Kazimierz Deyna"), "purple", "sport", 125, "Złoto w Monachium", 110),
+    # RZADKIE
+    P("prl_michnik", "Adam Michnik", ("pl", "Adam Michnik"), "blue", "polityka", 90, "Gazeta Wyborcza", 75),
+    P("prl_boniek", "Zbigniew Boniek", ("pl", "Zbigniew Boniek"), "blue", "sport", 95, "Hat-trick z Belgią", 80),
+    P("prl_szewinska", "Irena Szewińska", ("pl", "Irena Szewińska"), "blue", "sport", 95, "Rekord na 400 m", 80),
+    P("prl_gorski", "Kazimierz Górski", ("pl", "Kazimierz Górski"), "blue", "sport", 90, "Orły Górskiego", 75),
+    P("prl_niemen", "Czesław Niemen", ("pl", "Czesław Niemen"), "blue", "muzyka", 90, "Dziwny jest ten świat", 75),
+    P("prl_cyrankiewicz", "Józef Cyrankiewicz", ("pl", "Józef Cyrankiewicz"), "blue", "polityka", 85, "Wieczny premier", 70),
+    # ZWYKŁE
+    P("prl_kozakiewicz", "Władysław Kozakiewicz", ("pl", "Władysław Kozakiewicz"), "green", "sport", 65, "Gest Kozakiewicza", 50),
+    P("prl_tomaszewski", "Jan Tomaszewski", ("pl", "Jan Tomaszewski (piłkarz)"), "green", "sport", 70, "Obrona na Wembley", 50),
+    P("prl_lato", "Grzegorz Lato", ("pl", "Grzegorz Lato"), "green", "sport", 60, "Król strzelców '74", 45),
+    P("prl_kora", "Kora", ("pl", "Kora (wokalistka)"), "green", "muzyka", 55, "Boskie Buenos", 40),
+    P("prl_jantar", "Anna Jantar", ("pl", "Anna Jantar"), "green", "muzyka", 55, "Tyle słońca w całym mieście", 40),
+    P("prl_himilsbach", "Jan Himilsbach", ("pl", "Jan Himilsbach"), "green", "kino", 60, "Rejs", 45),
+]
+
+# Skrzynki. Pola dodatkowe:
+#   shop       - czy skrzynkę można kupić w sklepie
+#   restricted - czy kupić mogą tylko gracze, którym admin dał dostęp
+#   weights    - (opcjonalnie) własne szanse rzadkości dla tej skrzynki
+#   shared     - (opcjonalnie) karty z innych skrzynek, które też są w tej skrzynce
 CRATES = {
     "pl": {"name": "Skrzynka Polska", "short": "Polska", "code": "PL", "emoji": "🦅",
-           "color1": "#ffffff", "color2": "#dc143c", "price": CRATE_PRICE,
+           "color1": "#ffffff", "color2": "#dc143c", "price": CRATE_PRICE, "shop": True, "restricted": False,
            "desc": "polskie gwiazdy, politycy i sportowcy", "people": PEOPLE_PL},
     "world": {"name": "Skrzynka Świat", "short": "Świat", "code": "ŚW", "emoji": "🌍",
-              "color1": "#3d7bff", "color2": "#0e2a7a", "price": CRATE_PRICE,
+              "color1": "#3d7bff", "color2": "#0e2a7a", "price": CRATE_PRICE, "shop": True, "restricted": False,
               "desc": "światowe gwiazdy i politycy", "people": PEOPLE_WORLD},
+    "prl": {"name": "Skrzynka PRL", "short": "PRL", "code": "PRL", "emoji": "🏭",
+            "color1": "#c8102e", "color2": "#3c3c3c", "price": 500, "shop": True, "restricted": False,
+            "desc": "Polska Ludowa 1945–1989: władza, opozycja i gwiazdy epoki",
+            "weights": {"green": 40.0, "blue": 30.0, "purple": 18.0, "red": 9.0, "gold": 3.0},
+            "shared": ["pl_walesa", "pl_krawczyk", "pl_rodowicz"],
+            "people": PEOPLE_PRL},
 }
 
 
