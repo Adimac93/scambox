@@ -58,6 +58,15 @@ function imgUrl(pid) {
   const p = person(pid);
   return `/img/${pid}?v=${p.imgv || 0}${p.imgq ? "&" + p.imgq : ""}`;
 }
+// ikona gracza: zdjęcie wybranej karty albo emoji
+function avatarHTML(u, cls = "av") {
+  if (u && u.avatarCard) {
+    const rc = S.cfg?.rarities[u.avatarRarity]?.color || "#ffffff55";
+    return `<span class="${cls} av-card${u.avatarRarity === "secret" ? " av-secret" : ""}" style="--rc:${rc}"><img src="/avatar/${encodeURIComponent(u.username)}?c=${encodeURIComponent(u.avatarCard)}" alt="" draggable="false"></span>`;
+  }
+  return `<span class="${cls}">${esc(u?.avatar || "😎")}</span>`;
+}
+
 function crateStyle(c) {
   return `--crate-bg: linear-gradient(180deg, ${c.color1} 0 50%, ${c.color2} 50%); --crate-lid: linear-gradient(180deg, ${c.color1}, ${c.color2}); --c1: ${c.color2}`;
 }
@@ -216,7 +225,7 @@ function renderHeader() {
   $("#adminLink").hidden = !S.me?.isAdmin;
   $("#bankBtn").classList.toggle("pulse", broke);
   if (S.me) {
-    $("#userAvatar").textContent = S.me.avatar;
+    $("#userAvatar").outerHTML = avatarHTML(S.me, "").replace('<span class="', '<span id="userAvatar" class="');
     $("#userName").textContent = S.me.username;
   }
   $("#invCount").textContent = S.items.length;

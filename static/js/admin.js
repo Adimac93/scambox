@@ -36,6 +36,14 @@ async function load() {
   render();
 }
 
+function avHTML(u) {
+  if (u.avatarCard) {
+    const rc = A.cat?.rarities?.[u.avatarRarity]?.color || "#ffffff55";
+    return `<span class="av av-card" style="--rc:${rc}"><img src="/avatar/${encodeURIComponent(u.username)}?c=${encodeURIComponent(u.avatarCard)}" alt=""></span>`;
+  }
+  return `<span class="av">${esc(u.avatar)}</span>`;
+}
+
 function hiddenSecret(card) { return card.rarity === "secret" && !A.showSecrets; }
 function imgSrc(card, alt = false, force = false) {
   return `/img/${card.id}${alt ? "/alt" : ""}?admin=${A.showSecrets || force ? 1 : 0}&v=${card.imgv}`;
@@ -88,7 +96,7 @@ function crateFormHTML(c) {
       <label class="chk"><input type="checkbox" name="restricted" ${c.restricted ? "checked" : ""}> 🔒 Tylko dla wybranych graczy</label>
       <div class="a-allowed" ${c.restricted ? "" : "hidden"}>
         <div class="muted small">Gracze, którzy mogą kupować tę skrzynkę (admini mogą zawsze):</div>
-        <div class="a-user-checks">${A.cat.users.map(u => `<label class="chk"><input type="checkbox" name="allowed" value="${u.id}" ${(c.allowed || []).includes(u.id) ? "checked" : ""}> ${esc(u.avatar)} ${esc(u.username)}</label>`).join("") || '<span class="muted small">Brak graczy</span>'}</div>
+        <div class="a-user-checks">${A.cat.users.map(u => `<label class="chk"><input type="checkbox" name="allowed" value="${u.id}" ${(c.allowed || []).includes(u.id) ? "checked" : ""}> ${avHTML(u)} ${esc(u.username)}</label>`).join("") || '<span class="muted small">Brak graczy</span>'}</div>
       </div>
       <p class="muted small">Skrzynki, które gracz ma w ekwipunku, zawsze może otworzyć — nawet gdy skrzynki nie ma w sklepie.</p>
     </fieldset>
@@ -212,7 +220,7 @@ async function loadUsers() {
     <div class="a-user head"><span>Gracz</span><span>Saldo</span><span>Kolekcja</span><span>Karty</span><span>Skrzynki</span><span></span></div>
     ${users.map(u => `
     <div class="a-user${u.banned ? " banned" : ""}" data-uid="${u.id}" data-name="${esc(u.username)}">
-      <span><span class="av">${esc(u.avatar)}</span> <b>${esc(u.username)}</b> ${u.isAdmin ? "👑" : ""}${u.id === me ? ' <small class="muted">(ty)</small>' : ""}
+      <span>${avHTML(u)} <b>${esc(u.username)}</b> ${u.isAdmin ? "👑" : ""}${u.id === me ? ' <small class="muted">(ty)</small>' : ""}
         ${u.banned ? `<br><small class="ban-tag">⛔ zablokowany${u.banReason ? ": " + esc(u.banReason) : ""}</small>` : ""}
         ${u.access.length ? `<br><small class="muted">🔑 ${u.access.map(k => esc(A.restrictedCrates.find(c => c.id === k)?.name || k)).join(", ")}</small>` : ""}</span>
       <span>${fmt(u.balance)}</span>

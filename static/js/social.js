@@ -53,7 +53,7 @@ function profileReveal(fn) {
 }
 
 function userLink(u) {
-  return `<button class="ulink" data-user="${esc(u.username)}"><span class="av">${esc(u.avatar)}</span>${esc(u.username)}</button>`;
+  return `<button class="ulink" data-user="${esc(u.username)}">${avatarHTML(u)}${esc(u.username)}</button>`;
 }
 
 // ================================================================ ZNACZKI / ODŚWIEŻANIE
@@ -326,7 +326,7 @@ async function renderFriends() {
         <p class="muted small">Karty, które pokazują ci znajomi, i ich legendarne dropy. Swoją kartę pokażesz przyciskiem <b>📣</b> w podglądzie karty.</p>
         <div class="feed">${fd.feed.length ? fd.feed.map(f => `
           <div class="feed-item${!f.mine && f.id > fd.seen ? " unread" : ""}${f.kind !== "show" ? " fi-auto" : ""}${(f.reveal || person(f.person)).rarity === "secret" ? " fi-secret" : ""}">
-            <div class="fi-head">${f.mine ? '<span class="ulink me"><span class="av">' + esc(S.me.avatar) + "</span>Ty</span>" : userLink(f.author)}
+            <div class="fi-head">${f.mine ? `<span class="ulink me">${avatarHTML(S.me)}Ty</span>` : userLink(f.author)}
               <span class="muted">${feedText(f)}</span><span class="fi-time">${timeAgo(f.created)}</span></div>
             <div class="fi-body">
               <div class="fi-card" data-feed="${f.id}">${withReveal(f, () => cardHTML(f.person, f.variant))}</div>
@@ -461,7 +461,7 @@ async function renderProfile() {
   const u = d.user, mine = d.relation === "me";
   if (!PROF.crate || !crateOf(PROF.crate)) PROF.crate = S.cfg.crateOrder[0];
   const rel = {
-    me: `<button class="btn" data-act="avatar">🎭 Zmień awatar</button><button class="btn" data-act="password">🔑 Zmień hasło</button><button class="btn danger" data-act="logout">🚪 Wyloguj</button>`,
+    me: `<button class="btn" data-act="avatar">🎭 Zmień ikonę</button><button class="btn" data-act="password">🔑 Zmień hasło</button><button class="btn danger" data-act="logout">🚪 Wyloguj</button>`,
     none: `<button class="btn primary" data-act="invite">➕ Zaproś do znajomych</button>`,
     outgoing: `<button class="btn" disabled>⏳ Zaproszenie wysłane</button><button class="btn tiny" data-act="cancel">Anuluj</button>`,
     incoming: `<button class="btn sell" data-act="accept">✔ Przyjmij zaproszenie</button>`,
@@ -470,7 +470,7 @@ async function renderProfile() {
   const slots = Array.from({ length: S.cfg.showcaseSize }, (_, i) => d.showcase[i]);
   $("#profileBody").innerHTML = `
     <div class="panel profile-head">
-      <div class="pf-avatar${mine ? " editable" : ""}" ${mine ? 'data-act="avatar" title="Zmień awatar"' : ""}>${esc(u.avatar)}</div>
+      <div class="pf-avatar${mine ? " editable" : ""}" ${mine ? 'data-act="avatar" title="Zmień ikonę"' : ""}>${avatarHTML(u, "pf-av")}</div>
       <div class="pf-info">
         <h2>${esc(u.username)} ${u.isAdmin ? '<span title="Admin">👑</span>' : ""}</h2>
         <div class="muted small">gracz od ${new Date(u.created * 1000).toLocaleDateString("pl-PL")}</div>
@@ -533,18 +533,43 @@ function renderProfileBinder(flip = 0) {
   }
 }
 
-function openAvatarPicker() {
+function openAvatarPicker(tab = null) {
+  // karty, które mam (unikalne osoby), od najrzadszych
+  const mine = [...new Set(S.items.map(i => i.person))].filter(pid => person(pid))
+    .sort((a, b) => rarityIdx(person(b).rarity) - rarityIdx(person(a).rarity) || person(a).name.localeCompare(person(b).name, "pl"));
+  tab = tab || (S.me.avatarCard ? "cards" : mine.length ? "cards" : "emoji");
   const dlg = openDialog(`
-    <h3>🎭 Wybierz awatar</h3>
-    <div class="avatar-grid">${AVATARS.map(a => `<button class="av-opt${a === S.me.avatar ? " active" : ""}" data-av="${a}">${a}</button>`).join("")}</div>
-    <div class="daily-actions"><button class="btn" data-close>Zamknij</button></div>`);
+    <h3>🎭 Ikona gracza</h3>
+    <div class="seg av-tabs">
+      <button data-tab="cards" class="${tab === "cards" ? "active" : ""}">🃏 Z moich kart (${mine.length})</button>
+      <button data-tab="emoji" class="${tab === "emoji" ? "active" : ""}">😎 Emoji</button>
+    </div>
+    ${tab === "cards" ? `
+      <p class="muted small">Ikoną może być zdjęcie każdej postaci, której kartę masz w ekwipunku.</p>
+      <input type="text" class="av-search" placeholder="Szukaj…">
+      <div class="avatar-cards">${mine.map(pid => {
+        const p = person(pid), R = S.cfg.rarities[p.rarity];
+        return `<button class="av-card-opt${pid === S.me.avatarCard ? " active" : ""}${p.rarity === "secret" ? " av-secret" : ""}" data-card="${pid}" data-name="${esc(p.name.toLowerCase())}" style="--rc:${R.color}" title="${esc(p.name)}">
+          <img src="${imgUrl(pid)}" alt="" loading="lazy" draggable="false"><span>${esc(p.name)}</span></button>`;
+      }).join("") || '<div class="empty">Nie masz jeszcze żadnych kart — otwórz skrzynkę! 📦</div>'}</div>` : `
+      <div class="avatar-grid">${AVATARS.map(a => `<button class="av-opt${!S.me.avatarCard && a === S.me.avatar ? " active" : ""}" data-av="${a}">${a}</button>`).join("")}</div>`}
+    <div class="daily-actions"><button class="btn" data-close>Zamknij</button></div>`, "avatar-box");
+  dlg.querySelector(".av-search")?.addEventListener("input", e => {
+    const q = e.target.value.toLowerCase();
+    dlg.querySelectorAll(".av-card-opt").forEach(b => { b.hidden = q && !b.dataset.name.includes(q); });
+  });
   dlg.addEventListener("click", async e => {
-    const b = e.target.closest("[data-av]"); if (!b) return;
+    const t = e.target.closest("[data-tab]");
+    if (t) return openAvatarPicker(t.dataset.tab);
+    const card = e.target.closest("[data-card]"), emo = e.target.closest("[data-av]");
+    if (!card && !emo) return;
     try {
-      await api("/api/profile", { avatar: b.dataset.av });
-      S.me.avatar = b.dataset.av;
+      const res = await api("/api/profile", card ? { avatarCard: card.dataset.card } : { avatar: emo.dataset.av });
+      S.me = res.user;
       renderHeader(); closeDialogs(); Sound.click();
+      toast(card ? `Nowa ikona: ${person(card.dataset.card).name}` : "Nowa ikona ustawiona");
       if (currentView() === "profile") renderProfile();
+      if (currentView() === "friends") renderFriends();
     } catch (err) { toast(err.message, true); }
   });
 }

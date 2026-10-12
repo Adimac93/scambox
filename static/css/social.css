@@ -157,3 +157,31 @@ button.ulink:hover { color: var(--accent); }
   .dday.jackpot { grid-column: span 2; }
   .user-chip #userName { display: none; }
 }
+
+/* ============================================================ ikona gracza ze zdjęcia karty */
+.av-card { display: inline-grid; place-items: center; line-height: 0; }
+.av-card img {
+  width: 1.15em; height: 1.15em; border-radius: 50%; object-fit: cover; object-position: 50% 18%; display: block;
+  box-shadow: 0 0 0 2px var(--rc), 0 0 8px color-mix(in srgb, var(--rc) 60%, transparent); background: #0b0e18;
+}
+.av-card.av-secret img { box-shadow: 0 0 0 2px #f3e3b0, 0 0 10px #ffd54a; }
+.user-chip .av-card img { width: 26px; height: 26px; }
+.pf-avatar .pf-av { font-size: 56px; line-height: 1; }
+.pf-avatar .pf-av.av-card { width: 100%; height: 100%; }
+.pf-avatar .pf-av.av-card img { width: 100%; height: 100%; border-radius: 22px; box-shadow: inset 0 0 0 3px var(--rc); }
+.pf-avatar:has(.av-card) { padding: 0; overflow: hidden; }
+.pf-avatar .pf-av.av-card img { box-shadow: inset 0 0 0 3px var(--rc), 0 0 22px color-mix(in srgb, var(--rc) 55%, transparent); }
+.avatar-box { width: min(620px, 100%); }
+.av-tabs { align-self: flex-start; }
+.av-search { width: 100%; }
+.avatar-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 10px; max-height: 52vh; overflow: auto; padding: 4px; }
+.av-card-opt {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 4px; border-radius: 12px;
+  background: var(--panel2); border: 1px solid var(--line); color: var(--text); font-size: 11px; font-weight: 700;
+  transition: transform .12s, border-color .12s;
+}
+.av-card-opt:hover { transform: translateY(-2px); border-color: var(--rc); }
+.av-card-opt img { width: 62px; height: 62px; border-radius: 50%; object-fit: cover; object-position: 50% 18%; box-shadow: 0 0 0 3px var(--rc); }
+.av-card-opt span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.av-card-opt.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.av-card-opt.av-secret img { box-shadow: 0 0 0 3px #f3e3b0, 0 0 14px #ffd54a; }

@@ -126,6 +126,8 @@ def init_db():
         conn.execute("ALTER TABLE items ADD COLUMN user_id INTEGER")
     conn.execute("CREATE INDEX IF NOT EXISTS items_user ON items (user_id)")
     ucols = [r[1] for r in conn.execute("PRAGMA table_info(users)")]
+    if "avatar_card" not in ucols:  # migracja: ikona gracza ze zdjęcia karty
+        conn.execute("ALTER TABLE users ADD COLUMN avatar_card TEXT NOT NULL DEFAULT ''")
     if "banned" not in ucols:  # migracja: blokowanie kont
         conn.execute("ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0")
         conn.execute("ALTER TABLE users ADD COLUMN ban_reason TEXT NOT NULL DEFAULT ''")
@@ -190,8 +192,16 @@ def admin_required(fn):
     return wrapper
 
 
+def avatar_card(u):
+    """Karta ustawiona jako ikona gracza (id osoby) albo None."""
+    pid = u["avatar_card"] if "avatar_card" in u.keys() else ""
+    return pid if pid in catalog.PEOPLE else None
+
+
 def user_json(u):
-    return {"id": u["id"], "username": u["username"], "avatar": u["avatar"], "isAdmin": bool(u["is_admin"])}
+    pid = avatar_card(u)
+    return {"id": u["id"], "username": u["username"], "avatar": u["avatar"], "isAdmin": bool(u["is_admin"]),
+            "avatarCard": pid, "avatarRarity": catalog.PEOPLE[pid]["rarity"] if pid else None}
 
 
 def find_user(name):
@@ -894,7 +904,7 @@ def feed_entry_visible(feed_id, person_id):
 def feed():
     me = uid()
     params = {"me": me, "friends": json.dumps(sorted(friend_ids(me)))}
-    rows = db().execute(f"SELECT f.*, u.username, u.avatar, (SELECT username FROM users WHERE id = f.to_user_id) AS to_name "
+    rows = db().execute(f"SELECT f.*, u.username, u.avatar, u.avatar_card, (SELECT username FROM users WHERE id = f.to_user_id) AS to_name "
                         f"{visible_feed_sql()} ORDER BY f.id DESC LIMIT 60", params).fetchall()
     out = []
     found = discovered()
@@ -906,7 +916,10 @@ def feed():
         reveal = public_person(p, {p["id"]}) if p["rarity"] == "secret" and p["id"] not in found else None
         out.append({"id": r["id"], "kind": r["kind"], "person": r["person_id"], "variant": r["variant"], "reveal": reveal,
                     "message": r["message"], "created": r["created_at"], "mine": r["author_id"] == me,
-                    "author": {"username": r["username"], "avatar": r["avatar"]}, "to": r["to_name"],
+                    "author": {"username": r["username"], "avatar": r["avatar"],
+                               "avatarCard": r["avatar_card"] if r["avatar_card"] in catalog.PEOPLE else None,
+                               "avatarRarity": catalog.PEOPLE[r["avatar_card"]]["rarity"] if r["avatar_card"] in catalog.PEOPLE else None},
+                    "to": r["to_name"],
                     "value": card_value(catalog.PEOPLE[r["person_id"]], r["variant"])})
     return jsonify({"feed": out, "seen": get_state()["feed_seen"]})
 
@@ -968,12 +981,39 @@ def set_showcase():
 @app.post("/api/profile")
 @login_required
 def set_profile():
-    avatar = (request.get_json(force=True).get("avatar") or "").strip()
-    if not 1 <= len(avatar) <= 8:
-        return jsonify({"error": "Nieprawidłowy awatar"}), 400
-    db().execute("UPDATE users SET avatar = ? WHERE id = ?", (avatar, uid()))
+    body = request.get_json(force=True)
+    if "avatarCard" in body:  # ikona ze zdjęcia karty - tylko z kart, które gracz ma (żadnych własnych plików)
+        pid = body.get("avatarCard") or ""
+        if pid and (pid not in catalog.PEOPLE or db().execute(
+                "SELECT 1 FROM items WHERE user_id = ? AND person_id = ? LIMIT 1", (uid(), pid)).fetchone() is None):
+            return jsonify({"error": "Możesz ustawić tylko zdjęcie karty, którą masz"}), 400
+        db().execute("UPDATE users SET avatar_card = ? WHERE id = ?", (pid, uid()))
+    if "avatar" in body:
+        avatar = (body.get("avatar") or "").strip()
+        if not 1 <= len(avatar) <= 8:
+            return jsonify({"error": "Nieprawidłowy awatar"}), 400
+        db().execute("UPDATE users SET avatar = ?, avatar_card = '' WHERE id = ?", (avatar, uid()))
     db().commit()
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "user": user_json(db().execute("SELECT * FROM users WHERE id = ?", (uid(),)).fetchone())})
+
+
+@app.route("/avatar/<name>")
+@login_required
+def avatar_image(name):
+    u = find_user(name)
+    pid = avatar_card(u) if u else None
+    if pid is None:
+        return "", 404
+    p = catalog.PEOPLE[pid]
+    # tajna karta jako ikona: widzą ją tylko ci, którzy ją odkryli, sam gracz i jego znajomi
+    if p["rarity"] == "secret" and pid not in discovered() and u["id"] != uid() and u["id"] not in friend_ids(uid()):
+        return svg_response(MYSTERY_SVG)
+    path = images.ensure(pid)
+    if not path:
+        return "", 404
+    resp = send_file(path, mimetype=images.mimetype(path), max_age=300)
+    resp.headers["Cache-Control"] = "private, max-age=300"
+    return resp
 
 
 @app.get("/api/users/<name>")
@@ -1087,8 +1127,7 @@ def admin_catalog():
     cards = [dict(admin_card_json(p), owned=counts.get(p["id"], 0), hidden=False) for p in catalog.PEOPLE.values()]
     cards += [dict(admin_card_json(dict(p, number=0)), owned=counts.get(p["id"], 0), hidden=True)
               for p in catalog.HIDDEN_CARDS.values() if p.get("crate") in catalog.CRATES]
-    users = [{"id": u["id"], "username": u["username"], "avatar": u["avatar"]}
-             for u in db().execute("SELECT * FROM users ORDER BY username COLLATE NOCASE")]
+    users = [user_json(u) for u in db().execute("SELECT * FROM users ORDER BY username COLLATE NOCASE")]
     return jsonify({"crates": crates, "cards": cards, "rarities": RARITIES, "rarityOrder": RARITY_ORDER,
                     "types": TYPES, "defaultPrice": CRATE_PRICE, "users": users})
 
