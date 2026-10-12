@@ -390,7 +390,7 @@ def image(person_id, kind="main"):
     if p["rarity"] == "secret" and person_id not in discovered():
         # ?admin=1 - podgląd w panelu admina, ?feed=ID - tajna karta pokazana w aktywności znajomych
         u = current_user()
-        allowed = (request.args.get("admin") == "1" and u and u["is_admin"]) or                   (u and feed_entry_visible(request.args.get("feed"), person_id))
+        allowed = (request.args.get("admin") == "1" and u and u["is_admin"]) or                   (u and feed_entry_visible(request.args.get("feed"), person_id)) or                   (u and friend_owns(request.args.get("owner"), person_id))
         if not allowed:
             return svg_response(MYSTERY_SVG)
     path = images.ensure(person_id, alt=(kind == "alt"))
@@ -836,6 +836,15 @@ def visible_feed_sql():
                  OR (f.to_user_id IS NULL AND f.author_id IN (SELECT value FROM json_each(:friends))))"""
 
 
+def friend_owns(owner_name, person_id):
+    """Czy gracz o tej nazwie jest moim znajomym i ma tę kartę (wtedy widzę ją na jego profilu)."""
+    owner = find_user(owner_name) if owner_name else None
+    if owner is None or owner["id"] not in friend_ids(uid()):
+        return False
+    return db().execute("SELECT 1 FROM items WHERE user_id = ? AND person_id = ? LIMIT 1",
+                        (owner["id"], person_id)).fetchone() is not None
+
+
 def feed_entry_visible(feed_id, person_id):
     try:
         feed_id = int(feed_id)
@@ -951,9 +960,19 @@ def profile(name):
         it = item_json(r)
         if it:
             show.append(it)
+    rel = relation(uid(), u["id"])
+    # tajne karty znajomego widać na jego profilu, nawet jeśli samemu się ich jeszcze nie odkryło
+    reveal = {}
+    if rel == "friend":
+        found = discovered()
+        for c in collection:
+            p = catalog.PEOPLE[c["person"]]
+            if p["rarity"] == "secret" and p["id"] not in found:
+                reveal[p["id"]] = public_person(p, {p["id"]})
     return jsonify({
         "user": brief(u, stats) | {"created": u["created_at"]},
-        "relation": relation(uid(), u["id"]),
+        "relation": rel,
+        "reveal": reveal,
         "stats": {"opened": st.get("opened", 0), "contracts": st.get("contracts", 0),
                   "upgradesWon": st.get("upgrades_won", 0), "upgradesLost": st.get("upgrades_lost", 0)},
         "collection": collection,

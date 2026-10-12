@@ -334,25 +334,45 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 .pick.v-silver img { filter: grayscale(1) brightness(1.1) contrast(1.1); }
 .pick.v-silver { box-shadow: inset 0 0 0 2px #dfe6f0, inset 0 -26px 26px -18px var(--rc); }
 
-/* Diamentowa - lodowe, pryzmatyczne fasety, mieniąca się ramka i błyski */
+/* Diamentowa - lodowy błękit: niebieska pryzmatyczna ramka, fasety, zdjęcie zabarwione na niebiesko, błyski */
 .card.v-diamond {
-  --frame: conic-gradient(from var(--ang, 0deg), #9ff6ff, #ffffff, #c9b8ff, #e8fbff, #7fd8ff, #ffffff, #d9c9ff, #9ff6ff);
-  animation: ultraSpin 5s linear infinite;
-  box-shadow: 0 6px 18px #000a, 0 0 24px #9ff6ffcc, 0 0 50px #c9b8ff88;
+  --frame: conic-gradient(from var(--ang, 0deg), #0a4dff, #6fd3ff, #ffffff, #1e7bff, #00c8ff, #b8ecff, #0a4dff);
+  animation: ultraSpin 4s linear infinite;
+  box-shadow: 0 6px 18px #000a, 0 0 26px #2f8cffdd, 0 0 60px #00b4ff88;
 }
 .card.v-diamond .card-inner {
   background:
-    repeating-conic-gradient(from 0deg at 30% 20%, #ffffff55 0 12deg, #d8f6ff33 12deg 24deg),
-    repeating-conic-gradient(from 45deg at 75% 80%, #e6dcff44 0 15deg, transparent 15deg 30deg),
-    linear-gradient(160deg, #f4feff, #d6f3ff 40%, #efe9ff 75%, #ffffff);
+    repeating-conic-gradient(from 0deg at 30% 20%, #ffffff40 0 12deg, #7fc8ff33 12deg 24deg),
+    repeating-conic-gradient(from 45deg at 75% 80%, #9fd8ff44 0 15deg, transparent 15deg 30deg),
+    linear-gradient(160deg, #d9f1ff, #8fd0ff 40%, #c4e6ff 70%, #eef8ff);
+  color: #06204a;
 }
-.card.v-diamond .card-photo { border-image: linear-gradient(135deg, #ffffff, #9ff6ff, #c9b8ff, #ffffff) 1; }
-.card.v-diamond .card-photo img, .r-secret.v-diamond .sc-art img { filter: brightness(1.06) saturate(1.1) contrast(1.05); }
-.diamond-layer {
-  position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none; mix-blend-mode: screen; opacity: .55;
+.card.v-diamond .card-name { background: linear-gradient(180deg, #0a3a8f, #021638); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.card.v-diamond .card-sub, .card.v-diamond .card-stats, .card.v-diamond .card-foot { color: #0b2d63; }
+.card.v-diamond .card-photo { border-image: linear-gradient(135deg, #ffffff, #2f8cff, #9fe6ff, #0a4dff) 1; }
+/* samo zdjęcie też zmienia się w "lodowy diament" */
+.card.v-diamond .card-photo img, .r-secret.v-diamond .sc-art img { filter: grayscale(.35) brightness(1.08) contrast(1.15) saturate(1.3); }
+.card.v-diamond .card-photo::before, .r-secret.v-diamond .sc-art::before {
+  content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(160deg, #1e6bff, #3fd0ff 45%, #0a3dbb);
+  mix-blend-mode: color; opacity: .78;
+}
+.card.v-diamond .card-photo::after, .r-secret.v-diamond .sc-art::after {
+  content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
   background:
-    linear-gradient(115deg, transparent 30%, #ffffffcc 42%, #b8f4ff88 47%, transparent 58%),
-    linear-gradient(65deg, transparent 40%, #e6dcff99 50%, transparent 60%);
+    linear-gradient(115deg, transparent 35%, #ffffffaa 47%, transparent 58%),
+    repeating-linear-gradient(60deg, #ffffff14 0 2px, transparent 2px 14px),
+    repeating-linear-gradient(-60deg, #ffffff14 0 2px, transparent 2px 14px);
+  background-size: 250% 100%, auto, auto;
+  mix-blend-mode: screen; animation: photoGlint 2.8s ease-in-out infinite;
+}
+.r-secret.v-diamond .sc-art::after { background: linear-gradient(180deg, #000a 0%, #0000 20%, #0000 48%, #000d 78%, #000 100%), linear-gradient(115deg, transparent 35%, #ffffffaa 47%, transparent 58%); background-size: auto, 250% 100%; mix-blend-mode: normal; }
+.r-secret.v-diamond { box-shadow: 0 6px 18px #000c, 0 0 26px #2f8cffdd, 0 0 60px #00b4ff88; }
+.diamond-layer {
+  position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none; mix-blend-mode: screen; opacity: .6;
+  background:
+    linear-gradient(115deg, transparent 30%, #ffffffcc 42%, #6fd3ff99 47%, transparent 58%),
+    linear-gradient(65deg, transparent 40%, #2f8cff88 50%, transparent 60%);
   background-size: 260% 100%, 300% 100%;
   animation: diamondSweep 3.2s ease-in-out infinite;
 }
@@ -363,7 +383,7 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
   background: radial-gradient(circle, #fff 0 12%, transparent 13%),
               linear-gradient(0deg, transparent 46%, #fff 50%, transparent 54%),
               linear-gradient(90deg, transparent 46%, #fff 50%, transparent 54%);
-  filter: drop-shadow(0 0 4px #9ff6ff);
+  filter: drop-shadow(0 0 5px #3fb6ff);
   animation: glint 2.4s ease-in-out infinite;
 }
 .diamond-glints i:nth-child(1) { left: 12%; top: 18%; animation-delay: 0s; }
@@ -372,12 +392,19 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 .diamond-glints i:nth-child(4) { left: 20%; top: 70%; animation-delay: 1.5s; }
 .diamond-glints i:nth-child(5) { left: 84%; top: 84%; animation-delay: 1.9s; }
 @keyframes glint { 0%, 100% { opacity: 0; transform: scale(.3) rotate(0deg); } 45% { opacity: 1; transform: scale(1.15) rotate(45deg); } 60% { opacity: 0; } }
-.pick.v-diamond { box-shadow: inset 0 0 0 2px #9ff6ff, 0 0 10px #9ff6ff88, inset 0 -26px 26px -18px var(--rc); }
+.pick.v-diamond { box-shadow: inset 0 0 0 2px #2f8cff, 0 0 10px #2f8cff99, inset 0 -26px 26px -18px var(--rc); }
+.pick.v-diamond img { filter: grayscale(.35) brightness(1.05) contrast(1.1) sepia(.4) hue-rotate(170deg) saturate(2.2); }
 .pick.v-diamond::after, .pick.v-silver::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(115deg, transparent 30%, #ffffff60 45%, transparent 60%); background-size: 250% 100%;
   animation: photoGlint 2.6s ease-in-out infinite;
 }
+.var-tag.vt-diamond, .ph.vt-diamond {
+  background: linear-gradient(90deg, #0a4dff, #6fd3ff, #ffffff, #1e7bff); background-size: 200% 100%; color: #fff; text-shadow: 0 1px 2px #021638;
+  box-shadow: 0 0 .8em #2f8cff, 0 0 1.6em #00b4ff88; animation: rainbowSlide 2.5s linear infinite;
+}
+.vdot.vt-diamond { background: linear-gradient(135deg, #0a4dff, #6fd3ff); box-shadow: 0 0 6px #2f8cff; }
+.odd.odd-v.vt-diamond { border-left-color: #2f8cff; }
 
 /* tajna karta znajomego w aktywności */
 .feed-item.fi-secret { background: linear-gradient(90deg, #3a2a08cc, var(--panel2)); border-color: #f3e3b088; box-shadow: 0 0 18px #ffd54a33; }

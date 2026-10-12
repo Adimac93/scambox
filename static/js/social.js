@@ -39,6 +39,19 @@ function withReveal(f, fn) {
   try { return fn(); } finally { S.cfg.people[f.person] = orig; }
 }
 
+// To samo dla profilu znajomego: { personId: prawdziwe dane } + parametr dla obrazka
+function withRevealMap(map, imgq, fn) {
+  const ids = Object.keys(map || {});
+  if (!ids.length) return fn();
+  const orig = {};
+  ids.forEach(id => { orig[id] = S.cfg.people[id]; S.cfg.people[id] = { ...map[id], imgq }; });
+  try { return fn(); } finally { ids.forEach(id => { S.cfg.people[id] = orig[id]; }); }
+}
+function profileReveal(fn) {
+  const d = PROF.data;
+  return withRevealMap(d?.reveal, `owner=${encodeURIComponent(d?.user.username || "")}`, fn);
+}
+
 function userLink(u) {
   return `<button class="ulink" data-user="${esc(u.username)}"><span class="av">${esc(u.avatar)}</span>${esc(u.username)}</button>`;
 }
@@ -477,7 +490,7 @@ async function renderProfile() {
       <h3>🏆 Gablota</h3>
       ${mine ? '<p class="muted small">Twoje najlepsze karty na pokaz. Dodasz je przyciskiem <b>📌 Do gabloty</b> w podglądzie karty (🔍).</p>' : ""}
       <div class="showcase-grid">${slots.map(it => it
-        ? `<div class="sc-slot">${cardHTML(it.person, it.variant)}</div>`
+        ? `<div class="sc-slot">${profileReveal(() => cardHTML(it.person, it.variant))}</div>`
         : `<div class="sc-slot empty"><span>${mine ? "📌" : "—"}</span></div>`).join("")}</div>
     </div>
 
@@ -505,7 +518,7 @@ function renderProfileBinder(flip = 0) {
     o.count += c.count;
     if (varRank(c.variant) > varRank(o.best)) o.best = c.variant;
   }
-  const b = binderHTML(crateOf(PROF.crate), owned, PROF.spread, { mine: d.relation === "me" });
+  const b = profileReveal(() => binderHTML(crateOf(PROF.crate), owned, PROF.spread, { mine: d.relation === "me" }));
   PROF.spread = b.spread;
   $("#pfProgress").innerHTML = b.progress;
   $("#pfBinder").innerHTML = b.html;
@@ -638,6 +651,6 @@ function bindSocial() {
     if (t.closest("#pfPrev")) { PROF.spread--; return renderProfileBinder(-1); }
     if (t.closest("#pfNext")) { PROF.spread++; return renderProfileBinder(1); }
     const c = t.closest(".pocket.owned .card, .sc-slot .card");
-    if (c) openViewer(c.dataset.pid, c.dataset.variant);
+    if (c) profileReveal(() => openViewer(c.dataset.pid, c.dataset.variant));
   });
 }
