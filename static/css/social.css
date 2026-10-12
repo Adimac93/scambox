@@ -185,3 +185,34 @@ button.ulink:hover { color: var(--accent); }
 .av-card-opt span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .av-card-opt.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
 .av-card-opt.av-secret img { box-shadow: 0 0 0 3px #f3e3b0, 0 0 14px #ffd54a; }
+
+/* ============================================================ wymiany */
+.social-left { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.trade { background: var(--panel2); border: 1px solid var(--line); border-radius: 14px; padding: 12px; margin-bottom: 10px; }
+.trade.t-old { opacity: .75; }
+.t-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.t-msg { font-style: italic; margin-top: 6px; }
+.t-body { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: start; margin-top: 10px; }
+.t-arrow { font-size: 26px; color: var(--accent); align-self: center; }
+.ts-title { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+.ts-items { display: flex; flex-wrap: wrap; gap: 6px; }
+.ts-items .tl-card { width: 70px; cursor: zoom-in; }
+.ts-items .pick .pn { font-size: 9px; } .ts-items .pick .pv { font-size: 9px; }
+.ts-money { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 70px; min-height: 70px; border-radius: 9px; background: #12301f; border: 1px solid #1f5a3a; font-size: 20px; }
+.ts-money b { font-size: 11px; color: var(--good); }
+.t-problem { margin-top: 8px; color: #ffb3bf; font-size: 13px; }
+.t-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; flex-wrap: wrap; }
+.t-status { font-size: 13px; font-weight: 700; }
+details.fsection summary { cursor: pointer; color: var(--muted); font-weight: 700; margin-bottom: 8px; }
+
+.trade-box { width: min(980px, 100%); max-height: 94vh; }
+.tb-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; min-height: 0; }
+.tb-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; background: var(--panel2); border-radius: 14px; padding: 10px; }
+.tb-head { display: flex; justify-content: space-between; gap: 8px; }
+.tb-sel { display: flex; flex-wrap: wrap; gap: 6px; min-height: 92px; padding: 6px; border-radius: 10px; border: 2px dashed #ffffff22; align-content: flex-start; }
+.tb-sel .pick { width: 74px; }
+.tb-money { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.tb-money input { width: 120px; }
+.tb-grid { max-height: 34vh; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); }
+#tbMsg { width: 100%; }
+@media (max-width: 760px) { .tb-cols { grid-template-columns: 1fr; } .t-body { grid-template-columns: 1fr; } .t-arrow { justify-self: center; transform: rotate(90deg); } }

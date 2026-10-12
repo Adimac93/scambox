@@ -1,0 +1,24 @@
+/* ============================================================ ikona gracza w wariancie karty */
+.av-card { position: relative; }
+.av-card::after { content: ""; position: absolute; inset: 0; border-radius: 50%; pointer-events: none; }
+.pf-av.av-card::after { border-radius: 22px; }
+
+.avv-bw img { filter: grayscale(1) contrast(1.25); box-shadow: 0 0 0 2px #fff, 0 0 0 4px #000 !important; }
+.avv-reverse::after {
+  inset: -3px; background: conic-gradient(from var(--ang, 0deg), #ff3b3b, #ffe53b, #3bff6b, #3bd5ff, #6b5bff, #ff3bd8, #ff3b3b);
+  -webkit-mask: radial-gradient(circle, transparent calc(50% - 3px), #000 calc(50% - 2px));
+  mask: radial-gradient(circle, transparent calc(50% - 3px), #000 calc(50% - 2px));
+  animation: ultraSpin 3s linear infinite;
+}
+.avv-silver img { filter: grayscale(1) brightness(1.1) contrast(1.15) sepia(.15) hue-rotate(180deg); box-shadow: 0 0 0 2px #e6ebf2, 0 0 10px #dfe6f0 !important; }
+.avv-holo::after {
+  background: linear-gradient(115deg, #ff000066, #ffff0066, #00ff0066, #00ffff66, #0000ff66, #ff00ff66, #ff000066);
+  background-size: 300% 300%; mix-blend-mode: color-dodge; animation: holoDrift 4s linear infinite;
+}
+.avv-gold img { filter: sepia(1) saturate(1.8) hue-rotate(-10deg) brightness(1.05) contrast(1.15); box-shadow: 0 0 0 2px #ffcf3f, 0 0 12px #ffcf3f !important; }
+.avv-gold::after { background: linear-gradient(115deg, transparent 35%, #fff8 48%, transparent 60%); background-size: 250% 100%; mix-blend-mode: overlay; animation: photoGlint 2.4s ease-in-out infinite; }
+.avv-diamond img { filter: grayscale(.35) brightness(1.08) contrast(1.15); box-shadow: 0 0 0 2px #2f8cff, 0 0 14px #00b4ff !important; }
+.avv-diamond::after { background: linear-gradient(160deg, #1e6bff, #3fd0ff 45%, #0a3dbb); mix-blend-mode: color; opacity: .75; }
+.av-vname { font-size: 10px; font-weight: 900; padding: 1px 6px; border-radius: 5px; background: #000a; }
+.av-vname.vt-gold { color: #ffcf3f; } .av-vname.vt-diamond { color: #6fd3ff; } .av-vname.vt-silver { color: #dfe6f0; }
+.av-vname.vt-holo { color: #ff9ff3; } .av-vname.vt-reverse { color: #c9d6ff; } .av-vname.vt-bw { color: #fff; }

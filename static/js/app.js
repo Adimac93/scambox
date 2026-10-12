@@ -62,7 +62,7 @@ function imgUrl(pid) {
 function avatarHTML(u, cls = "av") {
   if (u && u.avatarCard) {
     const rc = S.cfg?.rarities[u.avatarRarity]?.color || "#ffffff55";
-    return `<span class="${cls} av-card${u.avatarRarity === "secret" ? " av-secret" : ""}" style="--rc:${rc}"><img src="/avatar/${encodeURIComponent(u.username)}?c=${encodeURIComponent(u.avatarCard)}" alt="" draggable="false"></span>`;
+    return `<span class="${cls} av-card avv-${u.avatarVariant || "normal"}${u.avatarRarity === "secret" ? " av-secret" : ""}" style="--rc:${rc}"><img src="/avatar/${encodeURIComponent(u.username)}?c=${encodeURIComponent(u.avatarCard)}" alt="" draggable="false"></span>`;
   }
   return `<span class="${cls}">${esc(u?.avatar || "😎")}</span>`;
 }
@@ -92,7 +92,7 @@ function cardHTML(pid, variant = "normal") {
   const total = String(crate.people.length).padStart(3, "0");
   const cost = type.icon.repeat(Math.min(3, 1 + Math.floor(rarityIdx(p.rarity) / 2)));
   return `
-  <div class="card r-${p.rarity} v-${variant}" data-pid="${p.id}" data-variant="${variant}">
+  <div class="card r-${p.rarity} v-${variant}${p.attack2 ? " two-atk" : ""}" data-pid="${p.id}" data-variant="${variant}">
     <div class="card-inner">
       ${variant === "reverse" ? '<div class="rev-foil"></div>' : ""}
       <div class="card-head">
@@ -107,6 +107,11 @@ function cardHTML(pid, variant = "normal") {
         <span class="atk-name">${esc(p.attack)}</span>
         <span class="atk-dmg">${p.dmg}</span>
       </div>
+      ${p.attack2 ? `<div class="card-attack atk2">
+        <span class="atk-cost">${cost}${type.icon}</span>
+        <span class="atk-name">${esc(p.attack2)}</span>
+        <span class="atk-dmg">${p.dmg2}</span>
+      </div>` : ""}
       <div class="card-stats">
         <span>słabość<b>${S.cfg.types[type.weak].icon}×2</b></span>
         <span>odporność<b>${S.cfg.types[type.resist].icon}-20</b></span>
@@ -142,6 +147,7 @@ function secretCardHTML(p, variant) {
       <div class="sc-ribbon">TAJNA</div>
       <div class="sc-panel">
         <div class="sc-attack"><span>${type.icon}</span><span class="sc-atk">${esc(p.attack)}</span><b>${p.dmg}</b></div>
+        ${p.attack2 ? `<div class="sc-attack"><span>${type.icon}${type.icon}</span><span class="sc-atk">${esc(p.attack2)}</span><b>${p.dmg2}</b></div>` : ""}
         <div class="sc-foot"><span>★ TAJNA ★</span><span>${esc(crate.code)} ★${String(p.number).padStart(3, "0")}</span><span class="sc-val">${fmt(cardValue(p.id, variant))}</span></div>
       </div>
       <div class="sc-frame"></div>

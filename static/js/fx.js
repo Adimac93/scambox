@@ -248,7 +248,8 @@ function openViewer(pid, variant = "normal") {
         <div class="muted">${type.icon} ${type.name} · ${esc(crate.name)} · nr ${String(p.number).padStart(3, "0")}/${String(crate.people.length).padStart(3, "0")}</div>
         <table class="vi-table">
           <tr><td>HP</td><td>${p.hp}</td></tr>
-          <tr><td>Atak</td><td>${esc(p.attack)} <b>${p.dmg}</b></td></tr>
+          <tr><td>${p.attack2 ? "Atak 1" : "Atak"}</td><td>${esc(p.attack)} <b>${p.dmg}</b></td></tr>
+          ${p.attack2 ? `<tr><td>Atak 2</td><td>${esc(p.attack2)} <b>${p.dmg2}</b></td></tr>` : ""}
           <tr><td>Słabość / odporność</td><td>${S.cfg.types[type.weak].icon} ×2 · ${S.cfg.types[type.resist].icon} −20</td></tr>
           <tr><td>Wartość</td><td><b>${fmt(cardValue(pid, variant))}</b> <span class="muted">(×${String(S.cfg.variants[variant].mult).replace(".", ",")})</span></td></tr>
           <tr><td>Szansa z 1 skrzynki</td><td>${chance ? "1 na " + Math.round(1 / chance).toLocaleString("pl-PL") : "—"}</td></tr>

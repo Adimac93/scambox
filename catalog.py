@@ -13,7 +13,7 @@ import json
 import data
 
 CRATE_FIELDS = ("name", "short", "code", "emoji", "color1", "color2", "price", "desc", "shop", "restricted", "weights")
-CARD_FIELDS = ("name", "wiki", "rarity", "type", "hp", "attack", "dmg", "crate", "crates")
+CARD_FIELDS = ("name", "wiki", "rarity", "type", "hp", "attack", "dmg", "attack2", "dmg2", "crate", "crates")
 
 CRATES = {}         # id -> skrzynka (z listą "people" w kolejności numerów)
 PEOPLE = {}         # id -> karta
@@ -69,7 +69,9 @@ def rebuild(conn):
                 hidden_crates[cid] = crates.pop(cid)
             continue
         if cid in crates:
+            merged = dict(crates[cid].get("weights") or {}, **(d.get("weights") or {}))  # szanse: zmiany admina + domyślne
             crates[cid].update(d)
+            crates[cid]["weights"] = merged
             crates[cid]["modified"] = True
         else:
             base = {"name": cid, "short": cid, "code": cid[:2].upper(), "emoji": "📦", "color1": "#888888",
@@ -97,6 +99,8 @@ def rebuild(conn):
         if isinstance(p.get("wiki"), list):
             p["wiki"] = tuple(p["wiki"])
         p["hp"], p["dmg"] = int(p.get("hp") or 0), int(p.get("dmg") or 0)
+        p["attack2"] = (p.get("attack2") or "").strip() or None
+        p["dmg2"] = int(p.get("dmg2") or 0) if p["attack2"] else 0
         if p.get("rarity") not in data.RARITIES:
             p["rarity"] = "green"
         if p.get("type") not in data.TYPES:
@@ -118,6 +122,12 @@ def rebuild(conn):
         crate["shop"] = bool(crate.get("shop", True))
         crate["restricted"] = bool(crate.get("restricted", False))
         crate["weights"] = {r: float(w) for r, w in (crate.get("weights") or {}).items() if r in data.RARITIES}
+        # tajna karta: zawsze 1 na SECRET_ODDS otwartych skrzynek (chyba że admin ustawi inaczej)
+        crate["autoSecret"] = "secret" not in crate["weights"]
+        if crate["autoSecret"]:
+            present = {p["rarity"] for p in members}
+            others = sum(crate_weight(crate, r) for r in present if r != "secret")
+            crate["weights"]["secret"] = others / (data.SECRET_ODDS - 1) if others else 0.0
 
     CRATES, PEOPLE = crates, final_people
     HIDDEN_CRATES, HIDDEN_CARDS = hidden_crates, hidden_cards

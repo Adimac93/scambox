@@ -225,8 +225,10 @@ PEOPLE_WORLD = [
 ]
 
 PEOPLE_PRL = [
+    # ULTRA
+    P("prl_gierek", "Edward Gierek", ("pl", "Edward Gierek"), "ultra", "polityka", 290, "Pomożecie?", 250),
     # LEGENDARNE
-    P("prl_gierek", "Edward Gierek", ("pl", "Edward Gierek"), "gold", "polityka", 200, "Pomożecie?", 175),
+    P("prl_hermaszewski", "Mirosław Hermaszewski", ("pl", "Mirosław Hermaszewski"), "gold", "nauka", 205, "Lot w kosmos", 180),
     P("prl_jaruzelski", "Wojciech Jaruzelski", ("pl", "Wojciech Jaruzelski"), "gold", "polityka", 205, "Przemówienie 13 grudnia", 180),
     # MITYCZNE
     P("prl_gomulka", "Władysław Gomułka", ("pl", "Władysław Gomułka"), "red", "polityka", 150, "Odwilż '56", 125),
@@ -270,10 +272,34 @@ CRATES = {
     "prl": {"name": "Skrzynka PRL", "short": "PRL", "code": "PRL", "emoji": "🏭",
             "color1": "#c8102e", "color2": "#3c3c3c", "price": 500, "shop": True, "restricted": False,
             "desc": "Polska Ludowa 1945–1989: władza, opozycja i gwiazdy epoki",
-            "weights": {"green": 40.0, "blue": 30.0, "purple": 18.0, "red": 9.0, "gold": 3.0},
-            "shared": ["pl_walesa", "pl_krawczyk", "pl_rodowicz"],
+            "weights": {"green": 40.0, "blue": 30.0, "purple": 18.0, "red": 9.0, "gold": 3.0, "ultra": 0.5},
+            "shared": ["pl_secret", "pl_walesa", "pl_krawczyk", "pl_rodowicz"],
             "people": PEOPLE_PRL},
 }
+
+# Drugie zdolności - mają je wszystkie karty legendarne, ULTRA i tajne
+SECOND_ATTACKS = {
+    "pl_malysz": ("Bułka z bananem", 120),
+    "pl_walesa": ("Plusy dodatnie, plusy ujemne", 130),
+    "pl_pilsudski": ("Cud nad Wisłą", 150),
+    "pl_lewandowski": ("Rekord Bundesligi", 220),
+    "pl_curie": ("Odkrycie polonu", 230),
+    "pl_secret": ("Nie lękajcie się!", 280),
+    "w_ronaldo": ("Rzut wolny z 35 metrów", 160),
+    "w_messi": ("Osiem Złotych Piłek", 170),
+    "w_jordan": ("Sześć pierścieni", 160),
+    "w_trump": ("You're fired!", 220),
+    "w_einstein": ("Teoria względności", 230),
+    "w_secret": ("Debata na kampusie", 260),
+    "prl_gierek": ("Druga Polska", 210),
+    "prl_hermaszewski": ("Eksperyment na orbicie", 130),
+    "prl_jaruzelski": ("Ciemne okulary", 140),
+    "pl_korwin": ("Muszka bojowa", 120),
+}
+for _c in CRATES.values():
+    for _p in _c["people"]:
+        if _p["id"] in SECOND_ATTACKS:
+            _p["attack2"], _p["dmg2"] = SECOND_ATTACKS[_p["id"]]
 
 
 def card_value(person, variant="normal"):

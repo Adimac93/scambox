@@ -39,7 +39,7 @@ async function load() {
 function avHTML(u) {
   if (u.avatarCard) {
     const rc = A.cat?.rarities?.[u.avatarRarity]?.color || "#ffffff55";
-    return `<span class="av av-card" style="--rc:${rc}"><img src="/avatar/${encodeURIComponent(u.username)}?c=${encodeURIComponent(u.avatarCard)}" alt=""></span>`;
+    return `<span class="av av-card avv-${u.avatarVariant || "normal"}" style="--rc:${rc}"><img src="/avatar/${encodeURIComponent(u.username)}?c=${encodeURIComponent(u.avatarCard)}" alt=""></span>`;
   }
   return `<span class="av">${esc(u.avatar)}</span>`;
 }
@@ -181,6 +181,8 @@ function openCardForm(id) {
         <label>HP<input type="number" name="hp" value="${c.hp}" min="0" max="9999"></label>
         <label>Nazwa ataku<input type="text" name="attack" value="${esc(c.attack)}" maxlength="40"></label>
         <label>Obrażenia<input type="number" name="dmg" value="${c.dmg}" min="0" max="9999"></label>
+        <label>Druga zdolność <small class="muted">(opcjonalna)</small><input type="text" name="attack2" value="${esc(c.attack2 || "")}" maxlength="40" placeholder="np. dla legendarnych"></label>
+        <label>Obrażenia 2<input type="number" name="dmg2" value="${c.dmg2 || ""}" min="0" max="9999"></label>
       </div>
 
       <fieldset>

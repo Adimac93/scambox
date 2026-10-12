@@ -61,7 +61,7 @@ function userLink(u) {
 function applyBadges(me) {
   S.dailyClaimable = me.dailyClaimable;
   $("#dailyBtn").classList.toggle("ready", me.dailyClaimable);
-  const n = me.incoming + me.unread;
+  const n = me.incoming + me.unread + (me.trades || 0);
   const b = $("#friendsBadge");
   b.textContent = n;
   b.hidden = !n;
@@ -73,7 +73,7 @@ function startPolling() {
     if (document.hidden) return;
     try {
       const me = await api("/api/me");
-      const hadNew = me.unread > 0 || me.incoming > 0;
+      const hadNew = me.unread > 0 || me.incoming > 0 || me.trades > 0;
       applyBadges(me);
       if (hadNew && currentView() === "friends" && !S.opening) renderFriends();
     } catch (_) { /* serwer chwilowo niedostępny */ }
@@ -294,8 +294,8 @@ function feedText(f) {
 }
 
 async function renderFriends() {
-  let fr, fd;
-  try { [fr, fd] = await Promise.all([api("/api/friends"), api("/api/feed")]); } catch (e) { return toast(e.message, true); }
+  let fr, fd, tr;
+  try { [fr, fd, tr] = await Promise.all([api("/api/friends"), api("/api/feed"), api("/api/trades")]); } catch (e) { return toast(e.message, true); }
   const person_ = (u, actions) => `
     <div class="friend">
       ${userLink(u)}
@@ -304,6 +304,7 @@ async function renderFriends() {
     </div>`;
   $("#friendsBody").innerHTML = `
     <div class="social-cols">
+      <div class="social-left">
       <div class="panel friends-panel">
         <h3>👥 Znajomi</h3>
         <form class="add-friend" id="addFriend" autocomplete="off">
@@ -315,11 +316,13 @@ async function renderFriends() {
           `<button class="btn sell tiny" data-accept="${esc(u.username)}">✔ Przyjmij</button><button class="btn tiny" data-decline="${esc(u.username)}">✖</button>`)).join("")}</div>` : ""}
         <div class="fsection"><h4>Twoi znajomi (${fr.friends.length})</h4>
           ${fr.friends.length ? fr.friends.map(u => person_(u,
-            `<button class="btn tiny" data-user="${esc(u.username)}">📖 Klaser</button><button class="btn tiny" data-remove="${esc(u.username)}" title="Usuń ze znajomych">🗑</button>`)).join("")
+            `<button class="btn tiny" data-trade="${esc(u.username)}" title="Zaproponuj wymianę">🔄 Wymiana</button><button class="btn tiny" data-user="${esc(u.username)}">📖 Klaser</button><button class="btn tiny" data-remove="${esc(u.username)}" title="Usuń ze znajomych">🗑</button>`)).join("")
             : '<div class="muted small">Nie masz jeszcze znajomych. Zaproś kogoś po nazwie albo z rankingu!</div>'}
         </div>
         ${fr.outgoing.length ? `<div class="fsection"><h4>⏳ Wysłane</h4>${fr.outgoing.map(u => person_(u,
           `<button class="btn tiny" data-remove="${esc(u.username)}">Anuluj</button>`)).join("")}</div>` : ""}
+      </div>
+      ${tradesPanelHTML(tr)}
       </div>
       <div class="panel feed-panel">
         <h3>📣 Aktywność</h3>
@@ -352,6 +355,180 @@ async function friendAction(fn, okMsg) {
   refreshBadgesSoon();
   if (currentView() === "friends") renderFriends();
   if (currentView() === "profile") renderProfile();
+}
+
+// ================================================================ WYMIANY
+
+const TRADE_STATUS = { accepted: "✅ przyjęta", declined: "❌ odrzucona", cancelled: "↩️ wycofana" };
+
+function tradeLineHTML(l) {
+  return withRevealMap(l.reveal ? { [l.person]: l.reveal } : {}, `owner=${encodeURIComponent(l.owner || "")}`, () =>
+    `<div class="tl-card" data-pid="${l.person}" data-variant="${l.variant}">${pickHTML({ id: 0, person: l.person, variant: l.variant, value: l.value },
+      { extra: l.count > 1 ? `<span class="pc">×${l.count}</span>` : "" })}</div>`);
+}
+
+function tradeSideHTML(title, lines, money) {
+  const value = lines.reduce((a, l) => a + l.value * l.count, 0) + money;
+  return `<div class="trade-side">
+    <div class="ts-title">${title} <span class="muted">· ${fmt(value)}</span></div>
+    <div class="ts-items">${lines.map(tradeLineHTML).join("")}${money ? `<div class="ts-money">💰<b>${fmt(money)}</b></div>` : ""}
+      ${!lines.length && !money ? '<span class="muted small">nic</span>' : ""}</div>
+  </div>`;
+}
+
+function tradeHTML(t, kind) {
+  const other = t.mine ? t.to : t.from;
+  const give = tradeSideHTML(t.mine ? "Dajesz" : `${esc(other.username)} daje`, t.give, t.moneyGive);
+  const want = tradeSideHTML(t.mine ? `Chcesz od ${esc(other.username)}` : "Chce od ciebie", t.want, t.moneyWant);
+  const actions = kind === "incoming"
+    ? `<button class="btn sell" data-taccept="${t.id}"${t.problem ? " disabled" : ""}>✅ Przyjmij</button><button class="btn" data-tdecline="${t.id}">❌ Odrzuć</button>`
+    : kind === "outgoing" ? `<button class="btn" data-tcancel="${t.id}">↩️ Wycofaj</button>`
+    : `<span class="t-status">${TRADE_STATUS[t.status] || t.status}</span>`;
+  return `<div class="trade${kind === "history" ? " t-old" : ""}">
+    <div class="t-head">${userLink(other)}<span class="muted small">${kind === "incoming" ? "proponuje ci wymianę" : kind === "outgoing" ? "— czeka na odpowiedź" : ""}</span>
+      <span class="fi-time">${timeAgo(kind === "history" ? t.updated : t.created)}</span></div>
+    ${t.message ? `<div class="t-msg">„${esc(t.message)}”</div>` : ""}
+    <div class="t-body">${give}<div class="t-arrow">⇄</div>${want}</div>
+    ${t.problem ? `<div class="t-problem">⚠️ ${esc(t.problem)}</div>` : ""}
+    <div class="t-actions">${actions}</div>
+  </div>`;
+}
+
+function tradesPanelHTML(tr) {
+  return `<div class="panel trades-panel">
+    <h3>🔄 Wymiany</h3>
+    <p class="muted small">Zaproponujesz wymianę przyciskiem <b>🔄</b> przy znajomym albo na jego profilu.</p>
+    ${tr.incoming.length ? `<div class="fsection"><h4>📨 Oferty dla ciebie (${tr.incoming.length})</h4>${tr.incoming.map(t => tradeHTML(t, "incoming")).join("")}</div>` : ""}
+    ${tr.outgoing.length ? `<div class="fsection"><h4>⏳ Twoje oferty</h4>${tr.outgoing.map(t => tradeHTML(t, "outgoing")).join("")}</div>` : ""}
+    ${!tr.incoming.length && !tr.outgoing.length ? '<div class="muted small">Brak aktywnych ofert.</div>' : ""}
+    ${tr.history.length ? `<details class="fsection"><summary>Historia (${tr.history.length})</summary>${tr.history.map(t => tradeHTML(t, "history")).join("")}</details>` : ""}
+  </div>`;
+}
+
+async function tradeAction(fn, okMsg, after) {
+  try {
+    const res = await fn();
+    if (okMsg) toast(okMsg);
+    if (after) await after(res);
+  } catch (e) { Sound.error(); toast(e.message, true); }
+  refreshBadgesSoon();
+  if (currentView() === "friends") renderFriends();
+}
+
+async function acceptTrade(id) {
+  await tradeAction(() => api(`/api/trades/${id}/accept`, {}), null, async res => {
+    S.items = res.items;
+    S.showcase = res.showcase || [];
+    applyState(res.state);
+    await refreshConfig();   // tajne karty z wymiany są teraz odkryte
+    Sound.win();
+    confetti(["#3ddc84", "#ffcf3f", "#4b8bff", "#fff"], 120);
+    toast("🔄 Wymiana zakończona! Karty są w twoim ekwipunku.");
+  });
+}
+
+// --- budowanie oferty
+
+async function openTradeBuilder(username) {
+  let prof;
+  try { prof = await api(`/api/users/${encodeURIComponent(username)}`); } catch (e) { return toast(e.message, true); }
+  if (prof.relation !== "friend") return toast("Wymieniać się możesz tylko ze znajomymi", true);
+  const reveal = prof.reveal || {}, imgq = `owner=${encodeURIComponent(username)}`;
+  const T = { give: [], want: {}, qMine: "", qTheirs: "" };
+  const showIds = new Set(S.showcase);
+
+  const mineGroups = {};
+  S.items.forEach(i => {
+    const k = `${i.person}|${i.variant}`;
+    (mineGroups[k] ||= { key: k, person: i.person, variant: i.variant, value: i.value, ids: [] }).ids.push(i.id);
+  });
+  Object.values(mineGroups).forEach(g => g.ids.sort((a, b) => showIds.has(a) - showIds.has(b)));  // najpierw spoza gabloty
+  const theirGroups = {};
+  prof.collection.forEach(c => {
+    const k = `${c.person}|${c.variant}`;
+    theirGroups[k] = { key: k, person: c.person, variant: c.variant, count: c.count, value: cardValue(c.person, c.variant) };
+  });
+  const sortG = list => list.sort((a, b) => rarityIdx(person(b.person).rarity) - rarityIdx(person(a.person).rarity) ||
+    varRank(b.variant) - varRank(a.variant) || person(a.person).name.localeCompare(person(b.person).name, "pl"));
+
+  const dlg = openDialog(`
+    <h3>🔄 Wymiana z ${esc(username)}</h3>
+    <div class="tb-cols">
+      <div class="tb-col">
+        <div class="tb-head"><b>Dajesz</b><span class="muted" id="tbGiveVal"></span></div>
+        <div class="tb-sel" id="tbGiveSel"></div>
+        <label class="tb-money">+ pieniądze <input type="number" id="tbMoneyGive" min="0" max="${S.state.balance}" value="0"></label>
+        <input type="text" class="tb-search" data-side="mine" placeholder="Szukaj w swoich kartach…">
+        <div class="pick-grid tb-grid" id="tbMine"></div>
+      </div>
+      <div class="tb-col">
+        <div class="tb-head"><b>Chcesz od ${esc(username)}</b><span class="muted" id="tbWantVal"></span></div>
+        <div class="tb-sel" id="tbWantSel"></div>
+        <label class="tb-money">+ pieniądze <input type="number" id="tbMoneyWant" min="0" value="0"></label>
+        <input type="text" class="tb-search" data-side="theirs" placeholder="Szukaj w kartach znajomego…">
+        <div class="pick-grid tb-grid" id="tbTheirs"></div>
+      </div>
+    </div>
+    <input type="text" id="tbMsg" maxlength="140" placeholder="Wiadomość (opcjonalnie)…">
+    <div class="daily-actions"><button class="btn primary" id="tbSend">🔄 Wyślij ofertę</button><button class="btn" data-close>Anuluj</button></div>`, "trade-box");
+
+  const tileTheirs = g => withRevealMap(reveal, imgq, () => pickHTML({ id: g.key, person: g.person, variant: g.variant, value: g.value },
+    { extra: `<span class="pc">×${g.count - (T.want[g.key] || 0)}</span>` }));
+  const draw = () => {
+    const selMine = {};
+    T.give.forEach(id => { const g = Object.values(mineGroups).find(x => x.ids.includes(id)); selMine[g.key] = (selMine[g.key] || 0) + 1; });
+    const match = (g, q) => !q || person(g.person).name.toLowerCase().includes(q);
+    dlg.querySelector("#tbMine").innerHTML = sortG(Object.values(mineGroups)).filter(g => g.ids.length > (selMine[g.key] || 0) && match(g, T.qMine))
+      .map(g => pickHTML({ id: g.key, person: g.person, variant: g.variant, value: g.value }, { extra: `<span class="pc">×${g.ids.length - (selMine[g.key] || 0)}</span>` })).join("")
+      || '<div class="empty">Brak kart</div>';
+    dlg.querySelector("#tbTheirs").innerHTML = sortG(Object.values(theirGroups)).filter(g => g.count > (T.want[g.key] || 0) &&
+      withRevealMap(reveal, imgq, () => match(g, T.qTheirs))).map(tileTheirs).join("") || '<div class="empty">Brak kart</div>';
+    dlg.querySelector("#tbGiveSel").innerHTML = Object.entries(selMine).map(([k, n]) => {
+      const g = mineGroups[k];
+      return pickHTML({ id: k, person: g.person, variant: g.variant, value: g.value }, { extra: n > 1 ? `<span class="pc">×${n}</span>` : "" });
+    }).join("") || '<span class="muted small">Kliknij swoje karty poniżej</span>';
+    dlg.querySelector("#tbWantSel").innerHTML = Object.entries(T.want).filter(([, n]) => n > 0).map(([k, n]) => {
+      const g = theirGroups[k];
+      return withRevealMap(reveal, imgq, () => pickHTML({ id: k, person: g.person, variant: g.variant, value: g.value }, { extra: n > 1 ? `<span class="pc">×${n}</span>` : "" }));
+    }).join("") || '<span class="muted small">Kliknij karty znajomego poniżej</span>';
+    const giveVal = T.give.reduce((a, id) => a + S.items.find(i => i.id === id).value, 0) + (+dlg.querySelector("#tbMoneyGive").value || 0);
+    const wantVal = Object.entries(T.want).reduce((a, [k, n]) => a + theirGroups[k].value * n, 0) + (+dlg.querySelector("#tbMoneyWant").value || 0);
+    dlg.querySelector("#tbGiveVal").textContent = fmt(giveVal);
+    dlg.querySelector("#tbWantVal").textContent = fmt(wantVal);
+  };
+  draw();
+
+  dlg.addEventListener("input", e => {
+    if (e.target.matches(".tb-search")) { T[e.target.dataset.side === "mine" ? "qMine" : "qTheirs"] = e.target.value.toLowerCase(); draw(); }
+    if (e.target.matches("#tbMoneyGive, #tbMoneyWant")) draw();
+  });
+  dlg.addEventListener("click", async e => {
+    const pick = e.target.closest(".pick");
+    if (pick) {
+      const k = pick.dataset.id;
+      const zone = pick.closest("#tbMine, #tbTheirs, #tbGiveSel, #tbWantSel")?.id;
+      if (zone === "tbMine") { const g = mineGroups[k]; const id = g.ids.find(x => !T.give.includes(x)); if (id) T.give.push(id); }
+      if (zone === "tbGiveSel") { const g = mineGroups[k]; const idx = T.give.findLastIndex(x => g.ids.includes(x)); if (idx >= 0) T.give.splice(idx, 1); }
+      if (zone === "tbTheirs") T.want[k] = (T.want[k] || 0) + 1;
+      if (zone === "tbWantSel") T.want[k] = Math.max(0, (T.want[k] || 0) - 1);
+      Sound.click();
+      return draw();
+    }
+    if (e.target.closest("#tbSend")) {
+      const body = {
+        to: username, give: T.give, message: dlg.querySelector("#tbMsg").value,
+        want: Object.entries(T.want).filter(([, n]) => n > 0).map(([k, n]) => ({ person: theirGroups[k].person, variant: theirGroups[k].variant, count: n })),
+        moneyGive: +dlg.querySelector("#tbMoneyGive").value || 0, moneyWant: +dlg.querySelector("#tbMoneyWant").value || 0,
+      };
+      try {
+        await api("/api/trades", body);
+        closeDialogs();
+        Sound.win();
+        toast(`🔄 Wysłano ofertę wymiany do ${username}`);
+        if (currentView() === "friends") renderFriends();
+      } catch (err) { Sound.error(); toast(err.message, true); }
+    }
+  });
 }
 
 // ================================================================ POKAZYWANIE KART
@@ -465,7 +642,7 @@ async function renderProfile() {
     none: `<button class="btn primary" data-act="invite">➕ Zaproś do znajomych</button>`,
     outgoing: `<button class="btn" disabled>⏳ Zaproszenie wysłane</button><button class="btn tiny" data-act="cancel">Anuluj</button>`,
     incoming: `<button class="btn sell" data-act="accept">✔ Przyjmij zaproszenie</button>`,
-    friend: `<span class="friend-tag">👥 Znajomi</span><button class="btn tiny" data-act="cancel">Usuń ze znajomych</button>`,
+    friend: `<span class="friend-tag">👥 Znajomi</span><button class="btn primary" data-act="trade">🔄 Zaproponuj wymianę</button><button class="btn tiny" data-act="cancel">Usuń ze znajomych</button>`,
   }[d.relation];
   const slots = Array.from({ length: S.cfg.showcaseSize }, (_, i) => d.showcase[i]);
   $("#profileBody").innerHTML = `
@@ -534,10 +711,12 @@ function renderProfileBinder(flip = 0) {
 }
 
 function openAvatarPicker(tab = null) {
-  // karty, które mam (unikalne osoby), od najrzadszych
-  const mine = [...new Set(S.items.map(i => i.person))].filter(pid => person(pid))
-    .sort((a, b) => rarityIdx(person(b).rarity) - rarityIdx(person(a).rarity) || person(a).name.localeCompare(person(b).name, "pl"));
-  tab = tab || (S.me.avatarCard ? "cards" : mine.length ? "cards" : "emoji");
+  // karty, które mam - każdy wariant osobno (np. Małysz złota, Małysz diamentowa), od najrzadszych
+  const combos = {};
+  S.items.forEach(i => { if (person(i.person)) combos[`${i.person}|${i.variant}`] ||= { person: i.person, variant: i.variant }; });
+  const mine = Object.values(combos).sort((a, b) => rarityIdx(person(b.person).rarity) - rarityIdx(person(a.person).rarity) ||
+    varRank(b.variant) - varRank(a.variant) || person(a.person).name.localeCompare(person(b.person).name, "pl"));
+  tab = tab || (mine.length ? "cards" : "emoji");
   const dlg = openDialog(`
     <h3>🎭 Ikona gracza</h3>
     <div class="seg av-tabs">
@@ -545,12 +724,15 @@ function openAvatarPicker(tab = null) {
       <button data-tab="emoji" class="${tab === "emoji" ? "active" : ""}">😎 Emoji</button>
     </div>
     ${tab === "cards" ? `
-      <p class="muted small">Ikoną może być zdjęcie każdej postaci, której kartę masz w ekwipunku.</p>
+      <p class="muted small">Ikoną może być każda karta, którą masz — w każdym wariancie, który masz (złota, diamentowa, holo…).</p>
       <input type="text" class="av-search" placeholder="Szukaj…">
-      <div class="avatar-cards">${mine.map(pid => {
-        const p = person(pid), R = S.cfg.rarities[p.rarity];
-        return `<button class="av-card-opt${pid === S.me.avatarCard ? " active" : ""}${p.rarity === "secret" ? " av-secret" : ""}" data-card="${pid}" data-name="${esc(p.name.toLowerCase())}" style="--rc:${R.color}" title="${esc(p.name)}">
-          <img src="${imgUrl(pid)}" alt="" loading="lazy" draggable="false"><span>${esc(p.name)}</span></button>`;
+      <div class="avatar-cards">${mine.map(c => {
+        const p = person(c.person), R = S.cfg.rarities[p.rarity];
+        const active = c.person === S.me.avatarCard && c.variant === (S.me.avatarVariant || "normal");
+        return `<button class="av-card-opt${active ? " active" : ""}${p.rarity === "secret" ? " av-secret" : ""}" data-card="${c.person}" data-variant="${c.variant}"
+            data-name="${esc(p.name.toLowerCase())}" style="--rc:${R.color}" title="${esc(p.name)} — ${variantName(c.variant)}">
+          <span class="av-card avv-${c.variant}${p.rarity === "secret" ? " av-secret" : ""}" style="--rc:${R.color}"><img src="${imgUrl(c.person)}" alt="" loading="lazy" draggable="false"></span>
+          <span>${esc(p.name)}</span>${isSpecial(c.variant) ? `<small class="av-vname vt-${c.variant}">${variantName(c.variant)}</small>` : ""}</button>`;
       }).join("") || '<div class="empty">Nie masz jeszcze żadnych kart — otwórz skrzynkę! 📦</div>'}</div>` : `
       <div class="avatar-grid">${AVATARS.map(a => `<button class="av-opt${!S.me.avatarCard && a === S.me.avatar ? " active" : ""}" data-av="${a}">${a}</button>`).join("")}</div>`}
     <div class="daily-actions"><button class="btn" data-close>Zamknij</button></div>`, "avatar-box");
@@ -564,10 +746,10 @@ function openAvatarPicker(tab = null) {
     const card = e.target.closest("[data-card]"), emo = e.target.closest("[data-av]");
     if (!card && !emo) return;
     try {
-      const res = await api("/api/profile", card ? { avatarCard: card.dataset.card } : { avatar: emo.dataset.av });
+      const res = await api("/api/profile", card ? { avatarCard: card.dataset.card, avatarVariant: card.dataset.variant } : { avatar: emo.dataset.av });
       S.me = res.user;
       renderHeader(); closeDialogs(); Sound.click();
-      toast(card ? `Nowa ikona: ${person(card.dataset.card).name}` : "Nowa ikona ustawiona");
+      toast(card ? `Nowa ikona: ${person(card.dataset.card).name}${isSpecial(card.dataset.variant) ? " (" + variantName(card.dataset.variant) + ")" : ""}` : "Nowa ikona ustawiona");
       if (currentView() === "profile") renderProfile();
       if (currentView() === "friends") renderFriends();
     } catch (err) { toast(err.message, true); }
@@ -636,6 +818,14 @@ function bindSocial() {
   });
   $("#friendsBody").addEventListener("click", e => {
     const t = e.target;
+    const trd = t.closest("[data-trade]");
+    if (trd) return openTradeBuilder(trd.dataset.trade);
+    const ta = t.closest("[data-taccept]"), td = t.closest("[data-tdecline]"), tc = t.closest("[data-tcancel]");
+    if (ta) { if (confirm("Przyjąć tę wymianę? Karty i pieniądze zostaną od razu wymienione.")) acceptTrade(ta.dataset.taccept); return; }
+    if (td) return tradeAction(() => api(`/api/trades/${td.dataset.tdecline}/decline`, {}), "Odrzucono ofertę");
+    if (tc) return tradeAction(() => api(`/api/trades/${tc.dataset.tcancel}/cancel`, {}), "Wycofano ofertę");
+    const tlc = t.closest(".tl-card");
+    if (tlc) return openViewer(tlc.dataset.pid, tlc.dataset.variant);
     const acc = t.closest("[data-accept]"), dec = t.closest("[data-decline]"), rem = t.closest("[data-remove]");
     if (acc) return friendAction(() => api("/api/friends/respond", { username: acc.dataset.accept, accept: true }), "Nowy znajomy! 🎉");
     if (dec) return friendAction(() => api("/api/friends/respond", { username: dec.dataset.decline, accept: false }));
@@ -663,6 +853,7 @@ function bindSocial() {
     const act = t.closest("[data-act]")?.dataset.act;
     const name = PROF.data?.user.username;
     if (act === "avatar") return openAvatarPicker();
+    if (act === "trade") return openTradeBuilder(name);
     if (act === "password") return openPasswordDialog();
     if (act === "logout") return logout();
     if (act === "invite") return friendAction(() => api("/api/friends/request", { username: name }), "Wysłano zaproszenie 📨");

@@ -116,6 +116,18 @@ def init_db():
                                                 PRIMARY KEY (requester_id, addressee_id));
         CREATE TABLE IF NOT EXISTS showcase (user_id INTEGER NOT NULL, pos INTEGER NOT NULL, item_id INTEGER NOT NULL,
                                              PRIMARY KEY (user_id, pos));
+        CREATE TABLE IF NOT EXISTS trades (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            from_id INTEGER NOT NULL, to_id INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            message TEXT NOT NULL DEFAULT '',
+            money_give INTEGER NOT NULL DEFAULT 0, money_want INTEGER NOT NULL DEFAULT 0,
+            created_at REAL NOT NULL, updated_at REAL NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS trade_lines (
+            trade_id INTEGER NOT NULL, side TEXT NOT NULL, item_id INTEGER,
+            person_id TEXT NOT NULL, variant TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 1
+        );
         CREATE TABLE IF NOT EXISTS crate_access (user_id INTEGER NOT NULL, crate_id TEXT NOT NULL,
                                                  PRIMARY KEY (user_id, crate_id));
         CREATE TABLE IF NOT EXISTS user_chests (user_id INTEGER NOT NULL, kind TEXT NOT NULL, count INTEGER NOT NULL,
@@ -144,6 +156,8 @@ def init_db():
     ucols = [r[1] for r in conn.execute("PRAGMA table_info(users)")]
     if "avatar_card" not in ucols:  # migracja: ikona gracza ze zdjęcia karty
         conn.execute("ALTER TABLE users ADD COLUMN avatar_card TEXT NOT NULL DEFAULT ''")
+    if "avatar_variant" not in ucols:  # migracja: ikona w wariancie karty (złota, diamentowa...)
+        conn.execute("ALTER TABLE users ADD COLUMN avatar_variant TEXT NOT NULL DEFAULT 'normal'")
     if "banned" not in ucols:  # migracja: blokowanie kont
         conn.execute("ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0")
         conn.execute("ALTER TABLE users ADD COLUMN ban_reason TEXT NOT NULL DEFAULT ''")
@@ -214,10 +228,16 @@ def avatar_card(u):
     return pid if pid in catalog.PEOPLE else None
 
 
+def avatar_variant(u):
+    v = u["avatar_variant"] if "avatar_variant" in u.keys() else "normal"
+    return v if v in VARIANTS else "normal"
+
+
 def user_json(u):
     pid = avatar_card(u)
     return {"id": u["id"], "username": u["username"], "avatar": u["avatar"], "isAdmin": bool(u["is_admin"]),
-            "avatarCard": pid, "avatarRarity": catalog.PEOPLE[pid]["rarity"] if pid else None}
+            "avatarCard": pid, "avatarRarity": catalog.PEOPLE[pid]["rarity"] if pid else None,
+            "avatarVariant": avatar_variant(u) if pid else None}
 
 
 def find_user(name):
@@ -402,7 +422,8 @@ def public_person(p, found):
     if p["rarity"] == "secret" and p["id"] not in found:
         return {"id": p["id"], "rarity": "secret", "crate": p["crate"], "crates": p["crates"], "number": p["number"], "masked": True,
                 "name": "???", "type": "tv", "hp": 0, "attack": "???", "dmg": 0, "imgv": 0}
-    base = {k: p.get(k) for k in ("id", "name", "rarity", "type", "hp", "attack", "dmg", "crate", "crates", "number")}
+    base = {k: p.get(k) for k in ("id", "name", "rarity", "type", "hp", "attack", "dmg", "attack2", "dmg2",
+                                  "crate", "crates", "number")}
     base["imgv"] = img_version(p["id"])
     return base
 
@@ -920,7 +941,7 @@ def feed_entry_visible(feed_id, person_id):
 def feed():
     me = uid()
     params = {"me": me, "friends": json.dumps(sorted(friend_ids(me)))}
-    rows = db().execute(f"SELECT f.*, u.username, u.avatar, u.avatar_card, (SELECT username FROM users WHERE id = f.to_user_id) AS to_name "
+    rows = db().execute(f"SELECT f.*, u.username, u.avatar, u.avatar_card, u.avatar_variant, (SELECT username FROM users WHERE id = f.to_user_id) AS to_name "
                         f"{visible_feed_sql()} ORDER BY f.id DESC LIMIT 60", params).fetchall()
     out = []
     found = discovered()
@@ -934,7 +955,8 @@ def feed():
                     "message": r["message"], "created": r["created_at"], "mine": r["author_id"] == me,
                     "author": {"username": r["username"], "avatar": r["avatar"],
                                "avatarCard": r["avatar_card"] if r["avatar_card"] in catalog.PEOPLE else None,
-                               "avatarRarity": catalog.PEOPLE[r["avatar_card"]]["rarity"] if r["avatar_card"] in catalog.PEOPLE else None},
+                               "avatarRarity": catalog.PEOPLE[r["avatar_card"]]["rarity"] if r["avatar_card"] in catalog.PEOPLE else None,
+                               "avatarVariant": r["avatar_variant"] if r["avatar_variant"] in VARIANTS else "normal"},
                     "to": r["to_name"],
                     "value": card_value(catalog.PEOPLE[r["person_id"]], r["variant"])})
     return jsonify({"feed": out, "seen": get_state()["feed_seen"]})
@@ -973,6 +995,178 @@ def show_card():
     return jsonify({"ok": True})
 
 
+# ---------------------------------------------------------------- wymiany z przyjaciółmi
+
+TRADE_MAX_LINES = 30
+
+
+def trade_json(t, me):
+    users = {u["id"]: u for u in db().execute("SELECT * FROM users WHERE id IN (?, ?)", (t["from_id"], t["to_id"]))}
+    found = discovered()
+    lines = {"give": [], "want": []}
+    for r in db().execute("SELECT * FROM trade_lines WHERE trade_id = ?", (t["id"],)):
+        p = catalog.PEOPLE.get(r["person_id"])
+        if p is None:
+            continue
+        owner = users.get(t["from_id"] if r["side"] == "give" else t["to_id"])
+        line = {"person": p["id"], "variant": r["variant"], "count": r["count"], "value": card_value(p, r["variant"]),
+                "owner": owner["username"] if owner else None}
+        # tajną kartę znajomego widać w ofercie (jak na jego profilu)
+        if p["rarity"] == "secret" and p["id"] not in found:
+            line["reveal"] = public_person(p, {p["id"]})
+        lines[r["side"]].append(line)
+    out = {"id": t["id"], "status": t["status"], "message": t["message"], "created": t["created_at"],
+           "updated": t["updated_at"], "moneyGive": t["money_give"], "moneyWant": t["money_want"],
+           "from": user_json(users[t["from_id"]]) if t["from_id"] in users else None,
+           "to": user_json(users[t["to_id"]]) if t["to_id"] in users else None,
+           "mine": t["from_id"] == me, **lines}
+    if t["status"] == "pending":
+        out["problem"] = trade_problem(t)
+    return out
+
+
+def pick_want_items(user_id, person_id, variant, count):
+    """Wybiera konkretne karty gracza do oddania (najpierw te spoza gabloty)."""
+    rows = db().execute("""SELECT i.id FROM items i LEFT JOIN showcase s ON s.item_id = i.id AND s.user_id = i.user_id
+                           WHERE i.user_id = ? AND i.person_id = ? AND i.variant = ?
+                           ORDER BY (s.item_id IS NOT NULL), i.id LIMIT ?""", (user_id, person_id, variant, count)).fetchall()
+    return [r[0] for r in rows] if len(rows) == count else None
+
+
+def trade_problem(t):
+    """Opis, dlaczego wymiany nie da się już zrealizować, albo None."""
+    give = db().execute("SELECT item_id FROM trade_lines WHERE trade_id = ? AND side = 'give'", (t["id"],)).fetchall()
+    for r in give:
+        if db().execute("SELECT 1 FROM items WHERE id = ? AND user_id = ?", (r[0], t["from_id"])).fetchone() is None:
+            return "Oferujący nie ma już wszystkich kart z oferty"
+    for r in db().execute("SELECT * FROM trade_lines WHERE trade_id = ? AND side = 'want'", (t["id"],)).fetchall():
+        if pick_want_items(t["to_id"], r["person_id"], r["variant"], r["count"]) is None:
+            return "Odbiorca nie ma już wszystkich chcianych kart"
+    if get_state(t["from_id"])["balance"] < t["money_give"]:
+        return "Oferujący nie ma tyle pieniędzy"
+    if get_state(t["to_id"])["balance"] < t["money_want"]:
+        return "Odbiorca nie ma tyle pieniędzy"
+    return None
+
+
+@app.get("/api/trades")
+@login_required
+def trades_list():
+    me = uid()
+    pending = db().execute("SELECT * FROM trades WHERE status = 'pending' AND (from_id = ? OR to_id = ?) "
+                           "ORDER BY id DESC", (me, me)).fetchall()
+    history = db().execute("SELECT * FROM trades WHERE status != 'pending' AND (from_id = ? OR to_id = ?) "
+                           "ORDER BY updated_at DESC LIMIT 15", (me, me)).fetchall()
+    return jsonify({"incoming": [trade_json(t, me) for t in pending if t["to_id"] == me],
+                    "outgoing": [trade_json(t, me) for t in pending if t["from_id"] == me],
+                    "history": [trade_json(t, me) for t in history]})
+
+
+@app.post("/api/trades")
+@login_required
+def trade_create():
+    body = request.get_json(force=True)
+    me = uid()
+    other = find_user(body.get("to"))
+    if other is None or other["id"] not in friend_ids(me):
+        return jsonify({"error": "Wymieniać się możesz tylko ze znajomymi"}), 400
+    if other["banned"]:
+        return jsonify({"error": "To konto jest zablokowane"}), 400
+    try:
+        give_ids = [int(i) for i in body.get("give", [])]
+        want = [{"person": w["person"], "variant": w.get("variant", "normal"), "count": int(w.get("count", 1))}
+                for w in body.get("want", [])]
+        money_give, money_want = int(body.get("moneyGive") or 0), int(body.get("moneyWant") or 0)
+    except (TypeError, ValueError, KeyError):
+        return jsonify({"error": "Nieprawidłowa oferta"}), 400
+    if not (give_ids or want or money_give or money_want):
+        return jsonify({"error": "Oferta jest pusta"}), 400
+    if not (give_ids or money_give) or not (want or money_want):
+        return jsonify({"error": "Coś dajesz i coś chcesz w zamian — obie strony muszą coś zawierać"}), 400
+    if len(give_ids) + len(want) > TRADE_MAX_LINES or not (0 <= money_give <= MAX_DEPOSIT and 0 <= money_want <= MAX_DEPOSIT):
+        return jsonify({"error": "Oferta jest za duża"}), 400
+    rows = owned_rows(give_ids) if give_ids else []
+    if rows is None:
+        return jsonify({"error": "Nie masz wszystkich kart, które chcesz dać"}), 400
+    if money_give > get_state()["balance"]:
+        return jsonify({"error": "Nie masz tyle pieniędzy"}), 400
+    for w in want:
+        if w["person"] not in catalog.PEOPLE or w["variant"] not in VARIANTS or not 1 <= w["count"] <= 100:
+            return jsonify({"error": "Nieprawidłowa karta w ofercie"}), 400
+        if pick_want_items(other["id"], w["person"], w["variant"], w["count"]) is None:
+            return jsonify({"error": f"{other['username']} nie ma tylu kart: {catalog.PEOPLE[w['person']]['name']}"}), 400
+    now = time.time()
+    cur = db().execute("INSERT INTO trades (from_id, to_id, message, money_give, money_want, created_at, updated_at) "
+                       "VALUES (?, ?, ?, ?, ?, ?, ?)", (me, other["id"], (body.get("message") or "").strip()[:140],
+                                                         money_give, money_want, now, now))
+    tid = cur.lastrowid
+    for r in rows:
+        db().execute("INSERT INTO trade_lines (trade_id, side, item_id, person_id, variant, count) VALUES (?, 'give', ?, ?, ?, 1)",
+                     (tid, r["id"], r["person_id"], r["variant"]))
+    for w in want:
+        db().execute("INSERT INTO trade_lines (trade_id, side, item_id, person_id, variant, count) VALUES (?, 'want', NULL, ?, ?, ?)",
+                     (tid, w["person"], w["variant"], w["count"]))
+    db().commit()
+    return jsonify({"ok": True, "id": tid})
+
+
+def get_trade(tid):
+    return db().execute("SELECT * FROM trades WHERE id = ?", (tid,)).fetchone()
+
+
+@app.post("/api/trades/<int:tid>/accept")
+@login_required
+def trade_accept(tid):
+    t = get_trade(tid)
+    me = uid()
+    if t is None or t["to_id"] != me or t["status"] != "pending":
+        return jsonify({"error": "Tej oferty nie można już przyjąć"}), 400
+    problem = trade_problem(t)
+    if problem:
+        return jsonify({"error": problem}), 400
+    conn = db()
+    give = [r[0] for r in conn.execute("SELECT item_id FROM trade_lines WHERE trade_id = ? AND side = 'give'", (tid,))]
+    want = []
+    for r in conn.execute("SELECT * FROM trade_lines WHERE trade_id = ? AND side = 'want'", (tid,)).fetchall():
+        want += pick_want_items(t["to_id"], r["person_id"], r["variant"], r["count"])
+    moved = give + want
+    if give:
+        marks = ",".join("?" * len(give))
+        conn.execute(f"UPDATE items SET user_id = ? WHERE id IN ({marks})", [t["to_id"], *give])
+    if want:
+        marks = ",".join("?" * len(want))
+        conn.execute(f"UPDATE items SET user_id = ? WHERE id IN ({marks})", [t["from_id"], *want])
+    if moved:
+        marks = ",".join("?" * len(moved))
+        conn.execute(f"DELETE FROM showcase WHERE item_id IN ({marks})", moved)
+    add_state("balance", -t["money_give"] + t["money_want"], t["from_id"])
+    add_state("balance", t["money_give"] - t["money_want"], t["to_id"])
+    # tajne karty, które ktoś dostał w wymianie, są dla niego odkryte
+    for item_ids, user_id in ((give, t["to_id"]), (want, t["from_id"])):
+        for item_id in item_ids:
+            pid = conn.execute("SELECT person_id FROM items WHERE id = ?", (item_id,)).fetchone()[0]
+            if catalog.PEOPLE.get(pid, {}).get("rarity") == "secret":
+                conn.execute("INSERT OR IGNORE INTO user_discovered (user_id, person_id) VALUES (?, ?)", (user_id, pid))
+    conn.execute("UPDATE trades SET status = 'accepted', updated_at = ? WHERE id = ?", (time.time(), tid))
+    conn.commit()
+    return jsonify({"ok": True, "state": get_state(), "items": my_items(), "showcase": showcase_ids(me)})
+
+
+@app.post("/api/trades/<int:tid>/<action>")
+@login_required
+def trade_close(tid, action):
+    t = get_trade(tid)
+    me = uid()
+    if t is None or t["status"] != "pending" or action not in ("decline", "cancel"):
+        return jsonify({"error": "Nieprawidłowa operacja"}), 400
+    if (action == "decline" and t["to_id"] != me) or (action == "cancel" and t["from_id"] != me):
+        return jsonify({"error": "To nie twoja oferta"}), 403
+    db().execute("UPDATE trades SET status = ?, updated_at = ? WHERE id = ?",
+                 ("declined" if action == "decline" else "cancelled", time.time(), tid))
+    db().commit()
+    return jsonify({"ok": True})
+
+
 # ---------------------------------------------------------------- profile, gablota, ranking
 
 def showcase_ids(user_id):
@@ -1000,10 +1194,14 @@ def set_profile():
     body = request.get_json(force=True)
     if "avatarCard" in body:  # ikona ze zdjęcia karty - tylko z kart, które gracz ma (żadnych własnych plików)
         pid = body.get("avatarCard") or ""
+        variant = body.get("avatarVariant") or "normal"
+        if variant not in VARIANTS:
+            return jsonify({"error": "Nieznany wariant"}), 400
         if pid and (pid not in catalog.PEOPLE or db().execute(
-                "SELECT 1 FROM items WHERE user_id = ? AND person_id = ? LIMIT 1", (uid(), pid)).fetchone() is None):
-            return jsonify({"error": "Możesz ustawić tylko zdjęcie karty, którą masz"}), 400
-        db().execute("UPDATE users SET avatar_card = ? WHERE id = ?", (pid, uid()))
+                "SELECT 1 FROM items WHERE user_id = ? AND person_id = ? AND variant = ? LIMIT 1",
+                (uid(), pid, variant)).fetchone() is None):
+            return jsonify({"error": "Możesz ustawić tylko kartę (w wariancie), którą masz"}), 400
+        db().execute("UPDATE users SET avatar_card = ?, avatar_variant = ? WHERE id = ?", (pid, variant, uid()))
     if "avatar" in body:
         avatar = (body.get("avatar") or "").strip()
         if not 1 <= len(avatar) <= 8:
@@ -1096,8 +1294,9 @@ def me():
     params = {"me": me_id, "friends": json.dumps(sorted(friend_ids(me_id)))}
     unread = db().execute(f"SELECT COUNT(*) {visible_feed_sql()} AND f.author_id != :me AND f.id > :seen",
                           dict(params, seen=get_state()["feed_seen"])).fetchone()[0]
+    trades_in = db().execute("SELECT COUNT(*) FROM trades WHERE to_id = ? AND status = 'pending'", (me_id,)).fetchone()[0]
     return jsonify({"user": user_json(u), "dailyClaimable": daily_info(me_id)["claimable"],
-                    "incoming": incoming, "unread": unread})
+                    "incoming": incoming, "unread": unread, "trades": trades_in})
 
 
 # ---------------------------------------------------------------- API admina
@@ -1116,8 +1315,8 @@ def unique_id(base, taken):
 
 
 def admin_card_json(p):
-    return dict({k: p.get(k) for k in ("id", "name", "rarity", "type", "hp", "attack", "dmg", "crate", "crates",
-                                       "number", "builtin", "modified")},
+    return dict({k: p.get(k) for k in ("id", "name", "rarity", "type", "hp", "attack", "dmg", "attack2", "dmg2",
+                                       "crate", "crates", "number", "builtin", "modified")},
                 wiki=list(p["wiki"]) if p.get("wiki") else None,
                 hasImage=bool(images.find(p["id"])), hasAlt=bool(images.find(p["id"], True)),
                 imgv=img_version(p["id"]))
@@ -1135,7 +1334,8 @@ def admin_catalog():
     for r in db().execute("SELECT user_id, crate_id FROM crate_access"):
         access.setdefault(r[1], []).append(r[0])
     crates = [dict(crate_json(c), builtin=c["builtin"], modified=c["modified"], hidden=False,
-                   customWeights=c["weights"], allowed=access.get(c["id"], []))
+                   customWeights={r: w for r, w in c["weights"].items() if not (r == "secret" and c.get("autoSecret"))},
+                   allowed=access.get(c["id"], []))
               for c in catalog.CRATES.values()]
     crates += [dict(crate_json(dict(c, people=[])), builtin=True, modified=False, hidden=True,
                     customWeights=c.get("weights") or {}, allowed=access.get(c["id"], []))
@@ -1245,6 +1445,8 @@ def admin_save_card():
         "name": name[:60], "crate": crate, "crates": crates, "rarity": f["rarity"], "type": f["type"],
         "hp": max(0, min(9999, hp)), "dmg": max(0, min(9999, dmg)),
         "attack": (f.get("attack") or "Atak").strip()[:40],
+        "attack2": (f.get("attack2") or "").strip()[:40] or None,
+        "dmg2": max(0, min(9999, int(f.get("dmg2") or 0))) if (f.get("dmg2") or "").strip().lstrip("-").isdigit() else 0,
         "wiki": [(f.get("wiki_lang") or "pl").strip()[:5], wiki_title] if wiki_title else None,
     }
     pid = f.get("id")
@@ -1458,6 +1660,8 @@ def admin_delete_user(user_id):
                 "DELETE FROM user_discovered WHERE user_id = ?", "DELETE FROM daily_claims WHERE user_id = ?",
                 "DELETE FROM showcase WHERE user_id = ?", "DELETE FROM feed WHERE author_id = ? OR to_user_id = ?",
                 "DELETE FROM user_chests WHERE user_id = ?", "DELETE FROM crate_access WHERE user_id = ?",
+                "DELETE FROM trade_lines WHERE trade_id IN (SELECT id FROM trades WHERE from_id = ? OR to_id = ?)",
+                "DELETE FROM trades WHERE from_id = ? OR to_id = ?",
                 "DELETE FROM friendships WHERE requester_id = ? OR addressee_id = ?", "DELETE FROM users WHERE id = ?"):
         conn.execute(sql, (user_id,) * sql.count("?"))
     conn.commit()

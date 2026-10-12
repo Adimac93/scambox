@@ -39,7 +39,7 @@ To stop sharing: `tailscale serve --https=443 off`.
 - Odds, money chest ranges and the secret card odds (`SECRET_ODDS`) are at the top of `data.py`.
 
 ## What's in it
-- 3 crates: Polska, Świat (50 people + 1 SECRET card each) and PRL (26 cards, 500 $, no Ultra); cards can belong to several crates
+- 3 crates: Polska, Świat (50 people + 1 SECRET card each) and PRL (28 cards, 500 $, Gierek as ULTRA, the secret Jan Paweł II); cards can belong to several crates
 - 🛒 Shop with a purchase panel; crates can be off sale or available only to selected players, rarities: green → blue → purple → red → gold (1%) → ULTRA (0.2%) → ★ SECRET (1 in 2137)
 - 📦 Chests in your inventory: buy them for later ("🛒 Kup do ekwipunku"); opening uses owned chests first
 - Secret cards stay hidden ("???") until you obtain them; they have their own card design and their own reveal
@@ -50,7 +50,9 @@ To stop sharing: `tailscale serve --https=443 off`.
 - 🎁 Daily chest with money: 1 000–20 000 $, on Sunday a 💎 MEGA chest: 5 000–50 000 $ (lands in your inventory)
 - 👥 Friends: invitations, activity feed (shown cards + legendary drops), "📣 Pokaż znajomym" button on a card
 - 👤 Profiles: showcase of 6 cards and the binder of every player; 🏆 ranking (collection value, cards, crates)
-- 🎭 Player icon: an emoji or the photo of any card you own (no uploads)
+- 🎭 Player icon: an emoji or the photo of any card you own — in any variant you own (gold, diamond…), no uploads
+- 🔄 Trading with friends: cards + money for cards + money, accept/decline/cancel, history
+- ⚔️ Legendary, ULTRA and secret cards have two abilities
 - 💸 Bank: admin only
 - ⚒️ Forge: **Kontrakt** (N cards of one rarity → 1 card of the next) and **Ulepszacz** (upgrade wheel, CS-site style); secret cards cannot be crafted
 
