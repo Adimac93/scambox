@@ -25,6 +25,7 @@ from data import (CONTRACT_SIZE, CONTRACT_VARIANT_BONUS, CRATE_PRICE, JACKPOT_WE
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEST_MODE = "--test" in sys.argv  # osobny zapis do testów: python app.py --test
 LAN_MODE = "--lan" in sys.argv    # dostęp z innych komputerów w sieci: python app.py --lan
+DEV_MODE = "--dev" in sys.argv    # tryb deweloperski (auto-przeładowanie, debugger) - NIGDY dla innych graczy
 DB_PATH = os.path.join(BASE_DIR, "test.db" if TEST_MODE else "game.db")
 KEY_PATH = os.path.join(BASE_DIR, "secret_key.txt")
 
@@ -1263,8 +1264,10 @@ def lan_address():
 if __name__ == "__main__":
     port = 5001 if TEST_MODE else 5000
     # w trybie debug Flask uruchamia proces dwa razy - pobieramy zdjęcia tylko w procesie roboczym
-    if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or LAN_MODE:
+    if not DEV_MODE or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         images.prefetch_all_async()
         if LAN_MODE:
             print(f"\n  Znajomi w tej samej sieci wchodzą na:  http://{lan_address()}:{port}\n")
-    app.run(host="0.0.0.0" if LAN_MODE else "127.0.0.1", port=port, debug=not LAN_MODE)
+    if not DEV_MODE or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        print(f"\n  Gra działa na:  http://127.0.0.1:{port}\n")
+    app.run(host="0.0.0.0" if LAN_MODE else "127.0.0.1", port=port, debug=DEV_MODE and not LAN_MODE, threaded=True)

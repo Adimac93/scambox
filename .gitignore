@@ -15,3 +15,4 @@ alt_log.txt
 .claude/
 *.db
 secret_key.txt
+*.log

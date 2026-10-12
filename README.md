@@ -16,6 +16,14 @@ then open http://127.0.0.1:5000
 The console will show an address like `http://192.168.1.23:5000`; your friends open it in their browser.
 (Windows may ask to allow access through the firewall; choose "Allow".)
 
+### Playing with friends over Tailscale (recommended)
+Double-click `start_tailscale.bat`. It runs `tailscale serve`, which makes the game available **only within your
+Tailscale network**, over HTTPS, at `https://<computer-name>.<tailnet>.ts.net`.
+Friends must be in your Tailscale network (invite) or have this computer shared with them.
+To stop sharing: `tailscale serve --https=443 off`.
+
+`python app.py --dev` = developer mode (auto-reload, debugger) — only for yourself, never for other players.
+
 ## Accounts
 - Each player has their own account (username + password), balance, cards, binder and discovered secret cards.
 - **The first account registered takes over the previous save and becomes admin.**
