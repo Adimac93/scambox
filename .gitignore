@@ -13,3 +13,5 @@ image_cache/
 # pliki robocze
 alt_log.txt
 .claude/
+*.db
+secret_key.txt

@@ -15,6 +15,7 @@ async function api(path, { method = "GET", json, form } = {}) {
   if (form) opts.body = form;
   const res = await fetch(path, opts);
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401) { location.href = "/login"; throw new Error("Zaloguj się"); }
   if (!res.ok) throw new Error(data.error || "Błąd serwera");
   return data;
 }
@@ -29,6 +30,7 @@ function toast(msg, err = false) {
 }
 
 async function load() {
+  loadUsers();
   A.cat = await api("/api/admin/catalog");
   if (!A.crate || !A.cat.crates.some(c => c.id === A.crate)) A.crate = A.cat.crates.find(c => !c.hidden)?.id || null;
   render();
@@ -188,9 +190,61 @@ function openCardForm(id) {
 
 function closeCardForm() { $("#cardModal").hidden = true; }
 
+// ================================================================ GRACZE
+
+async function loadUsers() {
+  const { users, me } = await api("/api/admin/users");
+  $("#userList").innerHTML = `
+    <div class="a-user head"><span>Gracz</span><span>Saldo</span><span>Kolekcja</span><span>Karty</span><span></span></div>
+    ${users.map(u => `
+    <div class="a-user" data-uid="${u.id}" data-name="${esc(u.username)}">
+      <span><span class="av">${esc(u.avatar)}</span> <b>${esc(u.username)}</b> ${u.isAdmin ? "👑" : ""}${u.id === me ? ' <small class="muted">(ty)</small>' : ""}</span>
+      <span>${fmt(u.balance)}</span>
+      <span>${fmt(u.value)}</span>
+      <span>${u.unique} / ${u.total}</span>
+      <span class="a-user-actions">
+        <button class="btn tiny" data-uact="money">💸 Pieniądze</button>
+        <button class="btn tiny" data-uact="password">🔑 Hasło</button>
+        ${u.id !== me ? `<button class="btn tiny" data-uact="admin">${u.isAdmin ? "Odbierz admina" : "👑 Daj admina"}</button>
+        <button class="btn tiny danger" data-uact="delete">🗑</button>` : ""}
+      </span>
+    </div>`).join("")}`;
+}
+
+async function userAction(row, act) {
+  const id = row.dataset.uid, name = row.dataset.name;
+  try {
+    if (act === "money") {
+      const v = prompt(`Ile $ dodać graczowi ${name}? (ujemna kwota odejmuje)`, "5000");
+      if (!v) return;
+      await api(`/api/admin/users/${id}/money`, { method: "POST", json: { amount: parseInt(v, 10) } });
+      toast(`Zmieniono saldo gracza ${name}`);
+    }
+    if (act === "password") {
+      const v = prompt(`Nowe hasło dla ${name} (min. 4 znaki):`);
+      if (!v) return;
+      await api(`/api/admin/users/${id}/password`, { method: "POST", json: { password: v } });
+      toast(`Zmieniono hasło gracza ${name}`);
+    }
+    if (act === "admin") {
+      await api(`/api/admin/users/${id}/admin`, { method: "POST" });
+      toast("Zmieniono uprawnienia");
+    }
+    if (act === "delete") {
+      if (!confirm(`Usunąć konto ${name} razem z kartami? Tego nie da się cofnąć.`)) return;
+      await api(`/api/admin/users/${id}`, { method: "DELETE" });
+      toast(`Usunięto konto ${name}`);
+    }
+    loadUsers();
+  } catch (e) { toast(e.message, true); }
+}
+
 // ================================================================ ZDARZENIA
 
 function bind() {
+  $("#userList").addEventListener("click", e => {
+    const b = e.target.closest("[data-uact]"); if (b) userAction(b.closest(".a-user"), b.dataset.uact);
+  });
   $("#showSecrets").checked = A.showSecrets;
   $("#showSecrets").addEventListener("change", e => {
     A.showSecrets = e.target.checked;

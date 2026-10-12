@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Skrzynki Sław — logowanie</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎴</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/fx.css') }}">
+  <style>
+    body { display: grid; place-items: center; min-height: 100vh; padding: 16px; }
+    .login-box {
+      width: min(420px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 22px;
+      padding: 28px; box-shadow: 0 30px 80px #000a; display: flex; flex-direction: column; gap: 16px;
+      animation: zoomIn .4s cubic-bezier(.2, 1.4, .4, 1);
+    }
+    .login-logo { text-align: center; font-family: Bungee, Rubik, sans-serif; font-size: 30px; }
+    .login-logo span { background: linear-gradient(90deg, #ffcf3f, #ff5cf0, #4b8bff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .login-cards { display: flex; justify-content: center; gap: 0; height: 90px; margin: 4px 0 8px; }
+    .login-cards i {
+      width: 60px; height: 84px; border-radius: 7px; margin: 0 -10px; box-shadow: 0 6px 16px #000a;
+      background: var(--c); border: 3px solid #fff3; transform: rotate(var(--r)) translateY(var(--y));
+      animation: floatCard 3s ease-in-out infinite; animation-delay: var(--d);
+    }
+    @keyframes floatCard { 50% { transform: rotate(var(--r)) translateY(calc(var(--y) - 8px)); } }
+    .seg { align-self: center; }
+    form { display: flex; flex-direction: column; gap: 12px; }
+    form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+    form input { font-size: 16px; padding: 12px 14px; }
+    .big-btn { max-width: none; min-width: 0; font-size: 18px; padding: 14px; }
+    .first-info { background: #2a2208; border: 1px solid #6b5300; color: #ffe08a; border-radius: 12px; padding: 12px 14px; font-size: 14px; }
+    .err { color: var(--bad); font-size: 14px; min-height: 18px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <div class="login-logo">🎴 <span>Skrzynki Sław</span></div>
+    <div class="login-cards">
+      <i style="--c:linear-gradient(145deg,#a4e89a,#2f8f3a);--r:-14deg;--y:10px;--d:0s"></i>
+      <i style="--c:linear-gradient(145deg,#a8c8ff,#2453c7);--r:-6deg;--y:2px;--d:.2s"></i>
+      <i style="--c:linear-gradient(145deg,#d7b5ff,#6a20c9);--r:0deg;--y:0px;--d:.4s"></i>
+      <i style="--c:linear-gradient(115deg,#8a5b00,#ffe58a,#c78b00);--r:6deg;--y:2px;--d:.6s"></i>
+      <i style="--c:conic-gradient(#ff3b3b,#ffe53b,#3bff6b,#3bd5ff,#ff3bd8,#ff3b3b);--r:14deg;--y:10px;--d:.8s"></i>
+    </div>
+    <div class="seg" id="seg">
+      <button type="button" data-mode="login" class="{{ '' if first else 'active' }}">Logowanie</button>
+      <button type="button" data-mode="register" class="{{ 'active' if first else '' }}">Rejestracja</button>
+    </div>
+    {% if first %}
+    <div class="first-info">👑 To pierwsze konto w tej grze — przejmie obecny zapis (karty, pieniądze) i dostanie uprawnienia admina.</div>
+    {% endif %}
+    <form id="form" autocomplete="on">
+      <label>Nazwa gracza<input type="text" name="username" required minlength="3" maxlength="20" autocomplete="username" autofocus></label>
+      <label>Hasło<input type="password" name="password" required minlength="4" autocomplete="current-password"></label>
+      <label id="pw2wrap" hidden>Powtórz hasło<input type="password" name="password2" autocomplete="new-password"></label>
+      <div class="err" id="err"></div>
+      <button class="big-btn" type="submit" id="submit">ZALOGUJ</button>
+    </form>
+  </div>
+  <script>
+    let mode = "{{ 'register' if first else 'login' }}";
+    const $ = s => document.querySelector(s);
+    function setMode(m) {
+      mode = m;
+      document.querySelectorAll("#seg button").forEach(b => b.classList.toggle("active", b.dataset.mode === m));
+      $("#pw2wrap").hidden = m !== "register";
+      $("#submit").textContent = m === "register" ? "ZAŁÓŻ KONTO" : "ZALOGUJ";
+      $("[name=password]").autocomplete = m === "register" ? "new-password" : "current-password";
+      $("#err").textContent = "";
+    }
+    setMode(mode);
+    $("#seg").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setMode(b.dataset.mode); });
+    $("#form").addEventListener("submit", async e => {
+      e.preventDefault();
+      const f = Object.fromEntries(new FormData(e.target));
+      if (mode === "register" && f.password !== f.password2) { $("#err").textContent = "Hasła nie są takie same"; return; }
+      $("#submit").disabled = true;
+      try {
+        const res = await fetch("/api/" + mode, { method: "POST", headers: { "Content-Type": "application/json" },
+                                                  body: JSON.stringify({ username: f.username, password: f.password }) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Błąd");
+        location.href = "/";
+      } catch (err) {
+        $("#err").textContent = err.message;
+        $("#submit").disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

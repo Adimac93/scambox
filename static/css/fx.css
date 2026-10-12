@@ -7,11 +7,11 @@
 
 .small { font-size: 12px; }
 .btn.tiny { padding: 3px 8px; font-size: 12px; }
-input[type=text], input[type=number] {
+input[type=text], input[type=number], input[type=password] {
   background: var(--panel2); color: var(--text); border: 1px solid var(--line);
   border-radius: 10px; padding: 9px 12px; font-family: inherit; font-size: 14px; min-width: 0;
 }
-input[type=text]:focus, input[type=number]:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .rainbow-text {
   background: var(--rainbow); background-size: 200% 100%;
   -webkit-background-clip: text; background-clip: text; color: transparent !important;

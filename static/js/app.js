@@ -22,6 +22,8 @@ const S = {
   spread: 0,
   inv: { crate: "all", rarities: new Set(), variant: "all", sort: "new", limit: INV_PAGE, selected: new Set() },
   opening: null,
+  me: null,               // zalogowany gracz
+  showcase: [],           // id kart w mojej gablocie
 };
 
 // ================================================================ API / POMOCNICZE
@@ -30,6 +32,7 @@ async function api(path, body) {
   const opts = body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
   const res = await fetch(path, opts);
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && data.login) { location.href = "/login"; throw new Error("Zaloguj się"); }
   if (!res.ok) throw new Error(data.error || "Błąd serwera");
   return data;
 }
@@ -206,7 +209,13 @@ function renderHeader() {
   requestAnimationFrame(step);
   const broke = target < Math.min(...crateList().map(c => c.price));
   el.classList.toggle("neg", broke);
+  $("#bankBtn").hidden = !S.me?.isAdmin;
+  $("#adminLink").hidden = !S.me?.isAdmin;
   $("#bankBtn").classList.toggle("pulse", broke);
+  if (S.me) {
+    $("#userAvatar").textContent = S.me.avatar;
+    $("#userName").textContent = S.me.username;
+  }
   $("#invCount").textContent = S.items.length;
   $("#soundBtn").textContent = Sound.enabled ? "🔊" : "🔇";
 }
@@ -254,10 +263,13 @@ function switchView(view) {
   if (view === "inventory") renderInventory();
   if (view === "crates") renderCrates();
   if (view === "forge") renderForge();
+  if (view === "friends") renderFriends();
+  if (view === "ranking") renderRanking();
+  if (view === "profile") renderProfile();
   updateSellbar();
 }
 
-function currentView() { return $(".tab.active").dataset.view; }
+function currentView() { return $(".view.active").id.replace("view-", ""); }
 
 function rerenderCurrent() { switchView(currentView()); }
 
@@ -367,7 +379,10 @@ async function openCrates() {
   const cost = S.count * crate.price;
   if (S.state.balance < cost) {
     Sound.error();
-    openBank(`Brakuje ci ${fmt(cost - S.state.balance)}, żeby otworzyć ${S.count} ${plural(S.count, "skrzynkę", "skrzynki", "skrzynek")}.`);
+    const msg = `Brakuje ci ${fmt(cost - S.state.balance)}, żeby otworzyć ${S.count} ${plural(S.count, "skrzynkę", "skrzynki", "skrzynek")}.`;
+    if (S.me?.isAdmin) openBank(msg);
+    else if (S.dailyClaimable) { toast(msg + " Odbierz nagrodę dzienną!", true); openDaily(); }
+    else toast(msg + " Sprzedaj kilka kart albo wróć jutro po nagrodę dzienną 🎁", true);
     return;
   }
   Sound.unlock();
@@ -670,31 +685,14 @@ function ownedMap() {
   return m;
 }
 
-function renderBinder() {
-  $("#binderSeg").innerHTML = crateList().map(c =>
-    `<button data-crate="${c.id}" class="${S.binderCrate === c.id ? "active" : ""}">${esc(c.emoji)} ${esc(c.short)}</button>`).join("");
-
-  const crate = crateOf(S.binderCrate);
-  if (!crate) { $("#binder").innerHTML = ""; return; }
-  const owned = ownedMap();
+// owned: { personId: { best: wariant, count: liczba } }
+function binderHTML(crate, owned, spread, { mine = true } = {}) {
   const ids = crate.people;
-  const have = ids.filter(id => owned[id]).length;
-  const special = ids.filter(id => owned[id] && isSpecial(owned[id].best)).length;
-  $("#binderProgress").innerHTML = `
-    <span>Zebrano <b style="color:var(--text)">${have}/${ids.length}</b></span>
-    <div class="pbar"><div style="width:${ids.length ? have / ids.length * 100 : 0}%"></div></div>
-    ${S.cfg.rarityOrder.map(r => {
-      const all = ids.filter(id => person(id).rarity === r);
-      if (!all.length) return "";
-      return `<span class="rar-count rc-${r}" style="--rc:${S.cfg.rarities[r].color}"><i></i>${all.filter(id => owned[id]).length}/${all.length}</span>`;
-    }).join("")}
-    <span>✨ warianty ${special}/${ids.length}</span>`;
-
   const pages = [];
   for (let i = 0; i < ids.length; i += 9) pages.push(ids.slice(i, i + 9));
   if (!pages.length) pages.push([]);
   const spreads = Math.ceil(pages.length / 2);
-  S.spread = Math.max(0, Math.min(S.spread, spreads - 1));
+  spread = Math.max(0, Math.min(spread, spreads - 1));
   const pageHTML = (page, side) => {
     const slots = (page || []).concat(Array(9 - (page || []).length).fill(null));
     return `<div class="bpage ${side}">${slots.map(id => {
@@ -704,16 +702,40 @@ function renderBinder() {
         if (p.rarity === "secret") return `<div class="pocket secret-pocket"><div class="card-back secret-back"><div><div class="q">★</div><div class="n">TAJNA</div></div></div></div>`;
         return `<div class="pocket"><div class="card-back"><div><div class="q">?</div><div class="n">#${String(p.number).padStart(3, "0")}</div></div></div></div>`;
       }
-      const n = o.ids.length;
-      return `<div class="pocket owned${p.rarity === "secret" ? " secret-pocket" : ""}" data-pid="${id}">${cardHTML(id, o.best)}${n > 1 ? `<span class="count">×${n}</span>` : ""}</div>`;
+      return `<div class="pocket owned${p.rarity === "secret" ? " secret-pocket" : ""}" data-pid="${id}" data-variant="${o.best}">${cardHTML(id, o.best)}${o.count > 1 ? `<span class="count">×${o.count}</span>` : ""}</div>`;
     }).join("")}</div>`;
   };
-  $("#binder").innerHTML = pageHTML(pages[S.spread * 2], "left") + pageHTML(pages[S.spread * 2 + 1], "right") +
+  const html = pageHTML(pages[spread * 2], "left") + pageHTML(pages[spread * 2 + 1], "right") +
     `<div class="binder-rings">${"<span></span>".repeat(4)}</div>`;
+  const have = ids.filter(id => owned[id]).length;
+  const special = ids.filter(id => owned[id] && isSpecial(owned[id].best)).length;
+  const progress = `
+    <span>${mine ? "Zebrano" : "Zebrane"} <b style="color:var(--text)">${have}/${ids.length}</b></span>
+    <div class="pbar"><div style="width:${ids.length ? have / ids.length * 100 : 0}%"></div></div>
+    ${S.cfg.rarityOrder.map(r => {
+      const all = ids.filter(id => person(id).rarity === r);
+      if (!all.length) return "";
+      return `<span class="rar-count rc-${r}" style="--rc:${S.cfg.rarities[r].color}"><i></i>${all.filter(id => owned[id]).length}/${all.length}</span>`;
+    }).join("")}
+    <span>✨ warianty ${special}/${ids.length}</span>`;
+  const a = spread * 2 + 1, b = Math.min(a + 1, pages.length);
+  return { html, progress, spread, spreads, label: `Strony ${a}–${b} z ${pages.length}` };
+}
+
+function renderBinder() {
+  $("#binderSeg").innerHTML = crateList().map(c =>
+    `<button data-crate="${c.id}" class="${S.binderCrate === c.id ? "active" : ""}">${esc(c.emoji)} ${esc(c.short)}</button>`).join("");
+  const crate = crateOf(S.binderCrate);
+  if (!crate) { $("#binder").innerHTML = ""; return; }
+  const owned = {};
+  for (const [pid, o] of Object.entries(ownedMap())) owned[pid] = { best: o.best, count: o.ids.length };
+  const b = binderHTML(crate, owned, S.spread);
+  S.spread = b.spread;
+  $("#binderProgress").innerHTML = b.progress;
+  $("#binder").innerHTML = b.html;
   $("#pagePrev").disabled = S.spread === 0;
-  $("#pageNext").disabled = S.spread >= spreads - 1;
-  const a = S.spread * 2 + 1, b = Math.min(a + 1, pages.length);
-  $("#pageIndicator").textContent = `Strony ${a}–${b} z ${pages.length}`;
+  $("#pageNext").disabled = S.spread >= b.spreads - 1;
+  $("#pageIndicator").textContent = b.label;
 }
 
 function flipBinder(dir) {
@@ -943,13 +965,14 @@ function bind() {
   $("#bankForm").addEventListener("submit", e => { e.preventDefault(); deposit($("#bankAmount").value); });
 
   bindForge();
+  bindSocial();
 
   // nagłówek
   $("#soundBtn").addEventListener("click", () => { Sound.toggle(); renderHeader(); });
   $("#resetBtn").addEventListener("click", async () => {
-    if (!confirm(`Zacząć od nowa?\nStracisz wszystkie karty i odkryte tajne karty, a saldo wróci do ${fmt(S.cfg.startingBalance)}.`)) return;
+    if (!confirm(`Zacząć od nowa na swoim koncie?\nStracisz wszystkie karty, gablotę i odkryte tajne karty, a saldo wróci do ${fmt(S.cfg.startingBalance)}.\n(Odebrane nagrody dzienne zostają.)`)) return;
     const res = await api("/api/reset", {});
-    S.items = []; S.inv.selected.clear();
+    S.items = []; S.inv.selected.clear(); S.showcase = [];
     await refreshConfig();
     applyState(res.state);
     Sound.coin(3);
@@ -961,6 +984,7 @@ function bind() {
   document.addEventListener("keydown", e => {
     if (e.target.matches("input[type=text], input[type=number], select, textarea")) return;
     if (epicOpen()) return;
+    if (dialogOpen()) { if (e.key === "Escape") closeDialogs(); return; }
     if (viewerOpen()) { if (e.key === "Escape" || e.key === " ") { e.preventDefault(); closeViewer(); } return; }
     if (!$("#bank").hidden) { if (e.key === "Escape") closeBank(); return; }
     if (e.key === "Escape") {
@@ -985,10 +1009,20 @@ function bind() {
 // ================================================================ START
 
 (async function init() {
-  const [cfg, st] = await Promise.all([api("/api/config"), api("/api/state")]);
+  // serwer mógł się właśnie restartować - kilka prób zanim się poddamy
+  let me, cfg, st;
+  for (let attempt = 0; ; attempt++) {
+    try { [me, cfg, st] = await Promise.all([api("/api/me"), api("/api/config"), api("/api/state")]); break; }
+    catch (e) {
+      if (attempt >= 5) { toast("Nie można połączyć się z serwerem — odśwież stronę", true); throw e; }
+      await sleep(1000);
+    }
+  }
+  S.me = me.user;
   S.cfg = cfg;
   S.state = st.state;
   S.items = st.items;
+  S.showcase = st.showcase || [];
   S.crate = S.binderCrate = cfg.crateOrder[0];
   try { S.fast = localStorage.getItem("fast") === "1"; } catch (_) {}
   // podgrzej cache zdjęć, żeby bębny od razu miały obrazki
@@ -997,4 +1031,7 @@ function bind() {
   renderHeader();
   renderCrates();
   updateSellbar();
+  applyBadges(me);
+  startPolling();
+  if (me.dailyClaimable) setTimeout(openDaily, 600);
 })();

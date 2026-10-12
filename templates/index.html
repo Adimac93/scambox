@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/fx.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/cards2.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/social.css') }}">
 </head>
 <body>
   <header class="topbar">
@@ -20,13 +21,17 @@
       <button class="tab" data-view="binder">📖 Klaser</button>
       <button class="tab" data-view="inventory">🎒 Ekwipunek <span class="badge" id="invCount">0</span></button>
       <button class="tab" data-view="forge">⚒️ Kuźnia</button>
+      <button class="tab" data-view="friends">👥 Znajomi <span class="badge alert" id="friendsBadge" hidden>0</span></button>
+      <button class="tab" data-view="ranking">🏆 Ranking</button>
     </nav>
     <div class="top-right">
+      <button class="icon-btn daily-btn" id="dailyBtn" title="Nagroda dzienna">🎁</button>
       <div class="balance" id="balance" title="Twoje pieniądze">0 $</div>
-      <button class="icon-btn bank-btn" id="bankBtn" title="Bankomat — dodaj pieniądze">💸</button>
+      <button class="icon-btn bank-btn" id="bankBtn" title="Bankomat (admin) — dodaj pieniądze" hidden>💸</button>
       <button class="icon-btn" id="soundBtn" title="Dźwięk">🔊</button>
       <button class="icon-btn" id="resetBtn" title="Zacznij od nowa">♻️</button>
-      <a class="icon-btn" href="/admin" title="Panel admina">⚙️</a>
+      <a class="icon-btn" href="/admin" title="Panel admina" id="adminLink" hidden>⚙️</a>
+      <button class="user-chip" id="userChip" title="Twój profil"><span id="userAvatar">😎</span><span id="userName"></span></button>
     </div>
   </header>
 
@@ -92,6 +97,15 @@
       <div class="inv-more"><button class="btn" id="invMore">Pokaż więcej</button></div>
     </section>
 
+    <!-- ZNAJOMI -->
+    <section class="view" id="view-friends"><div id="friendsBody"></div></section>
+
+    <!-- RANKING -->
+    <section class="view" id="view-ranking"><div id="rankingBody"></div></section>
+
+    <!-- PROFIL -->
+    <section class="view" id="view-profile"><div id="profileBody"></div></section>
+
     <!-- KUŹNIA -->
     <section class="view" id="view-forge">
       <div class="forge-toolbar">
@@ -155,6 +169,7 @@
   <script src="{{ url_for('static', filename='js/sound.js') }}"></script>
   <script src="{{ url_for('static', filename='js/fx.js') }}"></script>
   <script src="{{ url_for('static', filename='js/forge.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/social.js') }}"></script>
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

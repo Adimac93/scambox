@@ -1,25 +1,55 @@
+import datetime
+import functools
+import json
 import os
 import random
 import re
+import secrets
+import socket
 import sqlite3
 import sys
 import time
 import unicodedata
 
-from flask import Flask, Response, g, jsonify, render_template, request, send_file
+from flask import (Flask, Response, g, jsonify, redirect, render_template, request, send_file, session,
+                   url_for)
+from werkzeug.security import check_password_hash, generate_password_hash
 
 import catalog
 import images
-from data import (CONTRACT_SIZE, CONTRACT_VARIANT_BONUS, CRATE_PRICE, MAX_DEPOSIT, MAX_OPEN, RARITIES,
-                  RARITY_ORDER, STARTING_BALANCE, TYPES, UPGRADE_EDGE, UPGRADE_MAX, UPGRADE_MAX_ITEMS,
-                  VARIANT_ORDER, VARIANTS, card_value)
+from data import (CONTRACT_SIZE, CONTRACT_VARIANT_BONUS, CRATE_PRICE, DAILY_REWARD, JACKPOT_REWARD,
+                  JACKPOT_WEEKDAY, MAX_DEPOSIT, MAX_OPEN, RARITIES, RARITY_ORDER, SHOWCASE_SIZE,
+                  STARTING_BALANCE, TYPES, UPGRADE_EDGE, UPGRADE_MAX, UPGRADE_MAX_ITEMS, VARIANT_ORDER,
+                  VARIANTS, card_value)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEST_MODE = "--test" in sys.argv  # osobny zapis do testów: python app.py --test
+LAN_MODE = "--lan" in sys.argv    # dostęp z innych komputerów w sieci: python app.py --lan
 DB_PATH = os.path.join(BASE_DIR, "test.db" if TEST_MODE else "game.db")
+KEY_PATH = os.path.join(BASE_DIR, "secret_key.txt")
+
+STATE_KEYS = (("balance", STARTING_BALANCE), ("opened", 0), ("spent", 0), ("earned", 0), ("deposited", 0),
+              ("contracts", 0), ("upgrades_won", 0), ("upgrades_lost", 0), ("feed_seen", 0), ("daily_total", 0))
+USERNAME_RE = re.compile(r"^[A-Za-z0-9_.\-ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]{3,20}$")
+FEED_RARITY = 4  # od legendarnych w górę dropy trafiają automatycznie do aktywności znajomych
+
+
+def load_secret_key():
+    if not os.path.exists(KEY_PATH):
+        with open(KEY_PATH, "w") as f:
+            f.write(secrets.token_hex(32))
+    with open(KEY_PATH) as f:
+        return f.read().strip()
+
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024
+app.config.update(
+    MAX_CONTENT_LENGTH=20 * 1024 * 1024,
+    SECRET_KEY=load_secret_key(),
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_HTTPONLY=True,
+    PERMANENT_SESSION_LIFETIME=datetime.timedelta(days=30),
+)
 rng = random.SystemRandom()
 
 
@@ -27,7 +57,7 @@ rng = random.SystemRandom()
 
 def db():
     if "db" not in g:
-        g.db = sqlite3.connect(DB_PATH)
+        g.db = sqlite3.connect(DB_PATH, timeout=10)
         g.db.row_factory = sqlite3.Row
     return g.db
 
@@ -50,31 +80,199 @@ def init_db():
             created_at REAL NOT NULL
         );
         CREATE TABLE IF NOT EXISTS discovered (person_id TEXT PRIMARY KEY);
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+            password_hash TEXT NOT NULL,
+            avatar TEXT NOT NULL DEFAULT '😎',
+            is_admin INTEGER NOT NULL DEFAULT 0,
+            created_at REAL NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS user_state (user_id INTEGER NOT NULL, key TEXT NOT NULL, value INTEGER NOT NULL,
+                                               PRIMARY KEY (user_id, key));
+        CREATE TABLE IF NOT EXISTS user_discovered (user_id INTEGER NOT NULL, person_id TEXT NOT NULL,
+                                                    PRIMARY KEY (user_id, person_id));
+        CREATE TABLE IF NOT EXISTS daily_claims (user_id INTEGER NOT NULL, day TEXT NOT NULL, amount INTEGER NOT NULL,
+                                                 PRIMARY KEY (user_id, day));
+        CREATE TABLE IF NOT EXISTS friendships (requester_id INTEGER NOT NULL, addressee_id INTEGER NOT NULL,
+                                                status TEXT NOT NULL, created_at REAL NOT NULL,
+                                                PRIMARY KEY (requester_id, addressee_id));
+        CREATE TABLE IF NOT EXISTS showcase (user_id INTEGER NOT NULL, pos INTEGER NOT NULL, item_id INTEGER NOT NULL,
+                                             PRIMARY KEY (user_id, pos));
+        CREATE TABLE IF NOT EXISTS feed (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            author_id INTEGER NOT NULL,
+            to_user_id INTEGER,
+            kind TEXT NOT NULL,
+            person_id TEXT NOT NULL,
+            variant TEXT NOT NULL,
+            message TEXT NOT NULL DEFAULT '',
+            created_at REAL NOT NULL
+        );
     """)
-    # migracja: holo (0/1) -> variant
     cols = [r[1] for r in conn.execute("PRAGMA table_info(items)")]
-    if "variant" not in cols:
+    if "variant" not in cols:  # migracja: holo (0/1) -> variant
         conn.execute("ALTER TABLE items ADD COLUMN variant TEXT NOT NULL DEFAULT 'normal'")
         conn.execute("UPDATE items SET variant = 'holo' WHERE holo = 1")
+    if "user_id" not in cols:  # migracja: karty należą do kont
+        conn.execute("ALTER TABLE items ADD COLUMN user_id INTEGER")
+    conn.execute("CREATE INDEX IF NOT EXISTS items_user ON items (user_id)")
     catalog.init_tables(conn)
-    for key, val in (("balance", STARTING_BALANCE), ("opened", 0), ("spent", 0), ("earned", 0),
-                     ("deposited", 0), ("contracts", 0), ("upgrades_won", 0), ("upgrades_lost", 0)):
-        conn.execute("INSERT OR IGNORE INTO state (key, value) VALUES (?, ?)", (key, val))
     conn.commit()
     catalog.rebuild(conn)
     conn.close()
 
 
-def get_state():
-    return {r["key"]: r["value"] for r in db().execute("SELECT key, value FROM state")}
+def ensure_state(conn, uid):
+    for key, val in STATE_KEYS:
+        conn.execute("INSERT OR IGNORE INTO user_state (user_id, key, value) VALUES (?, ?, ?)", (uid, key, val))
 
 
-def add_state(key, delta):
-    db().execute("UPDATE state SET value = value + ? WHERE key = ?", (delta, key))
+def adopt_legacy_save(conn, uid):
+    """Pierwsze konto przejmuje zapis gry sprzed wprowadzenia kont."""
+    conn.execute("UPDATE items SET user_id = ? WHERE user_id IS NULL", (uid,))
+    for key, value in conn.execute("SELECT key, value FROM state").fetchall():
+        conn.execute("INSERT OR REPLACE INTO user_state (user_id, key, value) VALUES (?, ?, ?)", (uid, key, value))
+    conn.execute("INSERT OR IGNORE INTO user_discovered (user_id, person_id) SELECT ?, person_id FROM discovered", (uid,))
+    conn.execute("DELETE FROM state")
+    conn.execute("DELETE FROM discovered")
 
 
-def discovered():
-    return {r[0] for r in db().execute("SELECT person_id FROM discovered")}
+# ---------------------------------------------------------------- konta
+
+def current_user():
+    if "user" not in g:
+        uid = session.get("uid")
+        g.user = db().execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone() if uid else None
+    return g.user
+
+
+def uid():
+    return current_user()["id"]
+
+
+def login_required(fn):
+    @functools.wraps(fn)
+    def wrapper(*a, **kw):
+        if current_user() is None:
+            if request.path.startswith("/api/"):
+                return jsonify({"error": "Zaloguj się", "login": True}), 401
+            return redirect(url_for("login_page"))
+        return fn(*a, **kw)
+    return wrapper
+
+
+def admin_required(fn):
+    @functools.wraps(fn)
+    @login_required
+    def wrapper(*a, **kw):
+        if not current_user()["is_admin"]:
+            if request.path.startswith("/api/"):
+                return jsonify({"error": "Tylko dla admina"}), 403
+            return redirect(url_for("index"))
+        return fn(*a, **kw)
+    return wrapper
+
+
+def user_json(u):
+    return {"id": u["id"], "username": u["username"], "avatar": u["avatar"], "isAdmin": bool(u["is_admin"])}
+
+
+def find_user(name):
+    return db().execute("SELECT * FROM users WHERE username = ?", ((name or "").strip(),)).fetchone()
+
+
+@app.route("/login")
+def login_page():
+    if current_user():
+        return redirect(url_for("index"))
+    first = db().execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0
+    return render_template("login.html", first=first)
+
+
+@app.post("/api/register")
+def register():
+    body = request.get_json(force=True)
+    name = (body.get("username") or "").strip()
+    pw = body.get("password") or ""
+    if not USERNAME_RE.match(name):
+        return jsonify({"error": "Nazwa: 3–20 znaków (litery, cyfry, _ . -)"}), 400
+    if len(pw) < 4:
+        return jsonify({"error": "Hasło musi mieć co najmniej 4 znaki"}), 400
+    conn = db()
+    if find_user(name):
+        return jsonify({"error": "Ta nazwa jest już zajęta"}), 400
+    first = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0
+    cur = conn.execute("INSERT INTO users (username, password_hash, is_admin, created_at) VALUES (?, ?, ?, ?)",
+                       (name, generate_password_hash(pw), int(first), time.time()))
+    new_id = cur.lastrowid
+    if first:
+        adopt_legacy_save(conn, new_id)
+    ensure_state(conn, new_id)
+    conn.commit()
+    session.clear()
+    session.permanent = True
+    session["uid"] = new_id
+    return jsonify({"ok": True, "first": first})
+
+
+@app.post("/api/login")
+def login():
+    body = request.get_json(force=True)
+    u = find_user(body.get("username"))
+    if u is None or not check_password_hash(u["password_hash"], body.get("password") or ""):
+        time.sleep(0.4)
+        return jsonify({"error": "Zła nazwa użytkownika lub hasło"}), 400
+    ensure_state(db(), u["id"])
+    db().commit()
+    session.clear()
+    session.permanent = True
+    session["uid"] = u["id"]
+    return jsonify({"ok": True})
+
+
+@app.post("/api/logout")
+def logout():
+    session.clear()
+    return jsonify({"ok": True})
+
+
+@app.post("/api/password")
+@login_required
+def change_password():
+    body = request.get_json(force=True)
+    if not check_password_hash(current_user()["password_hash"], body.get("old") or ""):
+        return jsonify({"error": "Obecne hasło jest nieprawidłowe"}), 400
+    if len(body.get("new") or "") < 4:
+        return jsonify({"error": "Nowe hasło musi mieć co najmniej 4 znaki"}), 400
+    db().execute("UPDATE users SET password_hash = ? WHERE id = ?", (generate_password_hash(body["new"]), uid()))
+    db().commit()
+    return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------- stan gracza
+
+def get_state(user_id=None):
+    user_id = user_id or uid()
+    st = dict(STATE_KEYS)
+    st.update({r["key"]: r["value"] for r in db().execute("SELECT key, value FROM user_state WHERE user_id = ?", (user_id,))})
+    return st
+
+
+def add_state(key, delta, user_id=None):
+    user_id = user_id or uid()
+    ensure_state(db(), user_id)
+    db().execute("UPDATE user_state SET value = value + ? WHERE user_id = ? AND key = ?", (delta, user_id, key))
+
+
+def set_state(key, value):
+    db().execute("INSERT OR REPLACE INTO user_state (user_id, key, value) VALUES (?, ?, ?)", (uid(), key, value))
+
+
+def discovered(user_id=None):
+    if user_id is None and current_user() is None:
+        return set()
+    return {r[0] for r in db().execute("SELECT person_id FROM user_discovered WHERE user_id = ?", (user_id or uid(),))}
 
 
 def item_json(row):
@@ -88,20 +286,25 @@ def item_json(row):
 
 def insert_item(person_id, variant):
     now = time.time()
-    cur = db().execute("INSERT INTO items (person_id, holo, variant, created_at) VALUES (?, ?, ?, ?)",
-                       (person_id, int(variant != "normal"), variant, now))
+    cur = db().execute("INSERT INTO items (person_id, holo, variant, created_at, user_id) VALUES (?, ?, ?, ?, ?)",
+                       (person_id, int(variant != "normal"), variant, now, uid()))
     return {"id": cur.lastrowid, "person": person_id, "variant": variant,
             "value": card_value(catalog.PEOPLE[person_id], variant), "created": now}
 
 
-def note_discoveries(items):
-    """Zapisuje odkryte tajne karty. Zwraca listę nowo odkrytych id."""
+def note_drops(items, kind="drop"):
+    """Odkrywa tajne karty i wrzuca legendarne+ do aktywności znajomych. Zwraca nowo odkryte id."""
     new = []
     for it in items:
-        if catalog.PEOPLE[it["person"]]["rarity"] == "secret":
-            cur = db().execute("INSERT OR IGNORE INTO discovered (person_id) VALUES (?)", (it["person"],))
+        rarity = catalog.PEOPLE[it["person"]]["rarity"]
+        if rarity == "secret":
+            cur = db().execute("INSERT OR IGNORE INTO user_discovered (user_id, person_id) VALUES (?, ?)",
+                               (uid(), it["person"]))
             if cur.rowcount:
                 new.append(it["person"])
+        if RARITY_ORDER.index(rarity) >= FEED_RARITY:
+            db().execute("INSERT INTO feed (author_id, to_user_id, kind, person_id, variant, created_at) "
+                         "VALUES (?, NULL, ?, ?, ?, ?)", (uid(), kind, it["person"], it["variant"], time.time()))
     return new
 
 
@@ -123,11 +326,13 @@ def public_person(p, found):
 # ---------------------------------------------------------------- strony
 
 @app.route("/")
+@login_required
 def index():
     return render_template("index.html")
 
 
 @app.route("/admin")
+@admin_required
 def admin_page():
     return render_template("admin.html")
 
@@ -150,12 +355,17 @@ def image(person_id, kind="main"):
     p = catalog.PEOPLE.get(person_id)
     if p is None:
         return "", 404
-    # ?admin=1 - podgląd w panelu admina (po kliknięciu "Pokaż tajne karty")
-    if p["rarity"] == "secret" and person_id not in discovered() and request.args.get("admin") != "1":
-        return svg_response(MYSTERY_SVG)
+    if p["rarity"] == "secret" and person_id not in discovered():
+        # ?admin=1 - podgląd w panelu admina (po kliknięciu "Pokaż tajne karty")
+        u = current_user()
+        if not (request.args.get("admin") == "1" and u and u["is_admin"]):
+            return svg_response(MYSTERY_SVG)
     path = images.ensure(person_id, alt=(kind == "alt"))
     if path:
-        return send_file(path, mimetype=images.mimetype(path), max_age=86400)
+        resp = send_file(path, mimetype=images.mimetype(path), max_age=86400)
+        if p["rarity"] == "secret":
+            resp.headers["Cache-Control"] = "private, no-store"
+        return resp
     initials = "".join(w[0] for w in p["name"].replace("„", "").split()[:2]).upper()
     color = RARITIES[p["rarity"]]["color"]
     return svg_response(f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 400">
@@ -173,6 +383,7 @@ def crate_json(c):
 
 
 @app.get("/api/config")
+@login_required
 def config():
     found = discovered()
     return jsonify({
@@ -192,14 +403,22 @@ def config():
         "upgradeMax": UPGRADE_MAX,
         "upgradeMaxItems": UPGRADE_MAX_ITEMS,
         "maxDeposit": MAX_DEPOSIT,
+        "dailyReward": DAILY_REWARD,
+        "jackpotReward": JACKPOT_REWARD,
+        "jackpotWeekday": JACKPOT_WEEKDAY,
+        "showcaseSize": SHOWCASE_SIZE,
     })
 
 
+def my_items():
+    rows = db().execute("SELECT * FROM items WHERE user_id = ? ORDER BY id DESC", (uid(),)).fetchall()
+    return [i for i in (item_json(r) for r in rows) if i]
+
+
 @app.get("/api/state")
+@login_required
 def state():
-    rows = db().execute("SELECT * FROM items ORDER BY id DESC").fetchall()
-    items = [i for i in (item_json(r) for r in rows) if i]
-    return jsonify({"state": get_state(), "items": items})
+    return jsonify({"state": get_state(), "items": my_items(), "showcase": showcase_ids(uid())})
 
 
 def roll_variant(factor=1.0):
@@ -223,6 +442,7 @@ def roll(crate):
 
 
 @app.post("/api/open")
+@login_required
 def open_crates():
     body = request.get_json(force=True)
     crate = catalog.CRATES.get(body.get("crate"))
@@ -241,17 +461,17 @@ def open_crates():
     for _ in range(count):
         person, variant = roll(crate)
         drops.append(insert_item(person["id"], variant))
-    new = note_discoveries(drops)
+    new = note_drops(drops)
     db().commit()
     return jsonify({"drops": drops, "discovered": new, "state": get_state()})
 
 
 def owned_rows(ids):
-    """Zwraca wiersze kart o podanych id albo None, jeśli czegoś brakuje."""
+    """Zwraca wiersze moich kart o podanych id albo None, jeśli czegoś brakuje."""
     if not ids or len(set(ids)) != len(ids):
         return None
     marks = ",".join("?" * len(ids))
-    rows = db().execute(f"SELECT * FROM items WHERE id IN ({marks})", ids).fetchall()
+    rows = db().execute(f"SELECT * FROM items WHERE user_id = ? AND id IN ({marks})", [uid(), *ids]).fetchall()
     if len(rows) != len(ids) or any(r["person_id"] not in catalog.PEOPLE for r in rows):
         return None
     return rows
@@ -259,7 +479,8 @@ def owned_rows(ids):
 
 def delete_items(ids):
     marks = ",".join("?" * len(ids))
-    db().execute(f"DELETE FROM items WHERE id IN ({marks})", ids)
+    db().execute(f"DELETE FROM items WHERE user_id = ? AND id IN ({marks})", [uid(), *ids])
+    db().execute(f"DELETE FROM showcase WHERE user_id = ? AND item_id IN ({marks})", [uid(), *ids])
 
 
 def row_value(r):
@@ -267,14 +488,15 @@ def row_value(r):
 
 
 @app.post("/api/sell")
+@login_required
 def sell():
     ids = [int(i) for i in request.get_json(force=True).get("ids", [])]
     if not ids:
         return jsonify({"error": "Nic nie wybrano"}), 400
     marks = ",".join("?" * len(ids))
-    rows = db().execute(f"SELECT * FROM items WHERE id IN ({marks})", ids).fetchall()
+    rows = db().execute(f"SELECT * FROM items WHERE user_id = ? AND id IN ({marks})", [uid(), *ids]).fetchall()
     total = sum(row_value(r) for r in rows if r["person_id"] in catalog.PEOPLE)
-    delete_items(ids)
+    delete_items([r["id"] for r in rows] or [-1])
     add_state("balance", total)
     add_state("earned", total)
     db().commit()
@@ -282,6 +504,7 @@ def sell():
 
 
 @app.post("/api/deposit")
+@admin_required
 def deposit():
     try:
         amount = int(request.get_json(force=True).get("amount", 0))
@@ -296,6 +519,7 @@ def deposit():
 
 
 @app.post("/api/contract")
+@login_required
 def contract():
     ids = [int(i) for i in request.get_json(force=True).get("ids", [])]
     rows = owned_rows(ids)
@@ -308,7 +532,6 @@ def contract():
     if len(rows) != CONTRACT_SIZE[rarity]:
         return jsonify({"error": f"Kontrakt wymaga {CONTRACT_SIZE[rarity]} kart"}), 400
     target = RARITY_ORDER[RARITY_ORDER.index(rarity) + 1]
-    # skrzynka wyniku losowana proporcjonalnie do skrzynek kart wejściowych (tylko te, które mają wyższą rzadkość)
     pool = [catalog.PEOPLE[r["person_id"]]["crate"] for r in rows]
     pool = [c for c in pool if any(p["rarity"] == target for p in catalog.CRATES[c]["people"])]
     if not pool:
@@ -318,13 +541,14 @@ def contract():
     specials = sum(r["variant"] != "normal" for r in rows)
     delete_items(ids)
     item = insert_item(person["id"], roll_variant(1 + CONTRACT_VARIANT_BONUS * specials))
-    new = note_discoveries([item])
+    new = note_drops([item], "contract")
     add_state("contracts", 1)
     db().commit()
     return jsonify({"item": item, "crate": crate_id, "consumed": ids, "discovered": new, "state": get_state()})
 
 
 @app.post("/api/upgrade")
+@login_required
 def upgrade():
     body = request.get_json(force=True)
     ids = [int(i) for i in body.get("ids", [])]
@@ -342,7 +566,7 @@ def upgrade():
     win = roll_ < chance
     delete_items(ids)
     item = insert_item(target["id"], variant) if win else None
-    new = note_discoveries([item]) if win else []
+    new = note_drops([item], "upgrade") if win else []
     add_state("upgrades_won" if win else "upgrades_lost", 1)
     db().commit()
     return jsonify({"win": win, "chance": chance, "roll": roll_, "item": item,
@@ -350,16 +574,331 @@ def upgrade():
 
 
 @app.post("/api/reset")
+@login_required
 def reset():
     conn = db()
-    conn.execute("DELETE FROM items")
-    conn.execute("DELETE FROM state")
-    conn.execute("DELETE FROM discovered")
+    me = uid()
+    conn.execute("DELETE FROM items WHERE user_id = ?", (me,))
+    conn.execute("DELETE FROM user_state WHERE user_id = ?", (me,))
+    conn.execute("DELETE FROM user_discovered WHERE user_id = ?", (me,))
+    conn.execute("DELETE FROM showcase WHERE user_id = ?", (me,))
+    ensure_state(conn, me)
     conn.commit()
-    conn.close()
-    g.pop("db", None)
-    init_db()
     return jsonify({"state": get_state(), "items": []})
+
+
+# ---------------------------------------------------------------- codzienna nagroda
+
+def daily_info(user_id):
+    today = datetime.date.today()
+    monday = today - datetime.timedelta(days=today.weekday())
+    claimed = {r["day"]: r["amount"] for r in db().execute(
+        "SELECT day, amount FROM daily_claims WHERE user_id = ? AND day >= ?", (user_id, monday.isoformat()))}
+    week = []
+    for i in range(7):
+        d = monday + datetime.timedelta(days=i)
+        jackpot = d.weekday() == JACKPOT_WEEKDAY
+        week.append({"date": d.isoformat(), "weekday": d.weekday(), "jackpot": jackpot,
+                     "amount": JACKPOT_REWARD if jackpot else DAILY_REWARD,
+                     "claimed": d.isoformat() in claimed, "today": d == today, "past": d < today})
+    return {"today": today.isoformat(), "claimable": today.isoformat() not in claimed, "week": week,
+            "jackpotToday": today.weekday() == JACKPOT_WEEKDAY,
+            "daysToJackpot": (JACKPOT_WEEKDAY - today.weekday()) % 7}
+
+
+@app.get("/api/daily")
+@login_required
+def daily():
+    return jsonify(daily_info(uid()))
+
+
+@app.post("/api/daily/claim")
+@login_required
+def daily_claim():
+    today = datetime.date.today()
+    jackpot = today.weekday() == JACKPOT_WEEKDAY
+    amount = JACKPOT_REWARD if jackpot else DAILY_REWARD
+    cur = db().execute("INSERT OR IGNORE INTO daily_claims (user_id, day, amount) VALUES (?, ?, ?)",
+                       (uid(), today.isoformat(), amount))
+    if not cur.rowcount:
+        return jsonify({"error": "Dzisiejsza nagroda jest już odebrana"}), 400
+    add_state("balance", amount)
+    add_state("daily_total", amount)
+    db().commit()
+    return jsonify({"amount": amount, "jackpot": jackpot, "state": get_state(), "daily": daily_info(uid())})
+
+
+# ---------------------------------------------------------------- znajomi
+
+def friend_ids(user_id):
+    rows = db().execute("""
+        SELECT addressee_id FROM friendships WHERE requester_id = ? AND status = 'accepted'
+        UNION SELECT requester_id FROM friendships WHERE addressee_id = ? AND status = 'accepted'""",
+                        (user_id, user_id))
+    return {r[0] for r in rows}
+
+
+def relation(me, other):
+    if me == other:
+        return "me"
+    r = db().execute("SELECT requester_id, status FROM friendships WHERE (requester_id = ? AND addressee_id = ?) "
+                     "OR (requester_id = ? AND addressee_id = ?)", (me, other, other, me)).fetchone()
+    if r is None:
+        return "none"
+    if r["status"] == "accepted":
+        return "friend"
+    return "outgoing" if r["requester_id"] == me else "incoming"
+
+
+def collection_stats():
+    """Wartość kolekcji i liczba unikalnych kart dla wszystkich graczy."""
+    stats = {}
+    for r in db().execute("SELECT user_id, person_id, variant FROM items WHERE user_id IS NOT NULL"):
+        p = catalog.PEOPLE.get(r["person_id"])
+        if p is None:
+            continue
+        s = stats.setdefault(r["user_id"], {"value": 0, "unique": set(), "total": 0})
+        s["value"] += card_value(p, r["variant"])
+        s["unique"].add(r["person_id"])
+        s["total"] += 1
+    return stats
+
+
+def brief(u, stats=None):
+    s = (stats or {}).get(u["id"], {"value": 0, "unique": set(), "total": 0})
+    return dict(user_json(u), value=s["value"], unique=len(s["unique"]), total=s["total"])
+
+
+@app.get("/api/friends")
+@login_required
+def friends():
+    me = uid()
+    stats = collection_stats()
+    users = {u["id"]: u for u in db().execute("SELECT * FROM users")}
+    rows = db().execute("SELECT * FROM friendships WHERE requester_id = ? OR addressee_id = ?", (me, me)).fetchall()
+    out = {"friends": [], "incoming": [], "outgoing": []}
+    for r in rows:
+        other = r["addressee_id"] if r["requester_id"] == me else r["requester_id"]
+        if other not in users:
+            continue
+        key = "friends" if r["status"] == "accepted" else ("outgoing" if r["requester_id"] == me else "incoming")
+        out[key].append(brief(users[other], stats))
+    for k in out:
+        out[k].sort(key=lambda x: x["username"].lower())
+    return jsonify(out)
+
+
+@app.post("/api/friends/request")
+@login_required
+def friend_request():
+    other = find_user(request.get_json(force=True).get("username"))
+    me = uid()
+    if other is None:
+        return jsonify({"error": "Nie ma takiego gracza"}), 404
+    rel = relation(me, other["id"])
+    if rel == "me":
+        return jsonify({"error": "Nie możesz zaprosić samego siebie 🙂"}), 400
+    if rel == "friend":
+        return jsonify({"error": "Już jesteście znajomymi"}), 400
+    if rel == "outgoing":
+        return jsonify({"error": "Zaproszenie już wysłane"}), 400
+    if rel == "incoming":  # ta osoba już nas zaprosiła - od razu akceptujemy
+        db().execute("UPDATE friendships SET status = 'accepted' WHERE requester_id = ? AND addressee_id = ?",
+                     (other["id"], me))
+        db().commit()
+        return jsonify({"ok": True, "status": "friend"})
+    db().execute("INSERT INTO friendships (requester_id, addressee_id, status, created_at) VALUES (?, ?, 'pending', ?)",
+                 (me, other["id"], time.time()))
+    db().commit()
+    return jsonify({"ok": True, "status": "outgoing"})
+
+
+@app.post("/api/friends/respond")
+@login_required
+def friend_respond():
+    body = request.get_json(force=True)
+    other = find_user(body.get("username"))
+    if other is None or relation(uid(), other["id"]) != "incoming":
+        return jsonify({"error": "Brak takiego zaproszenia"}), 400
+    if body.get("accept"):
+        db().execute("UPDATE friendships SET status = 'accepted' WHERE requester_id = ? AND addressee_id = ?",
+                     (other["id"], uid()))
+    else:
+        db().execute("DELETE FROM friendships WHERE requester_id = ? AND addressee_id = ?", (other["id"], uid()))
+    db().commit()
+    return jsonify({"ok": True})
+
+
+@app.post("/api/friends/remove")
+@login_required
+def friend_remove():
+    other = find_user(request.get_json(force=True).get("username"))
+    if other is None:
+        return jsonify({"error": "Nie ma takiego gracza"}), 404
+    db().execute("DELETE FROM friendships WHERE (requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)",
+                 (uid(), other["id"], other["id"], uid()))
+    db().commit()
+    return jsonify({"ok": True})
+
+
+@app.get("/api/users/search")
+@login_required
+def user_search():
+    q = (request.args.get("q") or "").strip()
+    if len(q) < 1:
+        return jsonify({"users": []})
+    rows = db().execute("SELECT * FROM users WHERE username LIKE ? ORDER BY username LIMIT 10",
+                        ("%" + q.replace("%", "").replace("_", "\\_") + "%",)).fetchall()
+    return jsonify({"users": [user_json(u) for u in rows]})
+
+
+# ---------------------------------------------------------------- aktywność / pokazywanie kart
+
+def visible_feed_sql():
+    return """FROM feed f JOIN users u ON u.id = f.author_id
+              WHERE (f.author_id = :me OR f.to_user_id = :me
+                 OR (f.to_user_id IS NULL AND f.author_id IN (SELECT value FROM json_each(:friends))))"""
+
+
+@app.get("/api/feed")
+@login_required
+def feed():
+    me = uid()
+    params = {"me": me, "friends": json.dumps(sorted(friend_ids(me)))}
+    rows = db().execute(f"SELECT f.*, u.username, u.avatar, (SELECT username FROM users WHERE id = f.to_user_id) AS to_name "
+                        f"{visible_feed_sql()} ORDER BY f.id DESC LIMIT 60", params).fetchall()
+    out = []
+    for r in rows:
+        if r["person_id"] not in catalog.PEOPLE:
+            continue
+        out.append({"id": r["id"], "kind": r["kind"], "person": r["person_id"], "variant": r["variant"],
+                    "message": r["message"], "created": r["created_at"], "mine": r["author_id"] == me,
+                    "author": {"username": r["username"], "avatar": r["avatar"]}, "to": r["to_name"],
+                    "value": card_value(catalog.PEOPLE[r["person_id"]], r["variant"])})
+    return jsonify({"feed": out, "seen": get_state()["feed_seen"]})
+
+
+@app.post("/api/feed/seen")
+@login_required
+def feed_seen():
+    last = db().execute("SELECT MAX(id) FROM feed").fetchone()[0] or 0
+    set_state("feed_seen", last)
+    db().commit()
+    return jsonify({"ok": True})
+
+
+@app.post("/api/show")
+@login_required
+def show_card():
+    body = request.get_json(force=True)
+    rows = owned_rows([int(body.get("item_id", 0))])
+    if rows is None:
+        return jsonify({"error": "Nie masz tej karty"}), 400
+    to = body.get("to") or "all"
+    to_id = None
+    if to != "all":
+        other = find_user(to)
+        if other is None or other["id"] not in friend_ids(uid()):
+            return jsonify({"error": "Możesz pokazywać karty tylko znajomym"}), 400
+        to_id = other["id"]
+    elif not friend_ids(uid()):
+        return jsonify({"error": "Nie masz jeszcze znajomych 🙂"}), 400
+    msg = (body.get("message") or "").strip()[:140]
+    r = rows[0]
+    db().execute("INSERT INTO feed (author_id, to_user_id, kind, person_id, variant, message, created_at) "
+                 "VALUES (?, ?, 'show', ?, ?, ?, ?)", (uid(), to_id, r["person_id"], r["variant"], msg, time.time()))
+    db().commit()
+    return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------- profile, gablota, ranking
+
+def showcase_ids(user_id):
+    rows = db().execute("""SELECT s.item_id FROM showcase s JOIN items i ON i.id = s.item_id AND i.user_id = s.user_id
+                           WHERE s.user_id = ? ORDER BY s.pos""", (user_id,))
+    return [r[0] for r in rows]
+
+
+@app.post("/api/showcase")
+@login_required
+def set_showcase():
+    ids = [int(i) for i in request.get_json(force=True).get("ids", [])][:SHOWCASE_SIZE]
+    if ids and owned_rows(ids) is None:
+        return jsonify({"error": "Nie masz tych kart"}), 400
+    db().execute("DELETE FROM showcase WHERE user_id = ?", (uid(),))
+    for pos, item_id in enumerate(ids):
+        db().execute("INSERT INTO showcase (user_id, pos, item_id) VALUES (?, ?, ?)", (uid(), pos, item_id))
+    db().commit()
+    return jsonify({"ok": True, "showcase": ids})
+
+
+@app.post("/api/profile")
+@login_required
+def set_profile():
+    avatar = (request.get_json(force=True).get("avatar") or "").strip()
+    if not 1 <= len(avatar) <= 8:
+        return jsonify({"error": "Nieprawidłowy awatar"}), 400
+    db().execute("UPDATE users SET avatar = ? WHERE id = ?", (avatar, uid()))
+    db().commit()
+    return jsonify({"ok": True})
+
+
+@app.get("/api/users/<name>")
+@login_required
+def profile(name):
+    u = find_user(name)
+    if u is None:
+        return jsonify({"error": "Nie ma takiego gracza"}), 404
+    st = get_state(u["id"])
+    stats = collection_stats()
+    collection = [{"person": r[0], "variant": r[1], "count": r[2]} for r in db().execute(
+        "SELECT person_id, variant, COUNT(*) FROM items WHERE user_id = ? GROUP BY person_id, variant", (u["id"],))
+        if r[0] in catalog.PEOPLE]
+    show = []
+    for item_id in showcase_ids(u["id"]):
+        r = db().execute("SELECT * FROM items WHERE id = ?", (item_id,)).fetchone()
+        it = item_json(r)
+        if it:
+            show.append(it)
+    return jsonify({
+        "user": brief(u, stats) | {"created": u["created_at"]},
+        "relation": relation(uid(), u["id"]),
+        "stats": {"opened": st.get("opened", 0), "contracts": st.get("contracts", 0),
+                  "upgradesWon": st.get("upgrades_won", 0), "upgradesLost": st.get("upgrades_lost", 0)},
+        "collection": collection,
+        "showcase": show,
+    })
+
+
+@app.get("/api/ranking")
+@login_required
+def ranking():
+    stats = collection_stats()
+    opened = {r[0]: r[1] for r in db().execute("SELECT user_id, value FROM user_state WHERE key = 'opened'")}
+    friends_of_me = friend_ids(uid())
+    players = []
+    for u in db().execute("SELECT * FROM users"):
+        b = brief(u, stats)
+        b["opened"] = opened.get(u["id"], 0)
+        b["friend"] = u["id"] in friends_of_me
+        b["me"] = u["id"] == uid()
+        players.append(b)
+    total_cards = len(catalog.PEOPLE)
+    return jsonify({"players": players, "totalCards": total_cards})
+
+
+@app.get("/api/me")
+@login_required
+def me():
+    u = current_user()
+    me_id = u["id"]
+    incoming = db().execute("SELECT COUNT(*) FROM friendships WHERE addressee_id = ? AND status = 'pending'",
+                            (me_id,)).fetchone()[0]
+    params = {"me": me_id, "friends": json.dumps(sorted(friend_ids(me_id)))}
+    unread = db().execute(f"SELECT COUNT(*) {visible_feed_sql()} AND f.author_id != :me AND f.id > :seen",
+                          dict(params, seen=get_state()["feed_seen"])).fetchone()[0]
+    return jsonify({"user": user_json(u), "dailyClaimable": daily_info(me_id)["claimable"],
+                    "incoming": incoming, "unread": unread})
 
 
 # ---------------------------------------------------------------- API admina
@@ -390,6 +929,7 @@ def refresh_catalog():
 
 
 @app.get("/api/admin/catalog")
+@admin_required
 def admin_catalog():
     counts = {r[0]: r[1] for r in db().execute("SELECT person_id, COUNT(*) FROM items GROUP BY person_id")}
     crates = [dict(crate_json(c), builtin=c["builtin"], modified=c["modified"], hidden=False)
@@ -404,6 +944,7 @@ def admin_catalog():
 
 
 @app.post("/api/admin/crates")
+@admin_required
 def admin_save_crate():
     body = request.get_json(force=True)
     name = (body.get("name") or "").strip()
@@ -433,6 +974,7 @@ def admin_save_crate():
 
 
 @app.delete("/api/admin/crates/<cid>")
+@admin_required
 def admin_delete_crate(cid):
     conn = db()
     crate = catalog.CRATES.get(cid)
@@ -451,6 +993,7 @@ def admin_delete_crate(cid):
 
 
 @app.post("/api/admin/crates/<cid>/restore")
+@admin_required
 def admin_restore_crate(cid):
     if catalog.builtin_crate(cid) is None:
         return jsonify({"error": "To nie jest wbudowana skrzynka"}), 400
@@ -461,6 +1004,7 @@ def admin_restore_crate(cid):
 
 
 @app.post("/api/admin/cards")
+@admin_required
 def admin_save_card():
     f = request.form
     name = (f.get("name") or "").strip()
@@ -514,6 +1058,7 @@ def admin_save_card():
 
 
 @app.delete("/api/admin/cards/<pid>")
+@admin_required
 def admin_delete_card(pid):
     p = catalog.PEOPLE.get(pid)
     if p is None:
@@ -530,6 +1075,7 @@ def admin_delete_card(pid):
 
 
 @app.post("/api/admin/cards/<pid>/restore")
+@admin_required
 def admin_restore_card(pid):
     if catalog.builtin_card(pid) is None:
         return jsonify({"error": "To nie jest wbudowana karta"}), 400
@@ -540,6 +1086,7 @@ def admin_restore_card(pid):
 
 
 @app.post("/api/admin/cards/<pid>/refetch")
+@admin_required
 def admin_refetch(pid):
     if pid not in catalog.PEOPLE:
         return jsonify({"error": "Nie ma takiej karty"}), 404
@@ -548,10 +1095,88 @@ def admin_refetch(pid):
     return jsonify({"ok": True, "main": bool(main), "alt": bool(alt)})
 
 
+@app.get("/api/admin/users")
+@admin_required
+def admin_users():
+    stats = collection_stats()
+    bal = {r[0]: r[1] for r in db().execute("SELECT user_id, value FROM user_state WHERE key = 'balance'")}
+    users = [dict(brief(u, stats), balance=bal.get(u["id"], 0), created=u["created_at"])
+             for u in db().execute("SELECT * FROM users ORDER BY id")]
+    return jsonify({"users": users, "me": uid()})
+
+
+@app.post("/api/admin/users/<int:user_id>/money")
+@admin_required
+def admin_money(user_id):
+    try:
+        amount = int(request.get_json(force=True).get("amount", 0))
+    except (TypeError, ValueError):
+        amount = 0
+    if not -MAX_DEPOSIT <= amount <= MAX_DEPOSIT or amount == 0:
+        return jsonify({"error": "Nieprawidłowa kwota"}), 400
+    ensure_state(db(), user_id)
+    add_state("balance", amount, user_id)
+    if amount > 0:
+        add_state("deposited", amount, user_id)
+    db().commit()
+    return jsonify({"ok": True})
+
+
+@app.post("/api/admin/users/<int:user_id>/admin")
+@admin_required
+def admin_toggle(user_id):
+    if user_id == uid():
+        return jsonify({"error": "Nie możesz odebrać uprawnień samemu sobie"}), 400
+    db().execute("UPDATE users SET is_admin = 1 - is_admin WHERE id = ?", (user_id,))
+    db().commit()
+    return jsonify({"ok": True})
+
+
+@app.post("/api/admin/users/<int:user_id>/password")
+@admin_required
+def admin_password(user_id):
+    pw = request.get_json(force=True).get("password") or ""
+    if len(pw) < 4:
+        return jsonify({"error": "Hasło musi mieć co najmniej 4 znaki"}), 400
+    db().execute("UPDATE users SET password_hash = ? WHERE id = ?", (generate_password_hash(pw), user_id))
+    db().commit()
+    return jsonify({"ok": True})
+
+
+@app.delete("/api/admin/users/<int:user_id>")
+@admin_required
+def admin_delete_user(user_id):
+    if user_id == uid():
+        return jsonify({"error": "Nie możesz usunąć samego siebie"}), 400
+    conn = db()
+    for sql in ("DELETE FROM items WHERE user_id = ?", "DELETE FROM user_state WHERE user_id = ?",
+                "DELETE FROM user_discovered WHERE user_id = ?", "DELETE FROM daily_claims WHERE user_id = ?",
+                "DELETE FROM showcase WHERE user_id = ?", "DELETE FROM feed WHERE author_id = ? OR to_user_id = ?",
+                "DELETE FROM friendships WHERE requester_id = ? OR addressee_id = ?", "DELETE FROM users WHERE id = ?"):
+        conn.execute(sql, (user_id,) * sql.count("?"))
+    conn.commit()
+    return jsonify({"ok": True})
+
+
 init_db()
 
+
+def lan_address():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("10.255.255.255", 1))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except OSError:
+        return "?"
+
+
 if __name__ == "__main__":
+    port = 5001 if TEST_MODE else 5000
     # w trybie debug Flask uruchamia proces dwa razy - pobieramy zdjęcia tylko w procesie roboczym
-    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or LAN_MODE:
         images.prefetch_all_async()
-    app.run(host="127.0.0.1", port=5001 if TEST_MODE else 5000, debug=True)
+        if LAN_MODE:
+            print(f"\n  Znajomi w tej samej sieci wchodzą na:  http://{lan_address()}:{port}\n")
+    app.run(host="0.0.0.0" if LAN_MODE else "127.0.0.1", port=port, debug=not LAN_MODE)

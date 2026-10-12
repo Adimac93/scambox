@@ -35,6 +35,12 @@ UPGRADE_MAX = 0.8
 UPGRADE_MAX_ITEMS = 10
 MAX_DEPOSIT = 1_000_000
 
+# Codzienna nagroda za logowanie
+DAILY_REWARD = 1000
+JACKPOT_REWARD = 10_000
+JACKPOT_WEEKDAY = 6       # 0 = poniedziałek ... 6 = niedziela
+SHOWCASE_SIZE = 6         # ile kart mieści gablota na profilu
+
 # kolejność = od najpospolitszej do najrzadszej
 RARITIES = {
     "green":  {"name": "Zwykła",           "weight": 55.0, "value": 10,   "color": "#4fc34f"},

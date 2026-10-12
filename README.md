@@ -9,6 +9,18 @@ Double-click `start.bat`, or:
 
 then open http://127.0.0.1:5000
 
+### Playing with friends (same network / Wi-Fi)
+
+    .venv\Scripts\python app.py --lan
+
+The console will show an address like `http://192.168.1.23:5000`; your friends open it in their browser.
+(Windows may ask to allow access through the firewall; choose "Allow".)
+
+## Accounts
+- Each player has their own account (username + password), balance, cards, binder and discovered secret cards.
+- **The first account registered takes over the previous save and becomes admin.**
+- Admin: ⚙️ admin panel (cards, crates, players: giving money, passwords, admin rights) and the 💸 bank.
+
 ## What's in it
 - 2 crates × 50 people + 1 SECRET card per crate, rarities: green → blue → purple → red → gold → ULTRA → ★ SECRET
 - Secret cards stay hidden ("???") until you obtain them; they have their own card design and their own reveal
@@ -16,7 +28,10 @@ then open http://127.0.0.1:5000
 - ⚙️ Admin panel at /admin: add, edit and hide crates and cards (photos from Wikipedia, a URL or an uploaded file)
 - Epic full-screen reveal for Legendary and ULTRA drops
 - 🔍 Card viewer: click a card (in the Inventory use 🔍 or right-click) to enlarge, tilt and flip it
-- 💸 Bank: top up your balance whenever you want
+- 🎁 Daily reward: 1 000 $ every day, JACKPOT of 10 000 $ every Sunday
+- 👥 Friends: invitations, activity feed (shown cards + legendary drops), "📣 Pokaż znajomym" button on a card
+- 👤 Profiles: showcase of 6 cards and the binder of every player; 🏆 ranking (collection value, cards, crates)
+- 💸 Bank: admin only
 - ⚒️ Forge: **Kontrakt** (N cards of one rarity → 1 card of the next) and **Ulepszacz** (upgrade wheel, CS-site style)
 
 ## Files
@@ -24,8 +39,10 @@ then open http://127.0.0.1:5000
 - `catalog.py` – combines `data.py` with changes from the admin panel (stored in the database).
 - `images.py` – downloads photos from Wikipedia into `image_cache/` (alt photos come from other language versions of Wikipedia and from Wikidata).
   To fetch a card's photos again, use the "🔄 Pobierz zdjęcia ponownie" button in the admin panel.
-- `game.db` – your save (balance, cards, discovered secret cards) AND changes from the admin panel.
-  The ♻️ button resets the game but keeps admin changes; deleting the file removes both.
+- `game.db` – all accounts, their cards and friends, plus changes from the admin panel. Back it up!
+  The ♻️ button resets only your own account.
+- `secret_key.txt` – login session key (generated automatically, do not share it).
+- `static/js/social.js` – daily reward, friends, activity feed, ranking, profiles.
 - `static/js/sound.js` – sounds (generated in the browser, no audio files).
 - `static/js/fx.js` – epic reveal, particles, card viewer, bank.
 - `static/js/forge.js` – forge (contract and upgrader).
