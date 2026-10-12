@@ -16,6 +16,14 @@ then open http://127.0.0.1:5000
 The console will show an address like `http://192.168.1.23:5000`; your friends open it in their browser.
 (Windows may ask to allow access through the firewall; choose "Allow".)
 
+### Playing with friends on a local network (e.g. a dorm)
+1. Once, in **PowerShell as administrator** (lets in only devices from your subnet, port 5000):
+
+       New-NetFirewallRule -DisplayName "Skrzynki Slaw" -Direction Inbound -Protocol TCP -LocalPort 5000 -RemoteAddress LocalSubnet -Program "C:\Program Files\Python312\python.exe" -Action Allow -Profile Any
+
+2. Double-click `start_lan.bat`; the console shows the address for your friends (`http://<your-IP>:5000`).
+If a friend still can't connect, the network probably blocks traffic between devices (common in dorms) — use Tailscale.
+
 ### Playing with friends over Tailscale (recommended)
 Double-click `start_tailscale.bat`. It runs `tailscale serve`, which makes the game available **only within your
 Tailscale network**, over HTTPS, at `https://<computer-name>.<tailnet>.ts.net`.
