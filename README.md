@@ -19,16 +19,18 @@ The console will show an address like `http://192.168.1.23:5000`; your friends o
 ## Accounts
 - Each player has their own account (username + password), balance, cards, binder and discovered secret cards.
 - **The first account registered takes over the previous save and becomes admin.**
-- Admin: ⚙️ admin panel (cards, crates, players: giving money, passwords, admin rights) and the 💸 bank.
+- Admin: ⚙️ admin panel (cards, crates, players: giving money and chests, passwords, admin rights) and the 💸 bank.
+- Odds, money chest ranges and the secret card odds (`SECRET_ODDS`) are at the top of `data.py`.
 
 ## What's in it
-- 2 crates × 50 people + 1 SECRET card per crate, rarities: green → blue → purple → red → gold → ULTRA → ★ SECRET
+- 2 crates × 50 people + 1 SECRET card per crate, rarities: green → blue → purple → red → gold (1%) → ULTRA (0.2%) → ★ SECRET (1 in 2137)
+- 📦 Chests in your inventory: buy them for later ("🛒 Kup do ekwipunku"); opening uses owned chests first
 - Secret cards stay hidden ("???") until you obtain them; they have their own card design and their own reveal
 - Variants: Reverse Holo, Holo, Alt Art (different photo), Golden, each with its own odds and value multiplier
 - ⚙️ Admin panel at /admin: add, edit and hide crates and cards (photos from Wikipedia, a URL or an uploaded file)
 - Epic full-screen reveal for Legendary and ULTRA drops
 - 🔍 Card viewer: click a card (in the Inventory use 🔍 or right-click) to enlarge, tilt and flip it
-- 🎁 Daily reward: 1 000 $ every day, JACKPOT of 10 000 $ every Sunday
+- 🎁 Daily chest with money: 1 000–20 000 $, on Sunday a 💎 MEGA chest: 5 000–50 000 $ (lands in your inventory)
 - 👥 Friends: invitations, activity feed (shown cards + legendary drops), "📣 Pokaż znajomym" button on a card
 - 👤 Profiles: showcase of 6 cards and the binder of every player; 🏆 ranking (collection value, cards, crates)
 - 💸 Bank: admin only

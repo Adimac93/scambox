@@ -35,23 +35,32 @@ UPGRADE_MAX = 0.8
 UPGRADE_MAX_ITEMS = 10
 MAX_DEPOSIT = 1_000_000
 
-# Codzienna nagroda za logowanie
-DAILY_REWARD = 1000
-JACKPOT_REWARD = 10_000
-JACKPOT_WEEKDAY = 6       # 0 = poniedziałek ... 6 = niedziela
+# Skrzynki z pieniędzmi (codzienna nagroda za logowanie).
+# Wylosowana kwota = min + (max - min) * los^curve  ->  im większe curve, tym rzadsze wysokie kwoty.
+MONEY_CHESTS = {
+    "daily": {"name": "Codzienna skrzynka", "emoji": "🎁", "min": 1_000, "max": 20_000, "curve": 2.2,
+              "color1": "#3ddc84", "color2": "#0f5a32"},
+    "mega":  {"name": "MEGA skrzynka", "emoji": "💎", "min": 5_000, "max": 50_000, "curve": 2.0,
+              "color1": "#ffd54a", "color2": "#8a5b00"},
+}
+JACKPOT_WEEKDAY = 6       # w ten dzień tygodnia zamiast zwykłej jest MEGA skrzynka (0 = pon ... 6 = niedziela)
 SHOWCASE_SIZE = 6         # ile kart mieści gablota na profilu
 
 # kolejność = od najpospolitszej do najrzadszej
 RARITIES = {
-    "green":  {"name": "Zwykła",           "weight": 55.0, "value": 10,   "color": "#4fc34f"},
+    "green":  {"name": "Zwykła",           "weight": 56.3, "value": 10,   "color": "#4fc34f"},
     "blue":   {"name": "Rzadka",           "weight": 25.0, "value": 30,   "color": "#4b8bff"},
     "purple": {"name": "Epicka",           "weight": 12.0, "value": 90,   "color": "#a35bff"},
     "red":    {"name": "Mityczna",         "weight": 5.5,  "value": 300,  "color": "#ff4040"},
-    "gold":   {"name": "Legendarna",       "weight": 2.0,  "value": 1000, "color": "#ffc531"},
-    "ultra":  {"name": "ULTRA LEGENDARNA", "weight": 0.5,  "value": 4000, "color": "#ff5cf0"},
-    "secret": {"name": "TAJNA",            "weight": 0.03, "value": 25000, "color": "#f3e3b0"},
+    "gold":   {"name": "Legendarna",       "weight": 1.0,  "value": 1000, "color": "#ffc531"},
+    "ultra":  {"name": "ULTRA LEGENDARNA", "weight": 0.2,  "value": 4000, "color": "#ff5cf0"},
+    "secret": {"name": "TAJNA",            "weight": 0.0,  "value": 25000, "color": "#f3e3b0"},
 }
 RARITY_ORDER = list(RARITIES)
+
+# Tajna karta wypada dokładnie 1 raz na SECRET_ODDS otwartych skrzynek
+SECRET_ODDS = 2137
+RARITIES["secret"]["weight"] = sum(r["weight"] for k, r in RARITIES.items() if k != "secret") / (SECRET_ODDS - 1)
 
 TYPES = {
     "polityka": {"name": "Polityka",  "icon": "🏛️"},

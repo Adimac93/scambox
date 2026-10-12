@@ -67,7 +67,7 @@ legend { padding: 0 6px; color: var(--text); font-weight: 700; font-size: 14px; 
 .a-card-fields { flex: 1; min-width: 0; }
 
 .a-users { display: flex; flex-direction: column; gap: 6px; }
-.a-user { display: grid; grid-template-columns: 1.4fr .8fr .8fr .7fr 2fr; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 10px; background: var(--panel2); font-size: 14px; }
+.a-user { display: grid; grid-template-columns: 1.3fr .8fr .8fr .6fr 1fr 2.2fr; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 10px; background: var(--panel2); font-size: 14px; }
 .a-user.head { background: none; color: var(--muted); font-size: 12px; padding-top: 0; padding-bottom: 0; }
 .a-user .av { font-size: 20px; }
 .a-user-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
@@ -81,3 +81,7 @@ legend { padding: 0 6px; color: var(--text); font-weight: 700; font-size: 14px; 
   .a-card-preview { flex-direction: row; }
   .a-img-box { width: 130px; height: 150px; }
 }
+
+.a-chests { font-size: 13px; }
+.a-chest-form { flex-direction: column; max-width: 460px; width: 100%; gap: 10px; }
+.a-chest-form h3 { margin: 0; }

@@ -24,6 +24,7 @@ const S = {
   opening: null,
   me: null,               // zalogowany gracz
   showcase: [],           // id kart w mojej gablocie
+  chests: {},             // skrzynki w ekwipunku: { rodzaj: ilość }
 };
 
 // ================================================================ API / POMOCNICZE
@@ -284,6 +285,7 @@ function renderCrates() {
         <div class="crate-lid"></div>
         <div class="crate-lock"></div>
       </div>
+      ${S.chests[c.id] ? `<span class="crate-owned">📦 ×${S.chests[c.id]} w ekwipunku</span>` : ""}
       <div class="crate-info">
         <h3>${esc(c.name)}</h3>
         <p>${c.people.length} kart${c.desc ? " · " + esc(c.desc) : ""}</p>
@@ -331,9 +333,30 @@ function updateOpenBtn() {
   const crate = crateOf(S.crate);
   const btn = $("#openBtn");
   if (!crate) { btn.disabled = true; btn.textContent = "BRAK SKRZYNEK"; return; }
-  const cost = S.count * crate.price;
-  btn.textContent = `OTWÓRZ ${S.count} × ${fmt(crate.price)} = ${fmt(cost)}`;
+  const owned = Math.min(S.chests[crate.id] || 0, S.count);
+  const cost = (S.count - owned) * crate.price;
+  btn.innerHTML = owned
+    ? `OTWÓRZ ${S.count} <small class="ob-sub">📦 ${owned} z ekwipunku${cost ? ` + ${fmt(cost)}` : ""}</small>`
+    : `OTWÓRZ ${S.count} × ${fmt(crate.price)} = ${fmt(cost)}`;
   btn.disabled = !!S.opening || !crate.people.length;
+  $("#buyBtn").textContent = `🛒 Kup ${S.count} do ekwipunku · ${fmt(S.count * crate.price)}`;
+}
+
+async function buyChests() {
+  const crate = crateOf(S.crate);
+  if (!crate || S.opening) return;
+  try {
+    const res = await api("/api/chests/buy", { crate: crate.id, count: S.count });
+    S.chests = res.chests;
+    applyState(res.state);
+    Sound.coin(2);
+    toast(`🛒 Kupiono ${S.count} × ${crate.name} — czekają w ekwipunku`);
+    renderCrates();
+  } catch (e) {
+    Sound.error();
+    if (S.state.balance < S.count * crate.price && S.dailyClaimable) { toast(e.message + " Odbierz codzienną skrzynkę!", true); openDaily(); }
+    else toast(e.message, true);
+  }
 }
 
 function setCount(n) {
@@ -376,7 +399,7 @@ async function openCrates() {
   if (S.opening) return;
   const crate = crateOf(S.crate);
   if (!crate) return;
-  const cost = S.count * crate.price;
+  const cost = (S.count - Math.min(S.chests[crate.id] || 0, S.count)) * crate.price;
   if (S.state.balance < cost) {
     Sound.error();
     const msg = `Brakuje ci ${fmt(cost - S.state.balance)}, żeby otworzyć ${S.count} ${plural(S.count, "skrzynkę", "skrzynki", "skrzynek")}.`;
@@ -404,6 +427,7 @@ async function openCrates() {
     return;
   }
   S.items = [...res.drops.slice().reverse(), ...S.items];
+  S.chests = res.chests || S.chests;
   applyState(res.state);
   S.opening.drops = res.drops;
   S.opening.ownedBefore = ownedBefore;
@@ -809,7 +833,34 @@ function filteredItems() {
   return list.sort(by);
 }
 
+function chestTileHTML(kind, n) {
+  const money = kind.startsWith("money_") ? S.cfg.moneyChests[kind.slice(6)] : null;
+  const c = money || crateOf(kind);
+  if (!c) return "";
+  const art = `<div class="crate-art chest-art" style="--crate-bg: linear-gradient(180deg, ${c.color1} 0 50%, ${c.color2} 50%); --crate-lid: linear-gradient(180deg, ${c.color1}, ${c.color2})">
+      <div class="crate-box"><div class="crate-emblem">${esc(c.emoji)}</div></div><div class="crate-lid"></div><div class="crate-lock"></div></div>`;
+  const k = n => n.toLocaleString("pl-PL");
+  return `<div class="chest-tile${money ? " money" : ""}${kind === "money_mega" ? " mega" : ""}">
+    ${art}
+    <span class="chest-count">×${n}</span>
+    <div class="chest-name">${esc(c.name)}</div>
+    <div class="chest-sub">${money ? `${k(money.min)}–${k(money.max)} $` : `${c.people.length} kart`}</div>
+    <div class="chest-btns">${money
+      ? `<button class="btn primary" data-open-money="${kind.slice(6)}">Otwórz</button>`
+      : `<button class="btn primary" data-open-crate="${kind}" data-n="1">Otwórz</button>${n > 1 ? `<button class="btn" data-open-crate="${kind}" data-n="${Math.min(n, S.cfg.maxOpen)}">×${Math.min(n, S.cfg.maxOpen)}</button>` : ""}`}</div>
+  </div>`;
+}
+
+function renderChestShelf() {
+  const kinds = Object.entries(S.chests).filter(([, n]) => n > 0)
+    .sort(([a], [b]) => (b.startsWith("money_") - a.startsWith("money_")) || a.localeCompare(b));
+  const shelf = $("#chestShelf");
+  shelf.hidden = !kinds.length;
+  shelf.innerHTML = kinds.length ? `<h3>📦 Twoje skrzynki</h3><div class="chest-grid">${kinds.map(([k, n]) => chestTileHTML(k, n)).join("")}</div>` : "";
+}
+
 function renderInventory() {
+  renderChestShelf();
   const f = S.inv;
   $("#invCrateSeg").innerHTML = [["all", "Wszystkie"], ...crateList().map(c => [c.id, `${c.emoji} ${c.short}`])].map(([id, n]) =>
     `<button data-crate="${id}" class="${f.crate === id ? "active" : ""}">${esc(n)}</button>`).join("");
@@ -882,6 +933,12 @@ function bind() {
   $("#countRange").addEventListener("input", e => setCount(+e.target.value));
   $("#fastToggle").addEventListener("change", e => { S.fast = e.target.checked; Sound.click(); try { localStorage.setItem("fast", S.fast ? "1" : "0"); } catch (_) {} });
   $("#openBtn").addEventListener("click", openCrates);
+  $("#buyBtn").addEventListener("click", buyChests);
+  $("#chestShelf").addEventListener("click", e => {
+    const c = e.target.closest("[data-open-crate]"), m = e.target.closest("[data-open-money]");
+    if (c) { S.crate = c.dataset.openCrate; S.count = +c.dataset.n; openCrates(); }
+    if (m) openMoneyChest(m.dataset.openMoney);
+  });
 
   $("#skipBtn").addEventListener("click", skipSpin);
   $("#closeBtn").addEventListener("click", closeStage);
@@ -972,7 +1029,7 @@ function bind() {
   $("#resetBtn").addEventListener("click", async () => {
     if (!confirm(`Zacząć od nowa na swoim koncie?\nStracisz wszystkie karty, gablotę i odkryte tajne karty, a saldo wróci do ${fmt(S.cfg.startingBalance)}.\n(Odebrane nagrody dzienne zostają.)`)) return;
     const res = await api("/api/reset", {});
-    S.items = []; S.inv.selected.clear(); S.showcase = [];
+    S.items = []; S.inv.selected.clear(); S.showcase = []; S.chests = {};
     await refreshConfig();
     applyState(res.state);
     Sound.coin(3);
@@ -983,7 +1040,7 @@ function bind() {
   // klawiatura: Spacja/Enter = otwórz / pomiń, Esc = zamknij
   document.addEventListener("keydown", e => {
     if (e.target.matches("input[type=text], input[type=number], select, textarea")) return;
-    if (epicOpen()) return;
+    if (epicOpen() || document.querySelector(".money-stage, .forge-anim")) return;
     if (dialogOpen()) { if (e.key === "Escape") closeDialogs(); return; }
     if (viewerOpen()) { if (e.key === "Escape" || e.key === " ") { e.preventDefault(); closeViewer(); } return; }
     if (!$("#bank").hidden) { if (e.key === "Escape") closeBank(); return; }
@@ -1023,6 +1080,7 @@ function bind() {
   S.state = st.state;
   S.items = st.items;
   S.showcase = st.showcase || [];
+  S.chests = st.chests || {};
   S.crate = S.binderCrate = cfg.crateOrder[0];
   try { S.fast = localStorage.getItem("fast") === "1"; } catch (_) {}
   // podgrzej cache zdjęć, żeby bębny od razu miały obrazki

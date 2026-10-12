@@ -17,8 +17,8 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 import catalog
 import images
-from data import (CONTRACT_SIZE, CONTRACT_VARIANT_BONUS, CRATE_PRICE, DAILY_REWARD, JACKPOT_REWARD,
-                  JACKPOT_WEEKDAY, MAX_DEPOSIT, MAX_OPEN, RARITIES, RARITY_ORDER, SHOWCASE_SIZE,
+from data import (CONTRACT_SIZE, CONTRACT_VARIANT_BONUS, CRATE_PRICE, JACKPOT_WEEKDAY, MAX_DEPOSIT,
+                  MAX_OPEN, MONEY_CHESTS, RARITIES, RARITY_ORDER, SECRET_ODDS, SHOWCASE_SIZE,
                   STARTING_BALANCE, TYPES, UPGRADE_EDGE, UPGRADE_MAX, UPGRADE_MAX_ITEMS, VARIANT_ORDER,
                   VARIANTS, card_value)
 
@@ -99,6 +99,8 @@ def init_db():
                                                 PRIMARY KEY (requester_id, addressee_id));
         CREATE TABLE IF NOT EXISTS showcase (user_id INTEGER NOT NULL, pos INTEGER NOT NULL, item_id INTEGER NOT NULL,
                                              PRIMARY KEY (user_id, pos));
+        CREATE TABLE IF NOT EXISTS user_chests (user_id INTEGER NOT NULL, kind TEXT NOT NULL, count INTEGER NOT NULL,
+                                                PRIMARY KEY (user_id, kind));
         CREATE TABLE IF NOT EXISTS feed (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             author_id INTEGER NOT NULL,
@@ -275,6 +277,32 @@ def discovered(user_id=None):
     return {r[0] for r in db().execute("SELECT person_id FROM user_discovered WHERE user_id = ?", (user_id or uid(),))}
 
 
+def money_kind(kind):
+    return kind[len("money_"):] if kind.startswith("money_") and kind[len("money_"):] in MONEY_CHESTS else None
+
+
+def valid_chest_kind(kind):
+    return kind in catalog.CRATES or money_kind(kind) is not None
+
+
+def get_chests(user_id=None):
+    rows = db().execute("SELECT kind, count FROM user_chests WHERE user_id = ? AND count > 0", (user_id or uid(),))
+    return {r["kind"]: r["count"] for r in rows if valid_chest_kind(r["kind"])}
+
+
+def add_chests(kind, delta, user_id=None):
+    user_id = user_id or uid()
+    db().execute("INSERT INTO user_chests (user_id, kind, count) VALUES (?, ?, 0) ON CONFLICT(user_id, kind) DO NOTHING",
+                 (user_id, kind))
+    db().execute("UPDATE user_chests SET count = MAX(0, count + ?) WHERE user_id = ? AND kind = ?", (delta, user_id, kind))
+
+
+def roll_money(kind):
+    c = MONEY_CHESTS[kind]
+    amount = c["min"] + (c["max"] - c["min"]) * rng.random() ** c["curve"]
+    return int(round(amount / 100.0)) * 100
+
+
 def item_json(row):
     person = catalog.PEOPLE.get(row["person_id"])
     if person is None:  # karta usunięta z katalogu
@@ -403,9 +431,9 @@ def config():
         "upgradeMax": UPGRADE_MAX,
         "upgradeMaxItems": UPGRADE_MAX_ITEMS,
         "maxDeposit": MAX_DEPOSIT,
-        "dailyReward": DAILY_REWARD,
-        "jackpotReward": JACKPOT_REWARD,
+        "moneyChests": MONEY_CHESTS,
         "jackpotWeekday": JACKPOT_WEEKDAY,
+        "secretOdds": SECRET_ODDS,
         "showcaseSize": SHOWCASE_SIZE,
     })
 
@@ -418,7 +446,7 @@ def my_items():
 @app.get("/api/state")
 @login_required
 def state():
-    return jsonify({"state": get_state(), "items": my_items(), "showcase": showcase_ids(uid())})
+    return jsonify({"state": get_state(), "items": my_items(), "showcase": showcase_ids(uid()), "chests": get_chests()})
 
 
 def roll_variant(factor=1.0):
@@ -451,9 +479,13 @@ def open_crates():
         return jsonify({"error": "Nieprawidłowe żądanie"}), 400
     if not crate["people"]:
         return jsonify({"error": "Ta skrzynka jest pusta"}), 400
-    cost = count * crate["price"]
+    owned = get_chests().get(crate["id"], 0) if body.get("useOwned", True) else 0
+    from_inv = min(owned, count)
+    cost = (count - from_inv) * crate["price"]
     if get_state()["balance"] < cost:
         return jsonify({"error": "Za mało pieniędzy!"}), 400
+    if from_inv:
+        add_chests(crate["id"], -from_inv)
     add_state("balance", -cost)
     add_state("spent", cost)
     add_state("opened", count)
@@ -463,7 +495,42 @@ def open_crates():
         drops.append(insert_item(person["id"], variant))
     new = note_drops(drops)
     db().commit()
-    return jsonify({"drops": drops, "discovered": new, "state": get_state()})
+    return jsonify({"drops": drops, "discovered": new, "state": get_state(), "fromInventory": from_inv,
+                    "chests": get_chests()})
+
+
+@app.post("/api/chests/buy")
+@login_required
+def buy_chests():
+    body = request.get_json(force=True)
+    crate = catalog.CRATES.get(body.get("crate"))
+    count = int(body.get("count", 1))
+    if crate is None or not 1 <= count <= 100:
+        return jsonify({"error": "Nieprawidłowe żądanie"}), 400
+    cost = count * crate["price"]
+    if get_state()["balance"] < cost:
+        return jsonify({"error": "Za mało pieniędzy!"}), 400
+    add_state("balance", -cost)
+    add_state("spent", cost)
+    add_chests(crate["id"], count)
+    db().commit()
+    return jsonify({"state": get_state(), "chests": get_chests()})
+
+
+@app.post("/api/chests/money")
+@login_required
+def open_money_chest():
+    kind = request.get_json(force=True).get("kind")
+    if kind not in MONEY_CHESTS:
+        return jsonify({"error": "Nieznana skrzynka"}), 400
+    if get_chests().get("money_" + kind, 0) < 1:
+        return jsonify({"error": "Nie masz takiej skrzynki"}), 400
+    amount = roll_money(kind)
+    add_chests("money_" + kind, -1)
+    add_state("balance", amount)
+    add_state("daily_total", amount)
+    db().commit()
+    return jsonify({"amount": amount, "kind": kind, "state": get_state(), "chests": get_chests()})
 
 
 def owned_rows(ids):
@@ -582,6 +649,7 @@ def reset():
     conn.execute("DELETE FROM user_state WHERE user_id = ?", (me,))
     conn.execute("DELETE FROM user_discovered WHERE user_id = ?", (me,))
     conn.execute("DELETE FROM showcase WHERE user_id = ?", (me,))
+    conn.execute("DELETE FROM user_chests WHERE user_id = ?", (me,))
     ensure_state(conn, me)
     conn.commit()
     return jsonify({"state": get_state(), "items": []})
@@ -589,21 +657,22 @@ def reset():
 
 # ---------------------------------------------------------------- codzienna nagroda
 
+def daily_kind(day):
+    return "mega" if day.weekday() == JACKPOT_WEEKDAY else "daily"
+
+
 def daily_info(user_id):
     today = datetime.date.today()
     monday = today - datetime.timedelta(days=today.weekday())
-    claimed = {r["day"]: r["amount"] for r in db().execute(
-        "SELECT day, amount FROM daily_claims WHERE user_id = ? AND day >= ?", (user_id, monday.isoformat()))}
+    claimed = {r["day"] for r in db().execute(
+        "SELECT day FROM daily_claims WHERE user_id = ? AND day >= ?", (user_id, monday.isoformat()))}
     week = []
     for i in range(7):
         d = monday + datetime.timedelta(days=i)
-        jackpot = d.weekday() == JACKPOT_WEEKDAY
-        week.append({"date": d.isoformat(), "weekday": d.weekday(), "jackpot": jackpot,
-                     "amount": JACKPOT_REWARD if jackpot else DAILY_REWARD,
+        week.append({"date": d.isoformat(), "weekday": d.weekday(), "kind": daily_kind(d),
                      "claimed": d.isoformat() in claimed, "today": d == today, "past": d < today})
     return {"today": today.isoformat(), "claimable": today.isoformat() not in claimed, "week": week,
-            "jackpotToday": today.weekday() == JACKPOT_WEEKDAY,
-            "daysToJackpot": (JACKPOT_WEEKDAY - today.weekday()) % 7}
+            "todayKind": daily_kind(today), "daysToJackpot": (JACKPOT_WEEKDAY - today.weekday()) % 7}
 
 
 @app.get("/api/daily")
@@ -616,16 +685,14 @@ def daily():
 @login_required
 def daily_claim():
     today = datetime.date.today()
-    jackpot = today.weekday() == JACKPOT_WEEKDAY
-    amount = JACKPOT_REWARD if jackpot else DAILY_REWARD
-    cur = db().execute("INSERT OR IGNORE INTO daily_claims (user_id, day, amount) VALUES (?, ?, ?)",
-                       (uid(), today.isoformat(), amount))
+    kind = daily_kind(today)
+    cur = db().execute("INSERT OR IGNORE INTO daily_claims (user_id, day, amount) VALUES (?, ?, 0)",
+                       (uid(), today.isoformat()))
     if not cur.rowcount:
-        return jsonify({"error": "Dzisiejsza nagroda jest już odebrana"}), 400
-    add_state("balance", amount)
-    add_state("daily_total", amount)
+        return jsonify({"error": "Dzisiejsza skrzynka jest już odebrana"}), 400
+    add_chests("money_" + kind, 1)
     db().commit()
-    return jsonify({"amount": amount, "jackpot": jackpot, "state": get_state(), "daily": daily_info(uid())})
+    return jsonify({"kind": kind, "chests": get_chests(), "daily": daily_info(uid())})
 
 
 # ---------------------------------------------------------------- znajomi
@@ -1100,9 +1167,29 @@ def admin_refetch(pid):
 def admin_users():
     stats = collection_stats()
     bal = {r[0]: r[1] for r in db().execute("SELECT user_id, value FROM user_state WHERE key = 'balance'")}
-    users = [dict(brief(u, stats), balance=bal.get(u["id"], 0), created=u["created_at"])
+    users = [dict(brief(u, stats), balance=bal.get(u["id"], 0), created=u["created_at"], chests=get_chests(u["id"]))
              for u in db().execute("SELECT * FROM users ORDER BY id")]
-    return jsonify({"users": users, "me": uid()})
+    kinds = [{"kind": c["id"], "name": c["name"], "emoji": c["emoji"]} for c in catalog.CRATES.values()]
+    kinds += [{"kind": "money_" + k, "name": m["name"], "emoji": m["emoji"]} for k, m in MONEY_CHESTS.items()]
+    return jsonify({"users": users, "me": uid(), "chestKinds": kinds})
+
+
+@app.post("/api/admin/users/<int:user_id>/chests")
+@admin_required
+def admin_give_chests(user_id):
+    body = request.get_json(force=True)
+    kind = body.get("kind") or ""
+    try:
+        count = int(body.get("count", 0))
+    except (TypeError, ValueError):
+        count = 0
+    if not valid_chest_kind(kind) or not -1000 <= count <= 1000 or count == 0:
+        return jsonify({"error": "Nieprawidłowa skrzynka lub ilość"}), 400
+    if db().execute("SELECT 1 FROM users WHERE id = ?", (user_id,)).fetchone() is None:
+        return jsonify({"error": "Nie ma takiego gracza"}), 404
+    add_chests(kind, count, user_id)
+    db().commit()
+    return jsonify({"ok": True, "chests": get_chests(user_id)})
 
 
 @app.post("/api/admin/users/<int:user_id>/money")
@@ -1152,6 +1239,7 @@ def admin_delete_user(user_id):
     for sql in ("DELETE FROM items WHERE user_id = ?", "DELETE FROM user_state WHERE user_id = ?",
                 "DELETE FROM user_discovered WHERE user_id = ?", "DELETE FROM daily_claims WHERE user_id = ?",
                 "DELETE FROM showcase WHERE user_id = ?", "DELETE FROM feed WHERE author_id = ? OR to_user_id = ?",
+                "DELETE FROM user_chests WHERE user_id = ?",
                 "DELETE FROM friendships WHERE requester_id = ? OR addressee_id = ?", "DELETE FROM users WHERE id = ?"):
         conn.execute(sql, (user_id,) * sql.count("?"))
     conn.commit()

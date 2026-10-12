@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/fx.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/cards2.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/social.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/chests.css') }}">
 </head>
 <body>
   <header class="topbar">
@@ -53,7 +54,10 @@
             <span class="slider"></span>
             <span class="switch-label">⚡ Ultraszybko</span>
           </label>
-          <button class="big-btn" id="openBtn">OTWÓRZ</button>
+          <div class="open-btns">
+            <button class="big-btn" id="openBtn">OTWÓRZ</button>
+            <button class="btn buy-btn" id="buyBtn">🛒 Kup do ekwipunku</button>
+          </div>
         </div>
         <div class="stats" id="stats"></div>
       </div>
@@ -81,6 +85,7 @@
 
     <!-- EKWIPUNEK -->
     <section class="view" id="view-inventory">
+      <div class="panel chest-shelf" id="chestShelf" hidden></div>
       <div class="inv-toolbar">
         <div class="seg" id="invCrateSeg"></div>
         <div class="rarity-filter" id="invRarity"></div>

@@ -58,7 +58,7 @@ function startPolling() {
   }, 30000);
 }
 
-// ================================================================ NAGRODA DZIENNA
+// ================================================================ CODZIENNA SKRZYNKA
 
 async function openDaily() {
   if (S.opening || dialogOpen() || epicOpen()) return;
@@ -67,27 +67,47 @@ async function openDaily() {
   renderDaily(d, openDialog("", "daily-box"));
 }
 
-function renderDaily(d, dlg) {
+function kRange(m) { return `${(m.min / 1000).toLocaleString("pl-PL")}k–${(m.max / 1000).toLocaleString("pl-PL")}k $`; }
+
+function moneyChestArt(kind, extra = "") {
+  const m = S.cfg.moneyChests[kind];
+  return `<div class="crate-art chest-art ${extra}" style="--crate-bg: linear-gradient(180deg, ${m.color1} 0 50%, ${m.color2} 50%); --crate-lid: linear-gradient(180deg, ${m.color1}, ${m.color2})">
+    <div class="crate-box"><div class="crate-emblem">${m.emoji}</div></div><div class="crate-lid"></div><div class="crate-lock"></div></div>`;
+}
+
+function renderDaily(d, dlg, justClaimed = null) {
   const box = dlg.querySelector(".sdialog-box");
-  const today = d.week.find(w => w.today);
+  const D = S.cfg.moneyChests.daily, M = S.cfg.moneyChests.mega;
+  const todayKind = d.todayKind;
+  const owned = S.chests["money_" + todayKind] || 0;
   box.innerHTML = `
-    <div class="daily-head">🎁 <span>Nagroda dzienna</span></div>
-    <p class="muted">Loguj się codziennie po ${fmt(S.cfg.dailyReward)}. W każdą <b class="gold-txt">niedzielę</b> czeka <b class="gold-txt">JACKPOT ${fmt(S.cfg.jackpotReward)}</b>!</p>
-    <div class="daily-week">${d.week.map(w => `
-      <div class="dday${w.jackpot ? " jackpot" : ""}${w.claimed ? " claimed" : ""}${w.today ? " today" : ""}${w.past && !w.claimed ? " missed" : ""}">
-        <div class="dname">${w.jackpot ? "⭐ " : ""}${DAY_NAMES[w.weekday]}</div>
-        <div class="dicon">${w.claimed ? "✔" : w.jackpot ? "💰" : w.past ? "—" : "🪙"}</div>
-        <div class="damount">${w.jackpot ? "JACKPOT<br>" : ""}${fmt(w.amount)}</div>
-      </div>`).join("")}</div>
-    <div class="daily-info">${d.claimable
-      ? (d.jackpotToday ? "🎰 <b class='gold-txt'>Dziś jest JACKPOT!</b>" : `Do jackpota: <b>${d.daysToJackpot} ${plural(d.daysToJackpot, "dzień", "dni", "dni")}</b>`)
-      : `Dzisiejsza nagroda odebrana ✔ · ${d.daysToJackpot === 0 ? "kolejny jackpot za tydzień" : `jackpot za <b>${d.daysToJackpot} ${plural(d.daysToJackpot, "dzień", "dni", "dni")}</b>`}`}</div>
+    <div class="daily-head">🎁 <span>Codzienna skrzynka</span></div>
+    <p class="muted">Każdego dnia odbierz <b>${D.emoji} ${D.name}</b> z kasą: <b class="gold-txt">${kRange(D)}</b>.
+      W każdą <b class="gold-txt">niedzielę</b> — <b class="gold-txt">${M.emoji} ${M.name}</b>: <b class="gold-txt">${kRange(M)}</b>!</p>
+    <div class="daily-week">${d.week.map(w => {
+      const m = S.cfg.moneyChests[w.kind];
+      return `<div class="dday${w.kind === "mega" ? " jackpot" : ""}${w.claimed ? " claimed" : ""}${w.today ? " today" : ""}${w.past && !w.claimed ? " missed" : ""}">
+        <div class="dname">${w.kind === "mega" ? "⭐ " : ""}${DAY_NAMES[w.weekday]}</div>
+        <div class="dicon">${w.claimed ? "✔" : w.past ? "—" : m.emoji}</div>
+        <div class="damount">${w.kind === "mega" ? "MEGA<br>" : ""}${kRange(m)}</div>
+      </div>`;
+    }).join("")}</div>
+    ${justClaimed ? `
+      <div class="claimed-panel">
+        ${moneyChestArt(justClaimed, "bounce")}
+        <div><b>${S.cfg.moneyChests[justClaimed].name}</b> trafiła do ekwipunku!<br><span class="muted small">Możesz ją otworzyć teraz albo później w zakładce 🎒 Ekwipunek.</span></div>
+      </div>` : `
+      <div class="daily-info">${d.claimable
+        ? (todayKind === "mega" ? "💎 <b class='gold-txt'>Dziś MEGA skrzynka!</b>" : `Do MEGA skrzynki: <b>${d.daysToJackpot} ${plural(d.daysToJackpot, "dzień", "dni", "dni")}</b>`)
+        : `Dzisiejsza skrzynka odebrana ✔ · ${d.daysToJackpot === 0 ? "kolejna MEGA za tydzień" : `MEGA za <b>${d.daysToJackpot} ${plural(d.daysToJackpot, "dzień", "dni", "dni")}</b>`}`}</div>`}
     <div class="daily-actions">
-      ${d.claimable ? `<button class="big-btn${d.jackpotToday ? " jackpot-btn" : ""}" id="claimBtn">ODBIERZ ${fmt(today.amount)}</button>` : ""}
-      <button class="btn" data-close>Zamknij</button>
+      ${d.claimable ? `<button class="big-btn${todayKind === "mega" ? " jackpot-btn" : ""}" id="claimBtn">ODBIERZ ${todayKind === "mega" ? "MEGA SKRZYNKĘ 💎" : "SKRZYNKĘ 🎁"}</button>` : ""}
+      ${!d.claimable && owned ? `<button class="big-btn${todayKind === "mega" ? " jackpot-btn" : ""}" id="openNowBtn" data-kind="${todayKind}">OTWÓRZ TERAZ${owned > 1 ? ` (${owned})` : ""}</button>` : ""}
+      ${!d.claimable && !owned && (S.chests.money_daily || S.chests.money_mega) ? `<button class="btn primary" id="openNowBtn" data-kind="${S.chests.money_mega ? "mega" : "daily"}">Otwórz skrzynkę z ekwipunku</button>` : ""}
+      <button class="btn" data-close>${justClaimed ? "Później" : "Zamknij"}</button>
     </div>`;
-  const btn = box.querySelector("#claimBtn");
-  if (btn) btn.addEventListener("click", () => claimDaily(dlg, btn));
+  box.querySelector("#claimBtn")?.addEventListener("click", e => claimDaily(dlg, e.target));
+  box.querySelector("#openNowBtn")?.addEventListener("click", e => { closeDialogs(); openMoneyChest(e.target.dataset.kind); });
 }
 
 async function claimDaily(dlg, btn) {
@@ -95,29 +115,145 @@ async function claimDaily(dlg, btn) {
   Sound.unlock();
   let res;
   try { res = await api("/api/daily/claim", {}); } catch (e) { toast(e.message, true); btn.disabled = false; return; }
-  applyState(res.state);
+  S.chests = res.chests;
   applyBadges({ dailyClaimable: false, incoming: 0, unread: 0 });
   refreshBadgesSoon();
   const tile = dlg.querySelector(".dday.today");
   tile?.classList.add("flip");
-  if (res.jackpot) {
-    Sound.boom(false); Sound.gold();
-    const b = tile.getBoundingClientRect();
-    fx().burst(b.left + b.width / 2, b.top + b.height / 2, 260, GOLDS, { speed: 18, stars: 0.4 });
-    coinRain(160);
-    setTimeout(() => confetti(GOLDS, 160), 300);
-    const big = document.createElement("div");
-    big.className = "jackpot-banner";
-    big.innerHTML = `<div>JACKPOT!</div><b>+${fmt(res.amount)}</b>`;
-    document.body.appendChild(big);
-    setTimeout(() => big.remove(), 2600);
-  } else {
-    Sound.cash();
-    coinRain(45);
-    toast(`🎁 +${fmt(res.amount)}`);
+  if (res.kind === "mega") { Sound.gold(); setTimeout(() => confetti(GOLDS, 120), 200); }
+  else Sound.win();
+  setTimeout(() => { if (document.body.contains(dlg)) renderDaily(res.daily, dlg, res.kind); }, 650);
+  if (currentView() === "inventory") renderInventory();
+}
+
+// ================================================================ OTWIERANIE SKRZYNKI Z PIENIĘDZMI
+
+const MONEY_TIERS = [[0.15, "#4fc34f"], [0.35, "#4b8bff"], [0.6, "#a35bff"], [0.85, "#ff4040"], [1.01, "#ffc531"]];
+function moneyTier(kind, v) {
+  const m = S.cfg.moneyChests[kind];
+  const f = (v - m.min) / (m.max - m.min);
+  return MONEY_TIERS.find(([lim]) => f < lim)[1];
+}
+function cosmeticMoney(kind) {
+  const m = S.cfg.moneyChests[kind];
+  return Math.round((m.min + (m.max - m.min) * Math.random() ** m.curve) / 100) * 100;
+}
+function moneyTileHTML(kind, v, win = false) {
+  const short = v >= 10000 ? `${Math.round(v / 1000)}k` : `${(v / 1000).toLocaleString("pl-PL", { maximumFractionDigits: 1 })}k`;
+  return `<div class="mini money-tile${win ? " win" : ""}" style="--rc:${moneyTier(kind, v)}">
+    <div class="mt-val">💵<b>${short}</b></div><div class="mn">${fmt(v)}</div></div>`;
+}
+
+async function openMoneyChest(kind) {
+  if (S.opening || epicOpen() || document.querySelector(".money-stage")) return;
+  const M = S.cfg.moneyChests[kind];
+  Sound.unlock();
+  let res;
+  try { res = await api("/api/chests/money", { kind }); } catch (e) { Sound.error(); return toast(e.message, true); }
+  S.chests = res.chests;
+  const fast = S.fast;
+  const el = document.createElement("div");
+  el.className = `money-stage mk-${kind}`;
+  el.style.setProperty("--m1", M.color1);
+  el.innerHTML = `
+    <div class="ms-bg"></div>
+    <canvas class="ms-canvas"></canvas>
+    <div class="ms-title">${M.emoji} ${esc(M.name)}</div>
+    <div class="ms-chest-wrap">${moneyChestArt(kind, "ms-chest")}</div>
+    <div class="fa-reel reel ms-reel" hidden><div class="strip"></div><div class="reel-marker"></div></div>
+    <div class="ms-result" hidden></div>
+    <div class="flash fa-flash"></div>`;
+  document.body.appendChild(el);
+  document.body.style.overflow = "hidden";
+  const P = makeParticles(el.querySelector(".ms-canvas"));
+  const chest = el.querySelector(".ms-chest");
+  const cx = () => innerWidth / 2, cy = () => innerHeight / 2;
+
+  // 1. skrzynka trzęsie się i otwiera
+  chest.classList.add("shaking");
+  Sound.charge(fast ? 0.5 : 1.1, kind === "mega");
+  await sleep(fast ? 500 : 1100);
+  chest.classList.remove("shaking");
+  chest.classList.add("popping");
+  Sound.open();
+  P.burst(cx(), cy(), kind === "mega" ? 160 : 90, [M.color1, "#ffe58a", "#fff"], { speed: 13 });
+  await sleep(fast ? 250 : 450);
+  el.querySelector(".ms-chest-wrap").remove();
+
+  // 2. bęben z kwotami
+  const reel = el.querySelector(".ms-reel");
+  reel.hidden = false;
+  const strip = reel.querySelector(".strip");
+  const MW = Math.min(130, innerWidth / 6), GAP = 8, N = 46, WIN = 38;
+  reel.style.setProperty("--mw", MW + "px");
+  reel.style.setProperty("--gap", GAP + "px");
+  reel.style.setProperty("--rh", Math.round(MW * 1.05 + 45) + "px");
+  const vals = Array.from({ length: N }, () => cosmeticMoney(kind));
+  vals[WIN] = res.amount;
+  if (Math.random() < 0.35) vals[WIN + (Math.random() < 0.5 ? -1 : 1)] = Math.round((M.max - Math.random() * (M.max - M.min) * 0.1) / 100) * 100;
+  strip.innerHTML = vals.map((v, i) => moneyTileHTML(kind, v, i === WIN)).join("");
+  await sleep(50);
+  const step = MW + GAP, center = reel.clientWidth / 2;
+  const to = -(WIN * step + MW / 2 + rand(-0.4, 0.4) * MW) + center;
+  const D = fast ? 1000 : 4300;
+  const t0 = performance.now();
+  let lastIdx = -1;
+  await new Promise(done => {
+    const frame = now => {
+      const t = Math.min(1, (now - t0) / D);
+      const x = to * (1 - Math.pow(1 - t, 4.2));
+      strip.style.transform = `translate3d(${x}px, -50%, 0)`;
+      const idx = Math.floor((center - x) / step);
+      if (idx !== lastIdx) { if (lastIdx >= 0) Sound.tick(1 - t); lastIdx = idx; }
+      if (t < 1) requestAnimationFrame(frame); else done();
+    };
+    requestAnimationFrame(frame);
+  });
+  const color = moneyTier(kind, res.amount);
+  reel.classList.add("landed");
+  reel.style.setProperty("--rc", color);
+  await sleep(fast ? 250 : 600);
+
+  // 3. wynik - licznik kwoty, deszcz monet, im więcej tym większe efekty
+  const f = (res.amount - M.min) / (M.max - M.min);
+  reel.hidden = true;
+  const box = el.querySelector(".ms-result");
+  box.hidden = false;
+  const more = S.chests["money_" + kind] || 0;
+  box.innerHTML = `
+    <div class="ms-label">${f >= 0.85 ? "🤑 MEGA WYGRANA!" : f >= 0.6 ? "💰 Świetnie!" : f >= 0.35 ? "Nieźle!" : "Wygrywasz"}</div>
+    <div class="ms-amount" style="--rc:${color}">+<span id="msCount">0</span> $</div>
+    <div class="fa-result-btns">
+      ${more ? `<button class="btn primary" data-act="again">🔁 Otwórz kolejną (${more})</button>` : ""}
+      <button class="btn sell" data-act="ok">✔ Odbierz</button>
+    </div>`;
+  applyState(res.state);
+  Sound.cash();
+  coinRain(Math.min(180, 30 + Math.round(f * 150)));
+  if (f >= 0.6 || kind === "mega") {
+    const fl = el.querySelector(".fa-flash");
+    fl.style.background = `radial-gradient(circle, #fff, ${color}88 40%, transparent 75%)`;
+    fl.classList.add("go");
+    P.burst(cx(), cy(), 200 + Math.round(f * 250), [color, "#ffe58a", "#fff", M.color1], { speed: 18, stars: 0.35 });
+    f >= 0.85 ? (Sound.boom(false), Sound.gold()) : Sound.win();
+    if (f >= 0.85) { el.classList.add("shake"); setTimeout(() => confetti(GOLDS, 200), 300); }
   }
-  setTimeout(() => { if (document.body.contains(dlg)) renderDaily(res.daily, dlg); }, 700);
-  if (currentView() === "crates") renderCrates();
+  const counter = box.querySelector("#msCount"), c0 = performance.now(), CD = fast ? 500 : 1300;
+  const count = now => {
+    const t = Math.min(1, (now - c0) / CD);
+    counter.textContent = Math.round(res.amount * (1 - Math.pow(1 - t, 3))).toLocaleString("pl-PL");
+    if (t < 1 && document.body.contains(counter)) requestAnimationFrame(count);
+  };
+  requestAnimationFrame(count);
+
+  box.addEventListener("click", e => {
+    const act = e.target.closest("[data-act]")?.dataset.act;
+    if (!act) return;
+    P.stop(); el.remove(); document.body.style.overflow = "";
+    if (act === "again") openMoneyChest(kind);
+    else if (currentView() === "inventory") renderInventory();
+    else if (currentView() === "crates") renderCrates();
+  });
 }
 
 async function refreshBadgesSoon() {

@@ -193,16 +193,23 @@ function closeCardForm() { $("#cardModal").hidden = true; }
 // ================================================================ GRACZE
 
 async function loadUsers() {
-  const { users, me } = await api("/api/admin/users");
+  const { users, me, chestKinds } = await api("/api/admin/users");
+  A.users = users; A.chestKinds = chestKinds;
+  const chestTxt = u => Object.entries(u.chests || {}).map(([k, n]) => {
+    const ck = chestKinds.find(c => c.kind === k);
+    return `${ck ? ck.emoji : "📦"}×${n}`;
+  }).join(" ") || '<span class="muted">—</span>';
   $("#userList").innerHTML = `
-    <div class="a-user head"><span>Gracz</span><span>Saldo</span><span>Kolekcja</span><span>Karty</span><span></span></div>
+    <div class="a-user head"><span>Gracz</span><span>Saldo</span><span>Kolekcja</span><span>Karty</span><span>Skrzynki</span><span></span></div>
     ${users.map(u => `
     <div class="a-user" data-uid="${u.id}" data-name="${esc(u.username)}">
       <span><span class="av">${esc(u.avatar)}</span> <b>${esc(u.username)}</b> ${u.isAdmin ? "👑" : ""}${u.id === me ? ' <small class="muted">(ty)</small>' : ""}</span>
       <span>${fmt(u.balance)}</span>
       <span>${fmt(u.value)}</span>
       <span>${u.unique} / ${u.total}</span>
+      <span class="a-chests">${chestTxt(u)}</span>
       <span class="a-user-actions">
+        <button class="btn tiny" data-uact="chests">📦 Skrzynki</button>
         <button class="btn tiny" data-uact="money">💸 Pieniądze</button>
         <button class="btn tiny" data-uact="password">🔑 Hasło</button>
         ${u.id !== me ? `<button class="btn tiny" data-uact="admin">${u.isAdmin ? "Odbierz admina" : "👑 Daj admina"}</button>
@@ -214,6 +221,7 @@ async function loadUsers() {
 async function userAction(row, act) {
   const id = row.dataset.uid, name = row.dataset.name;
   try {
+    if (act === "chests") return openChestDialog(id, name);
     if (act === "money") {
       const v = prompt(`Ile $ dodać graczowi ${name}? (ujemna kwota odejmuje)`, "5000");
       if (!v) return;
@@ -237,6 +245,36 @@ async function userAction(row, act) {
     }
     loadUsers();
   } catch (e) { toast(e.message, true); }
+}
+
+function openChestDialog(id, name) {
+  const u = A.users.find(x => String(x.id) === String(id));
+  const dlg = document.createElement("div");
+  dlg.className = "modal";
+  dlg.innerHTML = `
+    <form class="modal-box a-chest-form">
+      <h3>📦 Skrzynki dla: ${esc(name)}</h3>
+      <div class="a-grid">
+        <label class="wide">Rodzaj skrzynki<select name="kind">${A.chestKinds.map(k =>
+          `<option value="${esc(k.kind)}">${esc(k.emoji)} ${esc(k.name)} (ma: ${(u.chests || {})[k.kind] || 0})</option>`).join("")}</select></label>
+        <label>Ilość<input type="number" name="count" value="5" min="-1000" max="1000" required></label>
+      </div>
+      <p class="muted small">Ujemna ilość zabiera skrzynki. Gracz znajdzie je w zakładce 🎒 Ekwipunek.</p>
+      <div class="a-actions"><button class="btn primary" type="submit">📦 Daj skrzynki</button><button class="btn" type="button" data-x>Anuluj</button></div>
+    </form>`;
+  document.body.appendChild(dlg);
+  dlg.addEventListener("click", e => { if (e.target === dlg || e.target.closest("[data-x]")) dlg.remove(); });
+  dlg.querySelector("form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    try {
+      await api(`/api/admin/users/${id}/chests`, { method: "POST", json: { kind: f.kind, count: parseInt(f.count, 10) } });
+      const k = A.chestKinds.find(c => c.kind === f.kind);
+      toast(`${parseInt(f.count, 10) > 0 ? "Dano" : "Zabrano"} ${Math.abs(f.count)} × ${k.emoji} ${k.name} — ${name}`);
+      dlg.remove();
+      loadUsers();
+    } catch (err) { toast(err.message, true); }
+  });
 }
 
 // ================================================================ ZDARZENIA
