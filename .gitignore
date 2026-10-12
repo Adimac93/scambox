@@ -1,0 +1,15 @@
+# środowisko
+.venv/
+__pycache__/
+*.pyc
+
+# zapis gry i zmiany z panelu admina
+game.db
+test.db
+
+# zdjęcia pobierają się same z Wikipedii przy pierwszym uruchomieniu
+image_cache/
+
+# pliki robocze
+alt_log.txt
+.claude/

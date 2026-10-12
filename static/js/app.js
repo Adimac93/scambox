@@ -1,0 +1,1000 @@
+"use strict";
+
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const rand = (a, b) => a + Math.random() * (b - a);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = n => Math.round(n).toLocaleString("pl-PL") + " $";
+
+const COUNT_CHIPS = [1, 2, 3, 5, 10, 15, 20];
+const INV_PAGE = 120;
+const VARIANT_TAGS = { reverse: "REVERSE", holo: "HOLO", alt: "ALT ART", gold: "GOLDEN" };
+
+const S = {
+  cfg: null,
+  state: null,
+  items: [],              // posortowane malejąco po id
+  crate: null,
+  count: 1,
+  fast: false,
+  binderCrate: null,
+  spread: 0,
+  inv: { crate: "all", rarities: new Set(), variant: "all", sort: "new", limit: INV_PAGE, selected: new Set() },
+  opening: null,
+};
+
+// ================================================================ API / POMOCNICZE
+
+async function api(path, body) {
+  const opts = body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+  const res = await fetch(path, opts);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Błąd serwera");
+  return data;
+}
+
+async function refreshConfig() {
+  S.cfg = await api("/api/config");
+  if (!S.cfg.crates[S.crate]) S.crate = S.cfg.crateOrder[0];
+  if (!S.cfg.crates[S.binderCrate]) S.binderCrate = S.cfg.crateOrder[0];
+}
+
+function rarityIdx(r) { return S.cfg.rarityOrder.indexOf(r); }
+function varRank(v) { return S.cfg.variantOrder.indexOf(v || "normal"); }
+function person(id) { return S.cfg.people[id]; }
+function crateOf(id) { return S.cfg.crates[id]; }
+function crateList() { return S.cfg.crateOrder.map(id => S.cfg.crates[id]); }
+function isSpecial(v) { return !!v && v !== "normal"; }
+function variantName(v) { return S.cfg.variants[v || "normal"].name; }
+function cardValue(pid, v = "normal") {
+  return Math.round(S.cfg.rarities[person(pid).rarity].value * S.cfg.variants[v || "normal"].mult);
+}
+function imgUrl(pid, alt = false) {
+  return `/img/${pid}${alt ? "/alt" : ""}?v=${person(pid).imgv || 0}`;
+}
+function crateStyle(c) {
+  return `--crate-bg: linear-gradient(180deg, ${c.color1} 0 50%, ${c.color2} 50%); --crate-lid: linear-gradient(180deg, ${c.color1}, ${c.color2})`;
+}
+
+// ================================================================ KARTA
+
+function variantLayers(v) {
+  let html = "";
+  if (v === "holo") html += '<div class="holo-layer"></div>';
+  if (v === "gold") html += '<div class="gold-sheen"></div>';
+  if (isSpecial(v)) html += `<div class="var-tag vt-${v}">${VARIANT_TAGS[v]}</div>`;
+  return html;
+}
+
+function cardHTML(pid, variant = "normal") {
+  const p = person(pid);
+  if (p.masked) return mysteryCardHTML(p);
+  if (p.rarity === "secret") return secretCardHTML(p, variant);
+  const r = S.cfg.rarities[p.rarity];
+  const type = S.cfg.types[p.type];
+  const crate = crateOf(p.crate);
+  const total = String(crate.people.length).padStart(3, "0");
+  const cost = type.icon.repeat(Math.min(3, 1 + Math.floor(rarityIdx(p.rarity) / 2)));
+  return `
+  <div class="card r-${p.rarity} v-${variant}" data-pid="${p.id}" data-variant="${variant}">
+    <div class="card-inner">
+      ${variant === "reverse" ? '<div class="rev-foil"></div>' : ""}
+      <div class="card-head">
+        <span class="card-name">${esc(p.name)}</span>
+        <span class="card-hp"><small>HP</small>${p.hp}</span>
+        <span class="card-type">${type.icon}</span>
+      </div>
+      <div class="card-photo"><img src="${imgUrl(p.id, variant === "alt")}" alt="${esc(p.name)}" loading="lazy" draggable="false"></div>
+      <div class="card-sub">${type.name} · ${esc(crate.short)}</div>
+      <div class="card-attack">
+        <span class="atk-cost">${cost}</span>
+        <span class="atk-name">${esc(p.attack)}</span>
+        <span class="atk-dmg">${p.dmg}</span>
+      </div>
+      <div class="card-stats">
+        <span>słabość<b>${S.cfg.types[type.weak].icon}×2</b></span>
+        <span>odporność<b>${S.cfg.types[type.resist].icon}-20</b></span>
+        <span>wycofanie<b>${"⚪".repeat(1 + rarityIdx(p.rarity) % 3)}</b></span>
+      </div>
+      <div class="card-foot">
+        <span class="card-rarity"><span class="gem"></span>${r.name}</span>
+        <span>${esc(crate.code)} ${String(p.number).padStart(3, "0")}/${total}</span>
+        <span class="card-value">${fmt(cardValue(pid, variant))}</span>
+      </div>
+    </div>
+    ${variantLayers(variant)}
+    <div class="shine"></div>
+  </div>`;
+}
+
+// TAJNA karta - zupełnie inny układ: pełnoekranowe zdjęcie, aureola, złota animowana ramka
+function secretCardHTML(p, variant) {
+  const type = S.cfg.types[p.type];
+  const crate = crateOf(p.crate);
+  return `
+  <div class="card r-secret v-${variant}" data-pid="${p.id}" data-variant="${variant}">
+    <div class="sc">
+      <div class="sc-art"><img src="${imgUrl(p.id, variant === "alt")}" alt="${esc(p.name)}" loading="lazy" draggable="false"></div>
+      <div class="sc-halo"></div>
+      <div class="sc-stars"></div>
+      ${variant === "reverse" ? '<div class="rev-foil"></div>' : ""}
+      <div class="sc-top">
+        <span class="sc-seal">★</span>
+        <span class="sc-name">${esc(p.name)}</span>
+        <span class="sc-hp"><small>HP</small>${p.hp}</span>
+      </div>
+      <div class="sc-ribbon">TAJNA</div>
+      <div class="sc-panel">
+        <div class="sc-attack"><span>${type.icon}</span><span class="sc-atk">${esc(p.attack)}</span><b>${p.dmg}</b></div>
+        <div class="sc-foot"><span>★ TAJNA ★</span><span>${esc(crate.code)} ★${String(p.number).padStart(3, "0")}</span><span class="sc-val">${fmt(cardValue(p.id, variant))}</span></div>
+      </div>
+      <div class="sc-frame"></div>
+      <div class="sc-border"></div>
+    </div>
+    ${variantLayers(variant)}
+    <div class="shine"></div>
+  </div>`;
+}
+
+// tajna karta, której jeszcze nie zdobyłeś
+function mysteryCardHTML(p) {
+  const n = rarityShare(p.crate, "secret");
+  return `
+  <div class="card r-secret mystery" data-pid="${p.id}" data-variant="normal">
+    <div class="sc">
+      <div class="sc-stars"></div>
+      <div class="my-star">★</div>
+      <div class="my-q">???</div>
+      <div class="my-label">TAJNA KARTA</div>
+      <div class="my-sub">Zdobądź ją, aby odkryć, kto to jest.<br>Szansa: 1 na ${n ? Math.round(1 / n).toLocaleString("pl-PL") : "?"}</div>
+      <div class="sc-border"></div>
+    </div>
+  </div>`;
+}
+
+// szansa na konkretną kartę danej rzadkości w danej skrzynce
+function rarityShare(crateId, rarity) {
+  const crate = crateOf(crateId);
+  if (!crate) return 0;
+  const present = new Set(crate.people.map(id => person(id).rarity));
+  const total = S.cfg.rarityOrder.filter(r => present.has(r)).reduce((a, r) => a + S.cfg.rarities[r].weight, 0);
+  const inR = crate.people.filter(id => person(id).rarity === rarity).length;
+  return present.has(rarity) ? S.cfg.rarities[rarity].weight / total / inR : 0;
+}
+
+// efekt przechylania kart za kursorem
+let tiltCard = null;
+function resetTilt(card) {
+  if (!card) return;
+  card.classList.remove("tilting");
+  card.style.removeProperty("--rx"); card.style.removeProperty("--ry");
+}
+document.addEventListener("pointermove", e => {
+  const card = e.target.closest?.(".card");
+  if (card !== tiltCard) { resetTilt(tiltCard); tiltCard = card; }
+  if (!card) return;
+  const b = card.getBoundingClientRect();
+  const px = (e.clientX - b.left) / b.width, py = (e.clientY - b.top) / b.height;
+  const fancy = card.matches(".r-secret, .v-holo, .v-reverse, .v-gold, .v-alt");
+  const strength = card.closest(".viewer") ? 1.5 : fancy || card.closest(".modal") ? 1 : 0.6;
+  card.classList.add("tilting");
+  card.style.setProperty("--rx", ((0.5 - py) * 16 * strength).toFixed(2) + "deg");
+  card.style.setProperty("--ry", ((px - 0.5) * 20 * strength).toFixed(2) + "deg");
+  card.style.setProperty("--mx", (px * 100).toFixed(1) + "%");
+  card.style.setProperty("--my", (py * 100).toFixed(1) + "%");
+});
+
+// ================================================================ NAGŁÓWEK / WSPÓLNE
+
+let shownBalance = null;
+function renderHeader() {
+  const el = $("#balance");
+  const target = S.state.balance;
+  if (shownBalance === null) shownBalance = target;
+  const from = shownBalance, t0 = performance.now();
+  shownBalance = target;
+  if (from !== target) {
+    el.classList.add("bump");
+    setTimeout(() => el.classList.remove("bump"), 200);
+  }
+  const step = now => {
+    const t = Math.min(1, (now - t0) / 450);
+    el.textContent = fmt(from + (target - from) * (1 - Math.pow(1 - t, 3)));
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+  const broke = target < Math.min(...crateList().map(c => c.price));
+  el.classList.toggle("neg", broke);
+  $("#bankBtn").classList.toggle("pulse", broke);
+  $("#invCount").textContent = S.items.length;
+  $("#soundBtn").textContent = Sound.enabled ? "🔊" : "🔇";
+}
+
+function toast(msg, err = false) {
+  const t = document.createElement("div");
+  t.className = "toast" + (err ? " err" : "");
+  t.textContent = msg;
+  $("#toasts").appendChild(t);
+  setTimeout(() => { t.style.transition = "opacity .4s"; t.style.opacity = 0; }, 2600);
+  setTimeout(() => t.remove(), 3100);
+}
+
+function applyState(state) {
+  S.state = state;
+  renderHeader();
+}
+
+function removeItems(ids) {
+  const set = new Set(ids);
+  S.items = S.items.filter(i => !set.has(i.id));
+  ids.forEach(id => S.inv.selected.delete(id));
+}
+
+async function sellIds(ids) {
+  if (!ids.length) return 0;
+  const res = await api("/api/sell", { ids });
+  removeItems(res.sold);
+  applyState(res.state);
+  Sound.coin(Math.ceil(res.sold.length / 4));
+  toast(`Sprzedano ${res.sold.length} ${plural(res.sold.length, "kartę", "karty", "kart")} za ${fmt(res.total)}`);
+  return res.total;
+}
+
+function plural(n, one, few, many) {
+  if (n === 1) return one;
+  const d = n % 10, dd = n % 100;
+  return d >= 2 && d <= 4 && (dd < 12 || dd > 14) ? few : many;
+}
+
+function switchView(view) {
+  $$(".tab").forEach(t => t.classList.toggle("active", t.dataset.view === view));
+  $$(".view").forEach(v => v.classList.toggle("active", v.id === "view-" + view));
+  if (view === "binder") renderBinder();
+  if (view === "inventory") renderInventory();
+  if (view === "crates") renderCrates();
+  if (view === "forge") renderForge();
+  updateSellbar();
+}
+
+function currentView() { return $(".tab.active").dataset.view; }
+
+function rerenderCurrent() { switchView(currentView()); }
+
+// ================================================================ SKRZYNKI
+
+function renderCrates() {
+  $("#cratePicker").innerHTML = crateList().map(c => `
+    <div class="crate${S.crate === c.id ? " selected" : ""}" data-crate="${c.id}" style="${crateStyle(c)}">
+      <div class="crate-glow"></div>
+      <div class="crate-art">
+        <div class="crate-box"><div class="crate-emblem">${esc(c.emoji)}</div></div>
+        <div class="crate-lid"></div>
+        <div class="crate-lock"></div>
+      </div>
+      <div class="crate-info">
+        <h3>${esc(c.name)}</h3>
+        <p>${c.people.length} kart${c.desc ? " · " + esc(c.desc) : ""}</p>
+        <div class="crate-price">${fmt(c.price)}</div>
+      </div>
+    </div>`).join("") || '<div class="empty">Brak skrzynek — dodaj je w panelu admina.</div>';
+
+  $("#countChips").innerHTML = COUNT_CHIPS.map(n =>
+    `<button class="chip${S.count === n ? " active" : ""}" data-n="${n}">${n}</button>`).join("");
+  $("#countRange").value = S.count;
+  $("#countVal").textContent = S.count;
+  $("#fastToggle").checked = S.fast;
+  updateOpenBtn();
+
+  const st = S.state;
+  const profit = st.earned - st.spent;
+  $("#stats").innerHTML = `
+    <span>Otwarte skrzynki: <b>${st.opened}</b></span>
+    <span>Wydano: <b>${fmt(st.spent)}</b></span>
+    <span>Ze sprzedaży: <b>${fmt(st.earned)}</b></span>
+    <span>Wartość ekwipunku: <b>${fmt(S.items.reduce((a, i) => a + i.value, 0))}</b></span>
+    <span>Bilans sprzedaży: <b style="color:${profit >= 0 ? "var(--good)" : "var(--bad)"}">${profit >= 0 ? "+" : ""}${fmt(profit)}</b></span>
+    <span>Wpłacono z bankomatu: <b>${fmt(st.deposited || 0)}</b></span>
+    <span>Kontrakty: <b>${st.contracts || 0}</b></span>
+    <span>Ulepszenia: <b style="color:var(--good)">${st.upgrades_won || 0}</b> / <b style="color:var(--bad)">${st.upgrades_lost || 0}</b></span>`;
+
+  const crate = crateOf(S.crate);
+  if (!crate) { $("#contentsGrid").innerHTML = ""; $("#odds").innerHTML = ""; return; }
+  $("#contentsTitle").textContent = `Zawartość: ${crate.name}`;
+  const present = new Set(crate.people.map(id => person(id).rarity));
+  const totalW = S.cfg.rarityOrder.filter(r => present.has(r)).reduce((a, r) => a + S.cfg.rarities[r].weight, 0);
+  const pctTxt = x => (x * 100).toLocaleString("pl-PL", { maximumFractionDigits: x < 0.001 ? 3 : 2 }) + "%";
+  $("#odds").innerHTML = S.cfg.rarityOrder.filter(r => present.has(r)).map(r => {
+    const R = S.cfg.rarities[r];
+    const n = crate.people.filter(id => person(id).rarity === r).length;
+    return `<span class="odd odd-${r}" style="--rc:${R.color}"><b>${R.name}</b> ${pctTxt(R.weight / totalW)} · ${n} ${plural(n, "karta", "karty", "kart")} · ${fmt(R.value)}</span>`;
+  }).join("") + `<div class="odds-variants">${S.cfg.variantOrder.filter(isSpecial).map(v => {
+    const V = S.cfg.variants[v];
+    return `<span class="odd odd-v vt-${v}"><b>${V.name}</b> ${pctTxt(V.chance)} · wartość ×${String(V.mult).replace(".", ",")}</span>`;
+  }).join("")}</div>`;
+  $("#contentsGrid").innerHTML = crate.people.map(id => cardHTML(id)).join("");
+}
+
+function updateOpenBtn() {
+  const crate = crateOf(S.crate);
+  const btn = $("#openBtn");
+  if (!crate) { btn.disabled = true; btn.textContent = "BRAK SKRZYNEK"; return; }
+  const cost = S.count * crate.price;
+  btn.textContent = `OTWÓRZ ${S.count} × ${fmt(crate.price)} = ${fmt(cost)}`;
+  btn.disabled = !!S.opening || !crate.people.length;
+}
+
+function setCount(n) {
+  S.count = Math.max(1, Math.min(S.cfg.maxOpen, n));
+  $("#countRange").value = S.count;
+  $("#countVal").textContent = S.count;
+  $$("#countChips .chip").forEach(c => c.classList.toggle("active", +c.dataset.n === S.count));
+  updateOpenBtn();
+}
+
+// ================================================================ OTWIERANIE
+
+function weightedPerson(crateId) {
+  // losowanie kosmetyczne do wypełnienia bębna (takie same szanse jak na serwerze)
+  const ids = crateOf(crateId).people;
+  const byR = {};
+  ids.forEach(id => (byR[person(id).rarity] ||= []).push(id));
+  const rs = Object.keys(byR);
+  const total = rs.reduce((a, r) => a + S.cfg.rarities[r].weight, 0);
+  let x = Math.random() * total;
+  for (const r of rs) {
+    x -= S.cfg.rarities[r].weight;
+    if (x <= 0) return byR[r][Math.floor(Math.random() * byR[r].length)];
+  }
+  return ids[0];
+}
+
+function miniHTML(pid, win = false) {
+  const p = person(pid);
+  if (p.rarity === "secret") {
+    // jak nóż w CS - w bębnie tajna karta to zawsze złota gwiazda
+    return `<div class="mini r-secret mini-secret${win ? " win" : ""}" style="--rc:${S.cfg.rarities.secret.color}">
+      <div class="ms-star">★</div><div class="mn">??? TAJNA</div></div>`;
+  }
+  return `<div class="mini r-${p.rarity}${win ? " win" : ""}" style="--rc:${S.cfg.rarities[p.rarity].color}">
+    <img src="${imgUrl(p.id)}" alt="" draggable="false"><div class="mn">${esc(p.name)}</div></div>`;
+}
+
+async function openCrates() {
+  if (S.opening) return;
+  const crate = crateOf(S.crate);
+  if (!crate) return;
+  const cost = S.count * crate.price;
+  if (S.state.balance < cost) {
+    Sound.error();
+    openBank(`Brakuje ci ${fmt(cost - S.state.balance)}, żeby otworzyć ${S.count} ${plural(S.count, "skrzynkę", "skrzynki", "skrzynek")}.`);
+    return;
+  }
+  Sound.unlock();
+  S.opening = { crate: S.crate, count: S.count, fast: S.fast };
+  updateOpenBtn();
+
+  const ownedBefore = new Set(S.items.map(i => i.person));
+  let res;
+  try {
+    const crateEl = $(`.crate[data-crate="${S.crate}"]`);
+    crateEl?.classList.add("opening");
+    Sound.open();
+    [res] = await Promise.all([api("/api/open", { crate: S.crate, count: S.count }), sleep(S.fast ? 120 : 450)]);
+    crateEl?.classList.remove("opening");
+    if (res.discovered.length) await refreshConfig();
+  } catch (e) {
+    S.opening = null; updateOpenBtn();
+    Sound.error(); toast(e.message, true);
+    return;
+  }
+  S.items = [...res.drops.slice().reverse(), ...S.items];
+  applyState(res.state);
+  S.opening.drops = res.drops;
+  S.opening.ownedBefore = ownedBefore;
+  runStage();
+}
+
+function runStage() {
+  const o = S.opening;
+  const n = o.drops.length;
+  const stage = $("#stage");
+  stage.hidden = false;
+  document.body.style.overflow = "hidden";
+  $("#stageTitle").textContent = `${crateOf(o.crate).name} × ${n}${o.fast ? "  ⚡" : ""}`;
+  const reels = $("#reels"), results = $("#results");
+  reels.hidden = false; results.hidden = true; results.innerHTML = "";
+  $("#skipBtn").hidden = false;
+  ["#sellAllBtn", "#againBtn", "#closeBtn"].forEach(s => $(s).hidden = true);
+  $("#stageSum").textContent = "";
+
+  const fitW = window.innerWidth - 40;
+  const cols = Math.min(n <= 2 ? 1 : n <= 4 ? 2 : n <= 9 ? 3 : n <= 16 ? 4 : 5, Math.max(1, Math.floor(fitW / 230)));
+  const rows = Math.ceil(n / cols);
+  const gap = 12;
+  reels.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  reels.style.maxWidth = n <= 2 ? "1100px" : "";
+  reels.style.width = "100%";
+  reels.style.margin = "0 auto";
+
+  const W = Math.min(reels.clientWidth || window.innerWidth - 40, n <= 2 ? 1100 : 9999);
+  const H = reels.clientHeight || window.innerHeight - 160;
+  const cellW = (W - gap * (cols - 1)) / cols;
+  const rowH = Math.min((H - gap * (rows - 1)) / rows, 280);
+  const mw = Math.max(54, Math.min(150, cellW / 5, (rowH - 20) / 1.4));
+  const mgap = Math.max(4, Math.round(mw * 0.06));
+  const rh = Math.round(mw * 1.05 + (mw >= 70 ? 22 : 18) + 5 + 18);
+
+  const STRIP = 54, WIN = 46;
+  const rare = crateOf(o.crate).people.filter(id => rarityIdx(person(id).rarity) >= 4);
+  reels.innerHTML = "";
+  const now = performance.now();
+  o.reels = o.drops.map((drop, i) => {
+    const ids = Array.from({ length: STRIP }, () => weightedPerson(o.crate));
+    ids[WIN] = drop.person;
+    // czasem "prawie" - rzadka karta tuż obok wygranej
+    if (rare.length && Math.random() < 0.28) ids[WIN + (Math.random() < 0.5 ? -1 : 1)] = rare[Math.floor(Math.random() * rare.length)];
+    const el = document.createElement("div");
+    el.className = "reel";
+    el.style.setProperty("--rh", rh + "px");
+    el.style.setProperty("--mw", mw + "px");
+    el.style.setProperty("--gap", mgap + "px");
+    el.innerHTML = `<div class="strip">${ids.map((id, k) => miniHTML(id, k === WIN)).join("")}</div><div class="reel-marker"></div>`;
+    reels.appendChild(el);
+    const strip = el.firstElementChild;
+    const step = mw + mgap;
+    const center = cellW / 2;
+    const off = rand(-0.42, 0.42) * mw;
+    const from = rand(0, step * 0.8);
+    const to = -(WIN * step + mw / 2 + off) + center;
+    strip.style.transform = `translate3d(${from}px, -50%, 0)`;
+    const dur = o.fast ? 700 : rand(5200, 6200);
+    const delay = o.fast ? i * 18 : i * 70;
+    return { el, strip, drop, from, to, step, center, dur, start: now + delay, lastIdx: -1, done: false };
+  });
+
+  o.spinning = true;
+  const easeSlow = t => 1 - Math.pow(1 - t, 4.2);
+  const easeFast = t => 1 - Math.pow(1 - t, 3);
+  const ease = o.fast ? easeFast : easeSlow;
+  let lastLand = 0;
+  const frame = ts => {
+    if (S.opening !== o) return;
+    let all = true;
+    for (const r of o.reels) {
+      if (r.done) continue;
+      const t = Math.max(0, Math.min(1, (ts - r.start) / r.dur));
+      const x = r.from + (r.to - r.from) * ease(t);
+      r.strip.style.transform = `translate3d(${x.toFixed(1)}px, -50%, 0)`;
+      const idx = Math.floor((r.center - x) / r.step);
+      if (idx !== r.lastIdx) { if (r.lastIdx >= 0) Sound.tick(1 - t); r.lastIdx = idx; }
+      if (t >= 1) {
+        r.done = true;
+        const rar = person(r.drop.person).rarity;
+        r.el.classList.add("landed", "r-" + rar);
+        if (rarityIdx(rar) >= 4) r.el.classList.add("jackpot");
+        r.el.style.setProperty("--rc", S.cfg.rarities[rar].color);
+        if (ts - lastLand > 60) { Sound.land(rar === "secret" ? "ultra" : rar); lastLand = ts; }
+      } else all = false;
+    }
+    if (all) {
+      o.spinning = false;
+      $("#skipBtn").hidden = true;
+      afterSpin(o);
+    } else requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
+
+async function afterSpin(o) {
+  await sleep(o.fast ? 250 : 700);
+  if (S.opening !== o) return;
+  // legendarne, ultra i tajne dostają własne, wielkie odsłonięcie
+  const epics = o.drops.filter(d => rarityIdx(person(d.person).rarity) >= 4)
+    .sort((a, b) => rarityIdx(person(b.person).rarity) - rarityIdx(person(a.person).rarity) || varRank(b.variant) - varRank(a.variant));
+  for (const d of epics) {
+    await epicReveal(d, { fast: o.fast });
+    if (S.opening !== o) return;
+  }
+  showResults(epics.length > 0);
+}
+
+function skipSpin() {
+  const o = S.opening;
+  if (!o || !o.spinning) return;
+  const now = performance.now();
+  o.reels.forEach(r => { r.start = Math.min(r.start, now - r.dur); });
+}
+
+function showResults(afterEpic = false) {
+  const o = S.opening;
+  o.spinning = false;
+  o.showingResults = true;
+  const n = o.drops.length;
+  $("#reels").hidden = true;
+  const results = $("#results");
+  results.hidden = false;
+  const avail = results.clientWidth || window.innerWidth - 40;
+  const cols = Math.min(n <= 5 ? n : n <= 10 ? 5 : n <= 12 ? 6 : 7, Math.max(1, Math.floor(avail / 150)));
+  const rcw = Math.min(n === 1 ? 320 : n <= 3 ? 260 : 220, (avail - 18 * (cols - 1) - 12) / cols);
+  results.style.setProperty("--cols", cols);
+  results.style.setProperty("--rcw", rcw + "px");
+
+  const seenNew = new Set();
+  results.innerHTML = o.drops.map((d, i) => {
+    const p = person(d.person);
+    const isNew = !o.ownedBefore.has(d.person) && !seenNew.has(d.person);
+    if (isNew) seenNew.add(d.person);
+    const big = rarityIdx(p.rarity) >= 4;
+    return `<div class="result r-${p.rarity}${big ? " big" : ""}" data-id="${d.id}"
+              style="--rc:${S.cfg.rarities[p.rarity].color}; animation-delay:${i * (o.fast ? 25 : 70)}ms">
+      ${isNew ? '<span class="new-badge">NOWA!</span>' : ""}
+      ${cardHTML(d.person, d.variant)}
+      <button class="btn sell rsell" data-id="${d.id}" title="Sprzedaj">💰 ${fmt(d.value)}</button>
+    </div>`;
+  }).join("");
+
+  // najlepszy drop -> efekty
+  let best = o.drops[0];
+  for (const d of o.drops) {
+    const a = rarityIdx(person(d.person).rarity), b = rarityIdx(person(best.person).rarity);
+    if (a > b || (a === b && varRank(d.variant) > varRank(best.variant))) best = d;
+  }
+  const bestR = person(best.person).rarity;
+  if (afterEpic) {
+    // wielkie odsłonięcie już było - tylko lekki akcent
+    flash(`radial-gradient(circle, ${S.cfg.rarities[bestR].color}55, transparent 70%)`);
+    Sound.reveal("purple");
+  } else {
+    Sound.reveal(bestR);
+    if (bestR === "red") flash("radial-gradient(circle, #ff404066, transparent 70%)");
+  }
+  const specials = o.drops.filter(d => isSpecial(d.variant));
+  if (specials.length && !afterEpic) {
+    const top = specials.reduce((a, d) => varRank(d.variant) > varRank(a.variant) ? d : a);
+    const colors = { gold: ["#ffc531", "#fff3b0", "#fff"], alt: ["#ff5468", "#ffcf3f", "#fff"], holo: ["#9ff6ff", "#ff9ff3", "#fff"], reverse: ["#c9d6ff", "#ffffff", "#9ff6ff"] }[top.variant];
+    setTimeout(() => confetti(colors, top.variant === "gold" ? 140 : 60), 300);
+    if (top.variant === "gold") toast(`✨ GOLDEN: ${person(top.person).name}!`);
+  }
+
+  updateStageBar();
+}
+
+function updateStageBar() {
+  const o = S.opening;
+  const unsold = o.drops.filter(d => !d.sold);
+  $("#stageSum").textContent = unsold.length ? `Wartość: ${fmt(unsold.reduce((a, d) => a + d.value, 0))}` : "Wszystko sprzedane";
+  const sellAll = $("#sellAllBtn");
+  sellAll.hidden = !unsold.length;
+  sellAll.textContent = `💰 Sprzedaj wszystko (${fmt(unsold.reduce((a, d) => a + d.value, 0))})`;
+  const again = $("#againBtn");
+  const price = crateOf(o.crate).price;
+  again.hidden = false;
+  again.textContent = `🔁 Otwórz ponownie (${o.count} × ${fmt(price)})`;
+  $("#closeBtn").hidden = false;
+  $("#closeBtn").textContent = unsold.length ? "✔ Zatrzymaj i zamknij" : "✔ Zamknij";
+}
+
+async function sellResult(ids) {
+  const o = S.opening;
+  const rare = o.drops.filter(d => ids.includes(d.id) && rarityIdx(person(d.person).rarity) >= 4);
+  if (rare.length && !confirm(`Na pewno sprzedać ${rare.length > 1 ? "legendarne karty" : person(rare[0].person).name}?`)) return;
+  try {
+    await sellIds(ids);
+  } catch (e) { Sound.error(); toast(e.message, true); return; }
+  ids.forEach(id => {
+    const d = o.drops.find(d => d.id === id); if (d) d.sold = true;
+    $(`.result[data-id="${id}"]`)?.classList.add("sold");
+  });
+  updateStageBar();
+}
+
+function closeStage() {
+  $("#stage").hidden = true;
+  document.body.style.overflow = "";
+  $("#reels").innerHTML = ""; $("#results").innerHTML = "";
+  S.opening = null;
+  rerenderCurrent();
+}
+
+async function openAgain() {
+  const o = S.opening;
+  S.crate = o.crate; S.count = o.count; S.fast = $("#fastToggle").checked;
+  S.opening = null;
+  $("#stage").hidden = true;
+  document.body.style.overflow = "";
+  await openCrates();
+  if (!S.opening) rerenderCurrent();
+}
+
+function flash(bg) {
+  const f = $("#flash");
+  f.style.background = bg;
+  f.classList.remove("go"); void f.offsetWidth; f.classList.add("go");
+}
+
+// ================================================================ KONFETTI
+
+const confettiState = { parts: [], running: false };
+function confetti(colors, count) {
+  const cv = $("#confetti");
+  cv.width = innerWidth; cv.height = innerHeight;
+  for (let i = 0; i < count; i++) {
+    const fromLeft = i % 2 === 0;
+    confettiState.parts.push({
+      x: fromLeft ? -10 : cv.width + 10, y: cv.height * rand(0.4, 0.8),
+      vx: (fromLeft ? 1 : -1) * rand(4, 14), vy: rand(-18, -8),
+      w: rand(6, 12), h: rand(8, 16), rot: rand(0, 6.28), vr: rand(-0.3, 0.3),
+      c: colors[i % colors.length], life: 0,
+    });
+  }
+  if (!confettiState.running) { confettiState.running = true; requestAnimationFrame(confettiFrame); }
+}
+function drawCoin(ctx, p) {
+  p.vy -= 0.2; // monety spadają wolniej niż konfetti
+  const sx = Math.abs(Math.cos(p.life / 7)) * 0.85 + 0.15, r = p.w / 2;
+  ctx.save(); ctx.translate(p.x, p.y); ctx.scale(sx, 1);
+  const g = ctx.createRadialGradient(-r * 0.3, -r * 0.3, 1, 0, 0, r);
+  g.addColorStop(0, "#fff6c2"); g.addColorStop(0.5, "#ffc531"); g.addColorStop(1, "#b37a00");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, 6.283); ctx.fill();
+  ctx.strokeStyle = "#8a5d00"; ctx.lineWidth = 2; ctx.stroke();
+  if (sx > 0.5) { ctx.fillStyle = "#8a5d00"; ctx.font = `bold ${r}px Rubik, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("$", 0, 1); }
+  ctx.restore();
+}
+function confettiFrame() {
+  const cv = $("#confetti"), ctx = cv.getContext("2d");
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  confettiState.parts = confettiState.parts.filter(p => p.y < cv.height + 40 && p.life < 400);
+  for (const p of confettiState.parts) {
+    p.life++; p.vy += 0.35; p.vx *= 0.985; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+    if (p.shape === "coin") { drawCoin(ctx, p); continue; }
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+    ctx.fillStyle = p.c; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h * Math.abs(Math.cos(p.life / 6)));
+    ctx.restore();
+  }
+  if (confettiState.parts.length) requestAnimationFrame(confettiFrame);
+  else { confettiState.running = false; ctx.clearRect(0, 0, cv.width, cv.height); }
+}
+
+// ================================================================ KLASER
+
+function ownedMap() {
+  const m = {};
+  for (const it of S.items) {
+    const e = (m[it.person] ||= { ids: [], byVar: {}, best: "normal" });
+    e.ids.push(it.id);
+    (e.byVar[it.variant] ||= []).push(it.id);
+    if (varRank(it.variant) > varRank(e.best)) e.best = it.variant;
+  }
+  for (const e of Object.values(m)) if (!e.byVar[e.best]) e.best = Object.keys(e.byVar)[0];
+  return m;
+}
+
+function renderBinder() {
+  $("#binderSeg").innerHTML = crateList().map(c =>
+    `<button data-crate="${c.id}" class="${S.binderCrate === c.id ? "active" : ""}">${esc(c.emoji)} ${esc(c.short)}</button>`).join("");
+
+  const crate = crateOf(S.binderCrate);
+  if (!crate) { $("#binder").innerHTML = ""; return; }
+  const owned = ownedMap();
+  const ids = crate.people;
+  const have = ids.filter(id => owned[id]).length;
+  const special = ids.filter(id => owned[id] && isSpecial(owned[id].best)).length;
+  $("#binderProgress").innerHTML = `
+    <span>Zebrano <b style="color:var(--text)">${have}/${ids.length}</b></span>
+    <div class="pbar"><div style="width:${ids.length ? have / ids.length * 100 : 0}%"></div></div>
+    ${S.cfg.rarityOrder.map(r => {
+      const all = ids.filter(id => person(id).rarity === r);
+      if (!all.length) return "";
+      return `<span class="rar-count rc-${r}" style="--rc:${S.cfg.rarities[r].color}"><i></i>${all.filter(id => owned[id]).length}/${all.length}</span>`;
+    }).join("")}
+    <span>✨ warianty ${special}/${ids.length}</span>`;
+
+  const pages = [];
+  for (let i = 0; i < ids.length; i += 9) pages.push(ids.slice(i, i + 9));
+  if (!pages.length) pages.push([]);
+  const spreads = Math.ceil(pages.length / 2);
+  S.spread = Math.max(0, Math.min(S.spread, spreads - 1));
+  const pageHTML = (page, side) => {
+    const slots = (page || []).concat(Array(9 - (page || []).length).fill(null));
+    return `<div class="bpage ${side}">${slots.map(id => {
+      if (!id) return `<div class="pocket"></div>`;
+      const p = person(id), o = owned[id];
+      if (!o) {
+        if (p.rarity === "secret") return `<div class="pocket secret-pocket"><div class="card-back secret-back"><div><div class="q">★</div><div class="n">TAJNA</div></div></div></div>`;
+        return `<div class="pocket"><div class="card-back"><div><div class="q">?</div><div class="n">#${String(p.number).padStart(3, "0")}</div></div></div></div>`;
+      }
+      const n = o.ids.length;
+      return `<div class="pocket owned${p.rarity === "secret" ? " secret-pocket" : ""}" data-pid="${id}">${cardHTML(id, o.best)}${n > 1 ? `<span class="count">×${n}</span>` : ""}</div>`;
+    }).join("")}</div>`;
+  };
+  $("#binder").innerHTML = pageHTML(pages[S.spread * 2], "left") + pageHTML(pages[S.spread * 2 + 1], "right") +
+    `<div class="binder-rings">${"<span></span>".repeat(4)}</div>`;
+  $("#pagePrev").disabled = S.spread === 0;
+  $("#pageNext").disabled = S.spread >= spreads - 1;
+  const a = S.spread * 2 + 1, b = Math.min(a + 1, pages.length);
+  $("#pageIndicator").textContent = `Strony ${a}–${b} z ${pages.length}`;
+}
+
+function flipBinder(dir) {
+  const before = S.spread;
+  S.spread += dir;
+  renderBinder();
+  if (S.spread === before) return;
+  Sound.page();
+  const b = $("#binder");
+  b.classList.remove("flip-next", "flip-prev"); void b.offsetWidth;
+  b.classList.add(dir > 0 ? "flip-next" : "flip-prev");
+}
+
+// ================================================================ MODAL KARTY
+
+function openModal(pid) {
+  const o = ownedMap()[pid];
+  if (!o) { closeModal(); return; }
+  const p = person(pid);
+  const R = S.cfg.rarities[p.rarity];
+  const rows = S.cfg.variantOrder.slice().reverse().filter(v => o.byVar[v]).map(v => {
+    const list = o.byVar[v], val = cardValue(pid, v);
+    return `<div class="copy-row">
+      <span class="lbl"><span class="vdot vt-${v}"></span>${variantName(v)} ×${list.length} <small>· ${fmt(val)}/szt.</small></span>
+      <span><button class="btn" data-sell="${list[0]}">Sprzedaj 1</button>
+      ${list.length > 1 ? `<button class="btn sell" data-sell="${list.join(",")}">Wszystkie (${fmt(val * list.length)})</button>` : ""}</span>
+    </div>`;
+  }).join("");
+  const dupes = dupesOf(o);
+  $("#modalBox").innerHTML = `
+    ${cardHTML(pid, o.best)}
+    <div class="modal-side">
+      <h3>${esc(p.name)}</h3>
+      <div class="muted">${S.cfg.types[p.type].icon} ${S.cfg.types[p.type].name} · ${esc(crateOf(p.crate).name)} · <b style="color:${R.color}">${R.name}</b></div>
+      <div>Posiadasz: <b>${o.ids.length}</b></div>
+      ${rows}
+      <div class="modal-actions">
+        ${dupes.length ? `<button class="btn sell" data-sell="${dupes.join(",")}">Sprzedaj duplikaty (zostaw najlepszą)</button>` : ""}
+        <button class="btn" id="modalClose">Zamknij</button>
+      </div>
+    </div>`;
+  $("#modal").hidden = false;
+  $("#modal").dataset.pid = pid;
+}
+
+function dupesOf(o) {
+  // zostawiamy jedną kartę - w najlepszym wariancie
+  const keep = o.byVar[o.best][0];
+  return o.ids.filter(id => id !== keep);
+}
+
+function closeModal() { $("#modal").hidden = true; }
+
+// ================================================================ EKWIPUNEK
+
+function filteredItems() {
+  const f = S.inv;
+  const list = S.items.filter(i => {
+    const p = person(i.person);
+    return (f.crate === "all" || p.crate === f.crate) &&
+           (!f.rarities.size || f.rarities.has(p.rarity)) &&
+           (f.variant === "all" || (f.variant === "special" ? isSpecial(i.variant) : i.variant === f.variant));
+  });
+  const byName = (a, b) => person(a.person).name.localeCompare(person(b.person).name, "pl");
+  const by = {
+    new: (a, b) => b.id - a.id,
+    value: (a, b) => b.value - a.value || b.id - a.id,
+    rarity: (a, b) => rarityIdx(person(b.person).rarity) - rarityIdx(person(a.person).rarity) || varRank(b.variant) - varRank(a.variant) || byName(a, b),
+    name: (a, b) => byName(a, b) || varRank(b.variant) - varRank(a.variant),
+  }[f.sort];
+  return list.sort(by);
+}
+
+function renderInventory() {
+  const f = S.inv;
+  $("#invCrateSeg").innerHTML = [["all", "Wszystkie"], ...crateList().map(c => [c.id, `${c.emoji} ${c.short}`])].map(([id, n]) =>
+    `<button data-crate="${id}" class="${f.crate === id ? "active" : ""}">${esc(n)}</button>`).join("");
+  $("#invRarity").innerHTML = S.cfg.rarityOrder.map(r =>
+    `<button class="rf rf-${r}${f.rarities.has(r) ? " active" : ""}" data-r="${r}" style="--rc:${S.cfg.rarities[r].color}"><i></i>${S.cfg.rarities[r].name}</button>`).join("");
+  $("#invVariant").innerHTML = [["all", "Wszystkie warianty"], ["special", "✨ Tylko specjalne"],
+    ...S.cfg.variantOrder.map(v => [v, variantName(v)])].map(([v, n]) =>
+    `<option value="${v}"${f.variant === v ? " selected" : ""}>${n}</option>`).join("");
+  $("#invSort").value = f.sort;
+
+  const list = filteredItems();
+  const total = list.reduce((a, i) => a + i.value, 0);
+  $("#invSummary").innerHTML = `Kart: <b>${list.length}</b> · Wartość: <b>${fmt(total)}</b>` +
+    (list.length !== S.items.length ? ` <span class="muted">(wszystkich: ${S.items.length})</span>` : "");
+  const grid = $("#invGrid");
+  if (!list.length) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1">${S.items.length ? "Brak kart pasujących do filtrów." : "Ekwipunek jest pusty. Otwórz jakąś skrzynkę! 📦"}</div>`;
+  } else {
+    grid.innerHTML = list.slice(0, f.limit).map(i =>
+      `<div class="inv-item${f.selected.has(i.id) ? " sel" : ""}" data-id="${i.id}"><span class="tick">✓</span><button class="zoom-btn" title="Powiększ">🔍</button>${cardHTML(i.person, i.variant)}</div>`).join("");
+  }
+  $("#invMore").parentElement.hidden = list.length <= f.limit;
+  $("#invMore").textContent = `Pokaż więcej (${list.length - f.limit})`;
+  updateSellbar();
+}
+
+function updateSellbar() {
+  const sel = S.items.filter(i => S.inv.selected.has(i.id));
+  $("#selInfo").textContent = `Zaznaczono ${sel.length}` + (sel.length ? ` (${fmt(sel.reduce((a, i) => a + i.value, 0))})` : "");
+  $("#sellSel").disabled = !sel.length;
+  $("#selNone").disabled = !sel.length;
+  $("#sellbar").hidden = currentView() !== "inventory" || !S.items.length;
+}
+
+async function sellSelected() {
+  const sel = S.items.filter(i => S.inv.selected.has(i.id));
+  if (!sel.length) return;
+  const value = sel.reduce((a, i) => a + i.value, 0);
+  const rare = sel.filter(i => rarityIdx(person(i.person).rarity) >= 4);
+  if ((rare.length || value >= 1000) &&
+      !confirm(`Sprzedać ${sel.length} ${plural(sel.length, "kartę", "karty", "kart")} za ${fmt(value)}?` +
+               (rare.length ? `\nW tym ${rare.length} legendarnych lub lepszych!` : ""))) return;
+  try { await sellIds(sel.map(i => i.id)); } catch (e) { Sound.error(); toast(e.message, true); }
+  renderInventory();
+}
+
+async function sellAllDupes() {
+  const owned = ownedMap();
+  const ids = Object.values(owned).flatMap(dupesOf);
+  if (!ids.length) { toast("Nie masz duplikatów."); return; }
+  const value = S.items.filter(i => ids.includes(i.id)).reduce((a, i) => a + i.value, 0);
+  if (!confirm(`Sprzedać ${ids.length} ${plural(ids.length, "duplikat", "duplikaty", "duplikatów")} za ${fmt(value)}?\n(Z każdej osoby zostanie 1 karta — w najlepszym wariancie.)`)) return;
+  try { await sellIds(ids); } catch (e) { Sound.error(); toast(e.message, true); }
+  renderInventory();
+}
+
+// ================================================================ ZDARZENIA
+
+function bind() {
+  $$(".tab").forEach(t => t.addEventListener("click", () => { Sound.click(); switchView(t.dataset.view); }));
+
+  $("#cratePicker").addEventListener("click", e => {
+    const c = e.target.closest(".crate"); if (!c) return;
+    if (S.crate !== c.dataset.crate) { S.crate = c.dataset.crate; Sound.click(); renderCrates(); }
+  });
+  $("#countChips").addEventListener("click", e => {
+    const c = e.target.closest(".chip"); if (!c) return;
+    Sound.click(); setCount(+c.dataset.n);
+  });
+  $("#countRange").addEventListener("input", e => setCount(+e.target.value));
+  $("#fastToggle").addEventListener("change", e => { S.fast = e.target.checked; Sound.click(); try { localStorage.setItem("fast", S.fast ? "1" : "0"); } catch (_) {} });
+  $("#openBtn").addEventListener("click", openCrates);
+
+  $("#skipBtn").addEventListener("click", skipSpin);
+  $("#closeBtn").addEventListener("click", closeStage);
+  $("#againBtn").addEventListener("click", openAgain);
+  $("#sellAllBtn").addEventListener("click", () => sellResult(S.opening.drops.filter(d => !d.sold).map(d => d.id)));
+  $("#results").addEventListener("click", e => {
+    const b = e.target.closest(".rsell"); if (b) sellResult([+b.dataset.id]);
+  });
+
+  // klaser
+  $("#binderSeg").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    S.binderCrate = b.dataset.crate; S.spread = 0; Sound.click(); renderBinder();
+  });
+  $("#pagePrev").addEventListener("click", () => flipBinder(-1));
+  $("#pageNext").addEventListener("click", () => flipBinder(1));
+  $("#binder").addEventListener("click", e => {
+    const p = e.target.closest(".pocket.owned"); if (p) { Sound.click(); openModal(p.dataset.pid); }
+  });
+
+  // modal
+  $("#modal").addEventListener("click", async e => {
+    if (e.target.id === "modal" || e.target.id === "modalClose") return closeModal();
+    const b = e.target.closest("[data-sell]"); if (!b) return;
+    const ids = b.dataset.sell.split(",").map(Number);
+    const pid = $("#modal").dataset.pid;
+    const r = person(pid).rarity;
+    if (rarityIdx(r) >= 4 && !confirm(`Na pewno sprzedać ${person(pid).name} (${S.cfg.rarities[r].name})?`)) return;
+    try { await sellIds(ids); } catch (err) { Sound.error(); toast(err.message, true); return; }
+    openModal(pid);
+    rerenderCurrent();
+  });
+
+  // ekwipunek
+  $("#invCrateSeg").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    S.inv.crate = b.dataset.crate; S.inv.limit = INV_PAGE; renderInventory();
+  });
+  $("#invRarity").addEventListener("click", e => {
+    const b = e.target.closest(".rf"); if (!b) return;
+    const r = b.dataset.r;
+    S.inv.rarities.has(r) ? S.inv.rarities.delete(r) : S.inv.rarities.add(r);
+    S.inv.limit = INV_PAGE; renderInventory();
+  });
+  $("#invVariant").addEventListener("change", e => { S.inv.variant = e.target.value; S.inv.limit = INV_PAGE; renderInventory(); });
+  $("#invSort").addEventListener("change", e => { S.inv.sort = e.target.value; renderInventory(); });
+  $("#invMore").addEventListener("click", () => { S.inv.limit += INV_PAGE; renderInventory(); });
+  $("#invGrid").addEventListener("click", e => {
+    const it = e.target.closest(".inv-item"); if (!it) return;
+    if (e.target.closest(".zoom-btn")) return;
+    const id = +it.dataset.id;
+    S.inv.selected.has(id) ? S.inv.selected.delete(id) : S.inv.selected.add(id);
+    it.classList.toggle("sel");
+    Sound.click(); updateSellbar();
+  });
+  $("#selAll").addEventListener("click", () => { filteredItems().forEach(i => S.inv.selected.add(i.id)); renderInventory(); });
+  $("#selNone").addEventListener("click", () => { S.inv.selected.clear(); renderInventory(); });
+  $("#sellSel").addEventListener("click", sellSelected);
+  $("#sellDupes").addEventListener("click", sellAllDupes);
+
+  $("#invGrid").addEventListener("contextmenu", e => {
+    const c = e.target.closest(".inv-item .card"); if (!c) return;
+    e.preventDefault(); openViewer(c.dataset.pid, c.dataset.variant);
+  });
+
+  // powiększanie kart
+  document.addEventListener("click", e => {
+    const z = e.target.closest(".zoom-btn");
+    const c = z ? z.parentElement.querySelector(".card")
+                : e.target.closest("#contentsGrid .card, #results .card, #modalBox .card, .fa-result .card");
+    if (c) { e.stopPropagation(); openViewer(c.dataset.pid, c.dataset.variant); }
+  }, true);
+
+  // bankomat
+  $("#bankBtn").addEventListener("click", () => openBank());
+  $("#bankClose").addEventListener("click", closeBank);
+  $("#bank").addEventListener("click", e => {
+    if (e.target.id === "bank") return closeBank();
+    const b = e.target.closest(".bank-preset"); if (b) deposit(+b.dataset.v);
+  });
+  $("#bankForm").addEventListener("submit", e => { e.preventDefault(); deposit($("#bankAmount").value); });
+
+  bindForge();
+
+  // nagłówek
+  $("#soundBtn").addEventListener("click", () => { Sound.toggle(); renderHeader(); });
+  $("#resetBtn").addEventListener("click", async () => {
+    if (!confirm(`Zacząć od nowa?\nStracisz wszystkie karty i odkryte tajne karty, a saldo wróci do ${fmt(S.cfg.startingBalance)}.`)) return;
+    const res = await api("/api/reset", {});
+    S.items = []; S.inv.selected.clear();
+    await refreshConfig();
+    applyState(res.state);
+    Sound.coin(3);
+    toast("Nowa gra! Powodzenia 🍀");
+    rerenderCurrent();
+  });
+
+  // klawiatura: Spacja/Enter = otwórz / pomiń, Esc = zamknij
+  document.addEventListener("keydown", e => {
+    if (e.target.matches("input[type=text], input[type=number], select, textarea")) return;
+    if (epicOpen()) return;
+    if (viewerOpen()) { if (e.key === "Escape" || e.key === " ") { e.preventDefault(); closeViewer(); } return; }
+    if (!$("#bank").hidden) { if (e.key === "Escape") closeBank(); return; }
+    if (e.key === "Escape") {
+      if (!$("#modal").hidden) return closeModal();
+      if (S.opening?.spinning) return skipSpin();
+      if (S.opening?.showingResults) return closeStage();
+    }
+    if (e.key === " " || e.key === "Enter") {
+      if (!$("#modal").hidden) return;
+      if (S.opening?.spinning) { e.preventDefault(); return skipSpin(); }
+      if (S.opening?.showingResults) { e.preventDefault(); openAgain(); return; }
+      if (!S.opening && currentView() === "crates" && !e.target.closest("button, input")) { e.preventDefault(); openCrates(); }
+    }
+    if (currentView() === "binder" && $("#modal").hidden && !S.opening) {
+      if (e.key === "ArrowLeft") flipBinder(-1);
+      if (e.key === "ArrowRight") flipBinder(1);
+    }
+  });
+  document.addEventListener("pointerdown", () => Sound.unlock(), { once: true });
+}
+
+// ================================================================ START
+
+(async function init() {
+  const [cfg, st] = await Promise.all([api("/api/config"), api("/api/state")]);
+  S.cfg = cfg;
+  S.state = st.state;
+  S.items = st.items;
+  S.crate = S.binderCrate = cfg.crateOrder[0];
+  try { S.fast = localStorage.getItem("fast") === "1"; } catch (_) {}
+  // podgrzej cache zdjęć, żeby bębny od razu miały obrazki
+  Object.keys(cfg.people).forEach(id => { const im = new Image(); im.src = imgUrl(id); });
+  bind();
+  renderHeader();
+  renderCrates();
+  updateSellbar();
+})();

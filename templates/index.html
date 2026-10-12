@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Skrzynki Sław</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎴</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Cinzel:wght@700;900&family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/fx.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/cards2.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="logo">🎴 <span>Skrzynki Sław</span></div>
+    <nav class="tabs">
+      <button class="tab active" data-view="crates">📦 Skrzynki</button>
+      <button class="tab" data-view="binder">📖 Klaser</button>
+      <button class="tab" data-view="inventory">🎒 Ekwipunek <span class="badge" id="invCount">0</span></button>
+      <button class="tab" data-view="forge">⚒️ Kuźnia</button>
+    </nav>
+    <div class="top-right">
+      <div class="balance" id="balance" title="Twoje pieniądze">0 $</div>
+      <button class="icon-btn bank-btn" id="bankBtn" title="Bankomat — dodaj pieniądze">💸</button>
+      <button class="icon-btn" id="soundBtn" title="Dźwięk">🔊</button>
+      <button class="icon-btn" id="resetBtn" title="Zacznij od nowa">♻️</button>
+      <a class="icon-btn" href="/admin" title="Panel admina">⚙️</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- SKRZYNKI -->
+    <section class="view active" id="view-crates">
+      <div class="crate-picker" id="cratePicker"></div>
+
+      <div class="open-panel">
+        <div class="count-row">
+          <span class="label">Ilość skrzynek:</span>
+          <div class="count-chips" id="countChips"></div>
+          <input type="range" id="countRange" min="1" max="20" value="1">
+          <span class="count-val" id="countVal">1</span>
+        </div>
+        <div class="open-row">
+          <label class="switch">
+            <input type="checkbox" id="fastToggle">
+            <span class="slider"></span>
+            <span class="switch-label">⚡ Ultraszybko</span>
+          </label>
+          <button class="big-btn" id="openBtn">OTWÓRZ</button>
+        </div>
+        <div class="stats" id="stats"></div>
+      </div>
+
+      <div class="contents">
+        <h2 id="contentsTitle">Zawartość skrzynki</h2>
+        <div class="odds" id="odds"></div>
+        <div class="contents-grid" id="contentsGrid"></div>
+      </div>
+    </section>
+
+    <!-- KLASER -->
+    <section class="view" id="view-binder">
+      <div class="binder-toolbar">
+        <div class="seg" id="binderSeg"></div>
+        <div class="binder-progress" id="binderProgress"></div>
+      </div>
+      <div class="binder-wrap">
+        <button class="page-arrow" id="pagePrev">‹</button>
+        <div class="binder" id="binder"></div>
+        <button class="page-arrow" id="pageNext">›</button>
+      </div>
+      <div class="page-indicator" id="pageIndicator"></div>
+    </section>
+
+    <!-- EKWIPUNEK -->
+    <section class="view" id="view-inventory">
+      <div class="inv-toolbar">
+        <div class="seg" id="invCrateSeg"></div>
+        <div class="rarity-filter" id="invRarity"></div>
+        <select id="invVariant"></select>
+        <select id="invSort">
+          <option value="new">Najnowsze</option>
+          <option value="value">Wartość</option>
+          <option value="rarity">Rzadkość</option>
+          <option value="name">Nazwa</option>
+        </select>
+      </div>
+      <div class="inv-summary" id="invSummary"></div>
+      <div class="inv-grid" id="invGrid"></div>
+      <div class="inv-more"><button class="btn" id="invMore">Pokaż więcej</button></div>
+    </section>
+
+    <!-- KUŹNIA -->
+    <section class="view" id="view-forge">
+      <div class="forge-toolbar">
+        <div class="seg" id="forgeSeg"></div>
+        <div class="muted forge-info" id="forgeInfo"></div>
+      </div>
+      <div id="forgeBody"></div>
+    </section>
+  </main>
+
+  <div class="sellbar" id="sellbar">
+    <span id="selInfo">Zaznaczono 0</span>
+    <button class="btn" id="selAll">Zaznacz wszystkie</button>
+    <button class="btn" id="selNone">Odznacz</button>
+    <button class="btn" id="sellDupes">Sprzedaj duplikaty</button>
+    <button class="btn sell" id="sellSel">💰 Sprzedaj zaznaczone</button>
+  </div>
+
+  <!-- SCENA OTWIERANIA -->
+  <div class="stage" id="stage" hidden>
+    <div class="stage-bg"></div>
+    <div class="stage-inner">
+      <div class="stage-title" id="stageTitle"></div>
+      <div class="reels" id="reels"></div>
+      <div class="results" id="results" hidden></div>
+      <div class="stage-bar">
+        <span class="stage-sum" id="stageSum"></span>
+        <button class="btn" id="skipBtn">⏭ Pomiń</button>
+        <button class="btn sell" id="sellAllBtn" hidden>💰 Sprzedaj wszystko</button>
+        <button class="btn primary" id="againBtn" hidden>🔁 Otwórz ponownie</button>
+        <button class="btn" id="closeBtn" hidden>✔ Zatrzymaj i zamknij</button>
+      </div>
+    </div>
+    <div class="flash" id="flash"></div>
+  </div>
+
+  <!-- MODAL KARTY -->
+  <div class="modal" id="modal" hidden>
+    <div class="modal-box" id="modalBox"></div>
+  </div>
+
+  <!-- BANKOMAT -->
+  <div class="bank" id="bank" hidden>
+    <div class="bank-box">
+      <div class="bank-head">🏦 <span>Bankomat</span></div>
+      <div class="bank-reason" id="bankReason" hidden></div>
+      <p class="muted">Zbankrutowałeś? Żaden problem — to tylko zabawa. Wybierz kwotę:</p>
+      <div class="bank-presets" id="bankPresets"></div>
+      <form class="bank-custom" id="bankForm">
+        <input type="number" id="bankAmount" min="1" max="1000000" placeholder="Własna kwota…">
+        <button class="btn primary" type="submit">Wpłać</button>
+      </form>
+      <button class="btn bank-close" id="bankClose">Zamknij</button>
+    </div>
+  </div>
+
+  <canvas id="confetti"></canvas>
+  <canvas id="fxCanvas"></canvas>
+  <div class="toasts" id="toasts"></div>
+
+  <script src="{{ url_for('static', filename='js/sound.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/fx.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/forge.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

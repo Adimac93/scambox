@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panel admina</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Cinzel:wght@700;900&family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/fx.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="logo">⚙️ <span>Panel admina</span></div>
+    <div class="top-right">
+      <label class="chk" title="Tajne karty są domyślnie ukryte, żeby nie zepsuć niespodzianki"><input type="checkbox" id="showSecrets"> Pokaż tajne karty</label>
+      <a class="btn" href="/">← Wróć do gry</a>
+    </div>
+  </header>
+
+  <main class="admin">
+    <aside class="panel a-side">
+      <h3>Skrzynki</h3>
+      <div id="crateList" class="a-crate-list"></div>
+      <button class="btn primary" id="newCrate">+ Nowa skrzynka</button>
+    </aside>
+
+    <section class="a-main">
+      <form class="panel a-crate-form" id="crateForm" autocomplete="off"></form>
+
+      <div class="panel">
+        <div class="a-cards-head">
+          <h3 id="cardsTitle">Karty</h3>
+          <input type="text" id="cardSearch" placeholder="Szukaj…">
+          <select id="rarityFilter"></select>
+          <button class="btn primary" id="newCard">+ Nowa karta</button>
+        </div>
+        <div id="cardList" class="a-card-grid"></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal" id="cardModal" hidden>
+    <form class="modal-box a-card-form" id="cardForm" autocomplete="off"></form>
+  </div>
+
+  <div class="toasts" id="toasts"></div>
+  <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+</body>
+</html>
