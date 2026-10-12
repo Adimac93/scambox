@@ -8,12 +8,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Cinzel:wght@700;900&family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/fx.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/cards2.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/social.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/chests.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
+  <link rel="stylesheet" href="{{ asset('css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('css/fx.css') }}">
+  <link rel="stylesheet" href="{{ asset('css/cards2.css') }}">
+  <link rel="stylesheet" href="{{ asset('css/social.css') }}">
+  <link rel="stylesheet" href="{{ asset('css/chests.css') }}">
+  <link rel="stylesheet" href="{{ asset('css/shop.css') }}">
 </head>
 <body>
   <header class="topbar">
@@ -192,10 +192,10 @@
   <canvas id="fxCanvas"></canvas>
   <div class="toasts" id="toasts"></div>
 
-  <script src="{{ url_for('static', filename='js/sound.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/fx.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/forge.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/social.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script src="{{ asset('js/sound.js') }}"></script>
+  <script src="{{ asset('js/fx.js') }}"></script>
+  <script src="{{ asset('js/forge.js') }}"></script>
+  <script src="{{ asset('js/social.js') }}"></script>
+  <script src="{{ asset('js/app.js') }}"></script>
 </body>
 </html>

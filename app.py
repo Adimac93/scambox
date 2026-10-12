@@ -54,6 +54,22 @@ app.config.update(
 rng = random.SystemRandom()
 
 
+# Wersjonowanie plików statycznych: ?v=<czas modyfikacji> - po aktualizacji przeglądarka zawsze pobierze nowe pliki
+@app.template_global()
+def asset(filename):
+    path = os.path.join(app.static_folder, filename)
+    version = int(os.path.getmtime(path)) if os.path.exists(path) else 0
+    return url_for("static", filename=filename, v=version)
+
+
+@app.after_request
+def no_cache_pages(resp):
+    # strony HTML i odpowiedzi API nie mogą być brane z pamięci przeglądarki (stara wersja gry)
+    if resp.mimetype in ("text/html", "application/json"):
+        resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
 # ---------------------------------------------------------------- baza danych
 
 def db():
