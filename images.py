@@ -3,6 +3,7 @@ import glob
 import json
 import os
 import sqlite3
+import ssl
 import threading
 import time
 import urllib.error
@@ -23,16 +24,38 @@ BAD_WORDS = ("signature", "podpis", "logo", "coat", "herb", "flag", "flaga", "ma
              "księga", "newspaper", "gazeta", "family", "rodzin", "house", "dom ", "church", "kości", "monument",
              "pomnik", "statue", "mural", "painting", "obraz", "car ", "plane", "samolot")
 
+# Na niektórych Windowsach magazyn certyfikatów zawiera wygasły certyfikat główny i Python zgłasza
+# "certificate has expired" - wtedy pomaga zestaw certyfikatów z pakietu certifi (Mozilla).
+# Z kolei za firmowym proxy/antywirusem działa tylko magazyn Windows. Próbujemy obu (oba weryfikują certyfikat).
+SSL_CONTEXTS = []
+try:
+    import certifi
+    SSL_CONTEXTS.append(ssl.create_default_context(cafile=certifi.where()))
+except ImportError:
+    pass
+SSL_CONTEXTS.append(ssl.create_default_context())
+
 _lock = threading.Lock()
 _failed = {}
+
+
+def _open(req, timeout):
+    for i, ctx in enumerate(SSL_CONTEXTS):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                if i:  # zapamiętaj działający zestaw certyfikatów
+                    SSL_CONTEXTS.insert(0, SSL_CONTEXTS.pop(i))
+                return resp.read()
+        except urllib.error.URLError as e:
+            if not isinstance(e.reason, ssl.SSLCertVerificationError) or i == len(SSL_CONTEXTS) - 1:
+                raise
 
 
 def _get(url, timeout=20, retries=4):
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     for attempt in range(retries):
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
-                return resp.read()
+            return _open(req, timeout)
         except urllib.error.HTTPError as e:
             if e.code != 429 or attempt == retries - 1:
                 raise
