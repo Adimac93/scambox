@@ -56,14 +56,20 @@ def import_if_empty(conn):
         for row in data.get(key, []):
             conn.execute(f"INSERT INTO {table} (id, data, deleted) VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
                          (row["id"], json.dumps(row["data"], ensure_ascii=False), int(row["deleted"])))
-    if os.path.isdir(IMAGES_DIR):
-        os.makedirs(images.CACHE_DIR, exist_ok=True)
-        for name in os.listdir(IMAGES_DIR):
-            target = os.path.join(images.CACHE_DIR, name)
-            if not os.path.exists(target):
-                shutil.copy2(os.path.join(IMAGES_DIR, name), target)
     conn.commit()
     return True
+
+
+def copy_custom_images():
+    """Własne zdjęcia z repozytorium -> image_cache (tylko brakujące). Przy każdym starcie, bo na nowym
+    serwerze baza bywa przeniesiona ze starego zapisu (nie jest pusta), a folder ze zdjęciami jest pusty."""
+    if not os.path.isdir(IMAGES_DIR):
+        return
+    os.makedirs(images.CACHE_DIR, exist_ok=True)
+    for name in os.listdir(IMAGES_DIR):
+        target = os.path.join(images.CACHE_DIR, name)
+        if not os.path.exists(target):
+            shutil.copy2(os.path.join(IMAGES_DIR, name), target)
 
 
 if __name__ == "__main__":

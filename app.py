@@ -97,6 +97,7 @@ def init_db():
     conn.commit()
     if export_catalog.import_if_empty(conn):  # nowa instalacja: karty i skrzynki z catalog_export.json
         print("  Wczytano karty i skrzynki z catalog_export.json")
+    export_catalog.copy_custom_images()
     catalog.rebuild(conn)
     conn.close()
 
