@@ -9,7 +9,7 @@ const fmt = n => Math.round(n).toLocaleString("pl-PL") + " $";
 
 const COUNT_CHIPS = [1, 2, 3, 5, 10, 15, 20];
 const INV_PAGE = 120;
-const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", silver: "SILVER", holo: "HOLO", gold: "GOLDEN", emerald: "💚 EMERALD", ruby: "❤️ RUBY", diamond: "💎 DIAMOND" };
+const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", silver: "SILVER", holo: "HOLO", gold: "GOLDEN", clear: "🫧 CLEAR", emerald: "💚 EMERALD", ruby: "❤️ RUBY", diamond: "💎 DIAMOND", negative: "◐ NEGATIVE" };
 const GEMS = ["emerald", "ruby", "diamond"];  // warianty z kamieniami szlachetnymi - wspólny wygląd, inne kolory
 
 const S = {
@@ -79,6 +79,8 @@ function variantLayers(v) {
   let html = "";
   if (v === "holo") html += '<div class="holo-layer"></div>';
   if (v === "gold" || v === "silver") html += '<div class="gold-sheen"></div>';
+  if (v === "clear") html += '<div class="clear-sheen"></div>';
+  if (v === "negative") html += '<div class="neg-grain"></div>';
   if (GEMS.includes(v)) html += '<div class="diamond-layer"></div><div class="diamond-glints"><i></i><i></i><i></i><i></i><i></i></div>';
   if (isSpecial(v)) html += `<div class="var-tag vt-${v}">${VARIANT_TAGS[v]}</div>`;
   return html;
@@ -214,7 +216,7 @@ document.addEventListener("pointermove", e => {
   const b = zone ? zone.getBoundingClientRect() : flatRect(card);
   const px = Math.min(1, Math.max(0, (e.clientX - b.left) / b.width));
   const py = Math.min(1, Math.max(0, (e.clientY - b.top) / b.height));
-  const fancy = card.matches(".r-secret, .v-holo, .v-reverse, .v-gold, .v-silver, .v-diamond, .v-emerald, .v-ruby, .v-bw");
+  const fancy = card.matches(".r-secret, .v-holo, .v-reverse, .v-gold, .v-silver, .v-diamond, .v-emerald, .v-ruby, .v-bw, .v-clear, .v-negative");
   const strength = card.closest(".viewer") ? 1.5 : fancy || card.closest(".modal") ? 1 : 0.6;
   card.classList.add("tilting");
   card.style.setProperty("--rx", ((0.5 - py) * 16 * strength).toFixed(2) + "deg");
@@ -755,11 +757,13 @@ function showResults(afterEpic = false) {
     const top = specials.reduce((a, d) => varRank(d.variant) > varRank(a.variant) ? d : a);
     const colors = {
       diamond: ["#e8fbff", "#9ff6ff", "#c9b8ff", "#ffffff"], emerald: ["#00c853", "#6dffb0", "#c6ffe0", "#ffffff"],
-      ruby: ["#ff1744", "#ff8a9c", "#ffd0d8", "#ffffff"], gold: ["#ffc531", "#fff3b0", "#fff"], holo: ["#9ff6ff", "#ff9ff3", "#fff"],
+      ruby: ["#ff1744", "#ff8a9c", "#ffd0d8", "#ffffff"], clear: ["#ffffff", "#e0f7ff", "#bfefff"],
+      negative: ["#000000", "#ffffff", "#7a7a7a", "#00e5ff"], gold: ["#ffc531", "#fff3b0", "#fff"], holo: ["#9ff6ff", "#ff9ff3", "#fff"],
       silver: ["#e6ebf2", "#b8c2d0", "#ffffff"], reverse: ["#c9d6ff", "#ffffff", "#9ff6ff"], bw: ["#ffffff", "#111111", "#888888"],
     }[top.variant];
-    setTimeout(() => confetti(colors, GEMS.includes(top.variant) ? 260 : top.variant === "gold" ? 140 : 60), 300);
-    if (top.variant === "gold" || GEMS.includes(top.variant)) toast(`✨ ${variantName(top.variant).toUpperCase()}: ${person(top.person).name}!`);
+    const rare = varRank(top.variant) >= varRank("gold");
+    setTimeout(() => confetti(colors, top.variant === "negative" ? 360 : varRank(top.variant) > varRank("gold") ? 260 : rare ? 140 : 60), 300);
+    if (rare) toast(`✨ ${variantName(top.variant).toUpperCase()}: ${person(top.person).name}!`);
   }
 
   updateStageBar();

@@ -11,7 +11,7 @@ const FORGE = {
 const PICK_LIMIT = 300;
 // ulubione karty (⭐) nie trafiają do kuźni
 const forgeItems = () => S.items.filter(i => !i.fav);
-const PICK_TAGS = { bw: "B&W", reverse: "REV", silver: "SILV", holo: "HOLO", gold: "GOLD", emerald: "💚", ruby: "❤️", diamond: "💎" };
+const PICK_TAGS = { bw: "B&W", reverse: "REV", silver: "SILV", holo: "HOLO", gold: "GOLD", clear: "🫧", emerald: "💚", ruby: "❤️", diamond: "💎", negative: "◐" };
 
 function pickHTML(item, { sel = false, extra = "" } = {}) {
   const p = person(item.person);

@@ -24,9 +24,11 @@ VARIANTS = {
     "silver":  {"name": "Srebrna",      "chance": 0.03,  "mult": 2.5},
     "holo":    {"name": "Holo",         "chance": 0.025, "mult": 3.0},
     "gold":    {"name": "Złota",        "chance": 0.01,  "mult": 7.5},
+    "clear":   {"name": "Przezroczysta", "chance": 0.006, "mult": 9.0},
     "emerald": {"name": "Szmaragdowa",  "chance": 0.005, "mult": 11.0},
     "ruby":    {"name": "Rubinowa",     "chance": 0.004, "mult": 14.0},
     "diamond": {"name": "Diamentowa",   "chance": 0.003, "mult": 18.0},
+    "negative": {"name": "Negatyw",     "chance": 0.001, "mult": 30.0},   # najrzadszy
 }
 VARIANT_ORDER = list(VARIANTS)   # od najpospolitszego do najrzadszego
 
