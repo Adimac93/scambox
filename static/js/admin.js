@@ -224,6 +224,7 @@ async function loadUsers() {
     <div class="a-user${u.banned ? " banned" : ""}" data-uid="${u.id}" data-name="${esc(u.username)}">
       <span>${avHTML(u)} <b>${esc(u.username)}</b> ${u.isAdmin ? "👑" : ""}${u.id === me ? ' <small class="muted">(ty)</small>' : ""}
         ${u.banned ? `<br><small class="ban-tag">⛔ zablokowany${u.banReason ? ": " + esc(u.banReason) : ""}</small>` : ""}
+        ${u.rankingHidden ? '<br><small class="muted">🙈 ukryty w rankingu</small>' : ""}
         ${u.access.length ? `<br><small class="muted">🔑 ${u.access.map(k => esc(A.restrictedCrates.find(c => c.id === k)?.name || k)).join(", ")}</small>` : ""}</span>
       <span>${fmt(u.balance)}</span>
       <span>${fmt(u.value)}</span>
@@ -235,6 +236,7 @@ async function loadUsers() {
         <button class="btn tiny" data-uact="access">🔑 Dostęp</button>
         <button class="btn tiny" data-uact="money">💸 Pieniądze</button>
         <button class="btn tiny" data-uact="password">🔑 Hasło</button>
+        <button class="btn tiny" data-uact="ranking">${u.rankingHidden ? "🏆 Pokaż w rankingu" : "🙈 Ukryj w rankingu"}</button>
         ${u.id !== me ? `<button class="btn tiny" data-uact="admin">${u.isAdmin ? "Odbierz admina" : "👑 Daj admina"}</button>
         <button class="btn tiny ${u.banned ? "" : "danger"}" data-uact="ban">${u.banned ? "✅ Odblokuj" : "⛔ Zablokuj"}</button>
         <button class="btn tiny danger" data-uact="delete">🗑</button>` : ""}
@@ -271,6 +273,11 @@ async function userAction(row, act) {
       if (!v) return;
       await api(`/api/admin/users/${id}/password`, { method: "POST", json: { password: v } });
       toast(`Zmieniono hasło gracza ${name}`);
+    }
+    if (act === "ranking") {
+      const u = A.users.find(x => String(x.id) === String(id));
+      await api(`/api/admin/users/${id}/ranking`, { method: "POST", json: { hidden: !u.rankingHidden } });
+      toast(u.rankingHidden ? `${name} znów jest w rankingu` : `🙈 ${name} ukryty w rankingu`);
     }
     if (act === "admin") {
       await api(`/api/admin/users/${id}/admin`, { method: "POST" });

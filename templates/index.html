@@ -74,6 +74,11 @@
               <span class="slider"></span>
               <span class="switch-label">⚡ Ultraszybko</span>
             </label>
+            <label class="switch" title="Otwiera skrzynki raz za razem, dopóki starcza pieniędzy (zatrzymuje się na tajnej karcie)">
+              <input type="checkbox" id="autoToggle">
+              <span class="slider"></span>
+              <span class="switch-label">🔁 Auto</span>
+            </label>
             <div class="open-btns">
               <button class="big-btn" id="openBtn">OTWÓRZ</button>
               <button class="btn buy-btn" id="buyBtn">🛒 Kup do ekwipunku</button>
@@ -159,6 +164,7 @@
       <div class="results" id="results" hidden></div>
       <div class="stage-bar">
         <span class="stage-sum" id="stageSum"></span>
+        <button class="btn danger" id="autoStopBtn" hidden>⏹ Zatrzymaj auto</button>
         <button class="btn" id="skipBtn">⏭ Pomiń</button>
         <button class="btn sell" id="sellAllBtn" hidden>💰 Sprzedaj wszystko</button>
         <button class="btn primary" id="againBtn" hidden>🔁 Otwórz ponownie</button>

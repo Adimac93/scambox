@@ -522,6 +522,34 @@ function miniHTML(pid, win = false) {
     <img src="${imgUrl(p.id)}" alt="" draggable="false"><div class="mn">${esc(p.name)}</div></div>`;
 }
 
+// ================================================================ AUTOOTWIERANIE
+// S.autoRun = { rounds, spent } - otwieramy raz za razem tę samą liczbę skrzynek, dopóki starcza pieniędzy
+
+function stopAuto(msg) {
+  if (!S.autoRun) return;
+  const r = S.autoRun;
+  S.autoRun = null;
+  $("#autoToggle").checked = false;
+  updateAutoBtn();
+  if (msg) toast(`${msg} (rund: ${r.rounds}, wydano ${fmt(r.spent)})`);
+}
+
+function updateAutoBtn() {
+  const b = $("#autoStopBtn");
+  b.hidden = !S.autoRun;
+  if (S.autoRun) b.textContent = `⏹ Zatrzymaj auto (runda ${S.autoRun.rounds})`;
+}
+
+function autoNext(o) {
+  if (!S.autoRun) return;
+  const crate = crateOf(o.crate);
+  const owned = Math.min(S.chests[o.crate] || 0, o.count);
+  const cost = (o.count - owned) * (crate?.price || 0);
+  if (!crate || S.state.balance < cost) return stopAuto("🔁 Auto zatrzymane — skończyły się pieniądze");
+  if (owned < o.count && !crate.canBuy) return stopAuto("🔁 Auto zatrzymane — tej skrzynki nie można już kupić");
+  setTimeout(() => { if (S.autoRun && S.opening === o && !epicOpen()) openAgain(); }, o.fast ? 800 : 1500);
+}
+
 async function openCrates() {
   if (S.opening) return;
   const crate = crateOf(S.crate);
@@ -536,6 +564,8 @@ async function openCrates() {
     return;
   }
   Sound.unlock();
+  if (!S.autoRun && $("#autoToggle").checked) S.autoRun = { rounds: 0, spent: 0 };
+  if (S.autoRun) { S.autoRun.rounds++; S.autoRun.spent += cost; }
   S.opening = { crate: S.crate, count: S.count, fast: S.fast };
   updateOpenBtn();
 
@@ -551,6 +581,7 @@ async function openCrates() {
   } catch (e) {
     S.opening = null; updateOpenBtn();
     Sound.error(); toast(e.message, true);
+    stopAuto();
     return;
   }
   S.items = [...res.drops.slice().reverse(), ...S.items];
@@ -567,7 +598,8 @@ function runStage() {
   const stage = $("#stage");
   stage.hidden = false;
   document.body.style.overflow = "hidden";
-  $("#stageTitle").textContent = `${crateOf(o.crate).name} × ${n}${o.fast ? "  ⚡" : ""}`;
+  $("#stageTitle").textContent = `${crateOf(o.crate).name} × ${n}${o.fast ? "  ⚡" : ""}${S.autoRun ? `  🔁 ${S.autoRun.rounds}` : ""}`;
+  updateAutoBtn();
   const reels = $("#reels"), results = $("#results");
   reels.hidden = false; results.hidden = true; results.innerHTML = "";
   $("#skipBtn").hidden = false;
@@ -655,11 +687,13 @@ function runStage() {
 async function afterSpin(o) {
   await sleep(o.fast ? 250 : 700);
   if (S.opening !== o) return;
+  // tajna karta przerywa autootwieranie - żeby jej nie przegapić
+  if (S.autoRun && o.drops.some(d => person(d.person).rarity === "secret")) stopAuto("★ TAJNA KARTA! Auto zatrzymane");
   // legendarne, ultra i tajne dostają własne, wielkie odsłonięcie
   const epics = o.drops.filter(d => rarityIdx(person(d.person).rarity) >= 4)
     .sort((a, b) => rarityIdx(person(b.person).rarity) - rarityIdx(person(a.person).rarity) || varRank(b.variant) - varRank(a.variant));
   for (const d of epics) {
-    await epicReveal(d, { fast: o.fast });
+    await epicReveal(d, { fast: o.fast, auto: !!S.autoRun });
     if (S.opening !== o) return;
   }
   showResults(epics.length > 0);
@@ -728,6 +762,7 @@ function showResults(afterEpic = false) {
   }
 
   updateStageBar();
+  autoNext(o);
 }
 
 function updateStageBar() {
@@ -761,6 +796,7 @@ async function sellResult(ids) {
 }
 
 function closeStage() {
+  stopAuto();
   $("#stage").hidden = true;
   document.body.style.overflow = "";
   $("#reels").innerHTML = ""; $("#results").innerHTML = "";
@@ -1086,6 +1122,7 @@ function bind() {
   });
 
   $("#skipBtn").addEventListener("click", skipSpin);
+  $("#autoStopBtn").addEventListener("click", () => { Sound.click(); stopAuto("⏹ Auto zatrzymane"); });
   $("#closeBtn").addEventListener("click", closeStage);
   $("#againBtn").addEventListener("click", openAgain);
   $("#sellAllBtn").addEventListener("click", () => sellResult(S.opening.drops.filter(d => !d.sold && !d.fav).map(d => d.id)));

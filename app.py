@@ -184,6 +184,8 @@ def init_sqlite(conn):
     if "banned" not in ucols:  # migracja: blokowanie kont
         conn.execute("ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0")
         conn.execute("ALTER TABLE users ADD COLUMN ban_reason TEXT NOT NULL DEFAULT ''")
+    if "ranking_hidden" not in ucols:  # migracja: admin może ukryć gracza w rankingu
+        conn.execute("ALTER TABLE users ADD COLUMN ranking_hidden INTEGER NOT NULL DEFAULT 0")
 
 
 def ensure_state(conn, uid):
@@ -1381,7 +1383,7 @@ def ranking():
     opened = {r[0]: r[1] for r in db().execute("SELECT user_id, value FROM user_state WHERE key = 'opened'")}
     friends_of_me = friend_ids(uid())
     players = []
-    for u in db().execute("SELECT * FROM users WHERE banned = 0"):
+    for u in db().execute("SELECT * FROM users WHERE banned = 0 AND ranking_hidden = 0"):
         b = brief(u, stats)
         b["opened"] = opened.get(u["id"], 0)
         b["friend"] = u["id"] in friends_of_me
@@ -1633,7 +1635,8 @@ def admin_users():
     for r in db().execute("SELECT user_id, crate_id FROM crate_access"):
         access.setdefault(r[0], []).append(r[1])
     users = [dict(brief(u, stats), balance=bal.get(u["id"], 0), created=u["created_at"], chests=get_chests(u["id"]),
-                  banned=bool(u["banned"]), banReason=u["ban_reason"], access=access.get(u["id"], []))
+                  banned=bool(u["banned"]), banReason=u["ban_reason"], access=access.get(u["id"], []),
+                  rankingHidden=bool(u["ranking_hidden"]))
              for u in db().execute("SELECT * FROM users ORDER BY id")]
     restricted = [{"id": c["id"], "name": c["name"], "emoji": c["emoji"], "shop": c["shop"]}
                   for c in catalog.CRATES.values() if c["restricted"]]
@@ -1651,6 +1654,15 @@ def admin_ban(user_id):
     ban = bool(body.get("ban", True))
     db().execute("UPDATE users SET banned = ?, ban_reason = ? WHERE id = ?",
                  (int(ban), (body.get("reason") or "").strip()[:200] if ban else "", user_id))
+    db().commit()
+    return jsonify({"ok": True})
+
+
+@app.post("/api/admin/users/<int:user_id>/ranking")
+@admin_required
+def admin_ranking_hidden(user_id):
+    hidden = bool(request.get_json(force=True).get("hidden", True))
+    db().execute("UPDATE users SET ranking_hidden = ? WHERE id = ?", (int(hidden), user_id))
     db().commit()
     return jsonify({"ok": True})
 

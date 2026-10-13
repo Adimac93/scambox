@@ -447,7 +447,7 @@ async function runUpgrade() {
     fx().burst(cx, cy, 180, rr === "ultra" ? RAINBOW : ["#3ddc84", "#b6ff5c", "#ffffff", S.cfg.rarities[rr].color], { speed: 14 });
     if (rarityIdx(rr) >= 4) { await sleep(600); await epicReveal(res.item, { fast }); }
     else confetti(["#3ddc84", "#b6ff5c", "#fff", S.cfg.rarities[rr].color], 120);
-    box.innerHTML = `<div class="upg-res-label win">WYGRANA!</div>${cardHTML(res.item.person, res.item.variant)}<div class="muted small">kliknij, aby kontynuować</div>`;
+    box.innerHTML = `<div class="upg-res-label win">WYGRANA!</div>${cardHTML(res.item.person, res.item.variant)}<div class="muted small">kliknij kartę, aby ją obejrzeć</div>`;
   } else {
     wheel.classList.add("lost");
     Sound.fail();
@@ -457,14 +457,18 @@ async function runUpgrade() {
       el.style.setProperty("--dr", rand(-60, 60) + "deg");
       el.classList.add("shatter");
     });
-    box.innerHTML = `<div class="upg-res-label lose">PRZEGRANA</div><div class="upg-lost">💥 ${fmt(stake)}</div><div class="muted small">kliknij, aby kontynuować</div>`;
+    box.innerHTML = `<div class="upg-res-label lose">PRZEGRANA</div><div class="upg-lost">💥 ${fmt(stake)}</div>`;
   }
   box.hidden = false;
-  box.addEventListener("click", e => {
-    if (e.target.closest(".card")) return;
+  // wynik znika sam (albo po kliknięciu) i ulepszacz jest od razu gotowy do kolejnej próby - cel zostaje wybrany.
+  // Odblokowujemy też wtedy, gdy gracz w międzyczasie przeszedł do innej zakładki (wcześniej trzeba było odświeżyć stronę).
+  const finish = () => {
+    if (!FORGE.busy) return;
     FORGE.busy = false;
-    renderUpgrader();
-  });
+    if (FORGE.mode === "upgrade" && currentView() === "forge") renderUpgrader();
+  };
+  setTimeout(finish, res.win ? 2600 : 1600);
+  box.addEventListener("click", e => { if (!e.target.closest(".card")) finish(); });
 }
 
 // ================================================================ ZDARZENIA

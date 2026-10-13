@@ -51,8 +51,10 @@ PG_SCHEMA = """
         avatar_card TEXT NOT NULL DEFAULT '',
         avatar_variant TEXT NOT NULL DEFAULT 'normal',
         banned INTEGER NOT NULL DEFAULT 0,
-        ban_reason TEXT NOT NULL DEFAULT ''
+        ban_reason TEXT NOT NULL DEFAULT '',
+        ranking_hidden INTEGER NOT NULL DEFAULT 0
     );
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS ranking_hidden INTEGER NOT NULL DEFAULT 0;
     CREATE UNIQUE INDEX IF NOT EXISTS users_username ON users (LOWER(username));
     CREATE TABLE IF NOT EXISTS user_state (user_id BIGINT NOT NULL, key TEXT NOT NULL, value BIGINT NOT NULL,
                                            PRIMARY KEY (user_id, key));

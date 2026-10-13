@@ -94,7 +94,7 @@ function cardBackHTML() {
 
 // ================================================================ WIELKIE ODSŁONIĘCIE
 
-function epicReveal(drop, { fast = false } = {}) {
+function epicReveal(drop, { fast = false, auto = false } = {}) {
   if (person(drop.person).rarity === "secret") return secretReveal(drop, { fast });
   return new Promise(resolve => {
     const p = person(drop.person);
@@ -198,6 +198,11 @@ function epicReveal(drop, { fast = false } = {}) {
     }
     window.addEventListener("keydown", onKey, true);
     el.addEventListener("click", advance);
+    // autootwieranie: odsłonięcie samo przechodzi dalej po chwili
+    if (auto) {
+      const tick = () => { if (phase !== "closing") { advance(); setTimeout(tick, fast ? 900 : 1500); } };
+      setTimeout(tick, chargeMs + (fast ? 1200 : 2400));
+    }
   });
 }
 
