@@ -144,7 +144,6 @@ function secretCardHTML(p, variant) {
         <span class="sc-name">${esc(p.name)}</span>
         <span class="sc-hp"><small>HP</small>${p.hp}</span>
       </div>
-      <div class="sc-ribbon">TAJNA</div>
       <div class="sc-panel">
         <div class="sc-attack"><span>${type.icon}</span><span class="sc-atk">${esc(p.attack)}</span><b>${p.dmg}</b></div>
         ${p.attack2 ? `<div class="sc-attack"><span>${type.icon}${type.icon}</span><span class="sc-atk">${esc(p.attack2)}</span><b>${p.dmg2}</b></div>` : ""}
@@ -191,12 +190,26 @@ function resetTilt(card) {
   card.classList.remove("tilting");
   card.style.removeProperty("--rx"); card.style.removeProperty("--ry");
 }
+// Prostokąt karty BEZ przechylenia (środek z getBoundingClientRect + rozmiar z układu strony) -
+// pozycja kursora liczona względem przechylonej karty "pływała" i karta się trzęsła.
+function flatRect(el) {
+  const b = el.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
+  return { left: b.left + (b.width - w) / 2, top: b.top + (b.height - h) / 2, width: w, height: h };
+}
+function inRect(e, b) {
+  return e.clientX >= b.left && e.clientX <= b.left + b.width && e.clientY >= b.top && e.clientY <= b.top + b.height;
+}
 document.addEventListener("pointermove", e => {
-  const card = e.target.closest?.(".card");
+  // podgląd karty i kieszonka w albumie: obszar, który się nie przechyla - przechylona karta "chowa się"
+  // za swój pojemnik i przeglądarka przestaje widzieć nad nią kursor (karta skakała tam i z powrotem)
+  const zone = e.target.closest?.(".viewer-stage, .pocket");
+  let card = zone ? zone.querySelector(".card") : e.target.closest?.(".card");
+  if (!card && tiltCard?.isConnected && inRect(e, flatRect(tiltCard))) card = tiltCard;  // kursor przy krawędzi
   if (card !== tiltCard) { resetTilt(tiltCard); tiltCard = card; }
   if (!card) return;
-  const b = card.getBoundingClientRect();
-  const px = (e.clientX - b.left) / b.width, py = (e.clientY - b.top) / b.height;
+  const b = zone ? zone.getBoundingClientRect() : flatRect(card);
+  const px = Math.min(1, Math.max(0, (e.clientX - b.left) / b.width));
+  const py = Math.min(1, Math.max(0, (e.clientY - b.top) / b.height));
   const fancy = card.matches(".r-secret, .v-holo, .v-reverse, .v-gold, .v-silver, .v-diamond, .v-bw");
   const strength = card.closest(".viewer") ? 1.5 : fancy || card.closest(".modal") ? 1 : 0.6;
   card.classList.add("tilting");
@@ -205,6 +218,8 @@ document.addEventListener("pointermove", e => {
   card.style.setProperty("--mx", (px * 100).toFixed(1) + "%");
   card.style.setProperty("--my", (py * 100).toFixed(1) + "%");
 });
+// kursor wyjechał poza okno - karta wraca do pozycji prostej
+document.documentElement.addEventListener("pointerleave", () => { resetTilt(tiltCard); tiltCard = null; });
 
 // ================================================================ NAGŁÓWEK / WSPÓLNE
 
@@ -294,7 +309,8 @@ function rerenderCurrent() { switchView(currentView()); }
 // ================================================================ SKRZYNKI
 
 function shopCrates() {
-  return crateList().filter(c => c.shop || (S.chests[c.id] || 0) > 0 || S.me?.isAdmin);
+  // skrzynki "dla wybranych" widzą tylko gracze z dostępem (posiadane z ekwipunku zawsze da się otworzyć)
+  return crateList().filter(c => (c.shop && (!c.restricted || c.canBuy)) || (S.chests[c.id] || 0) > 0 || S.me?.isAdmin);
 }
 
 function crateArtHTML(c, cls = "") {
@@ -934,8 +950,9 @@ function renderChestShelf() {
 function renderInventory() {
   renderChestShelf();
   const f = S.inv;
-  $("#invCrateSeg").innerHTML = [["all", "Wszystkie"], ...crateList().map(c => [c.id, `${c.emoji} ${c.short}`])].map(([id, n]) =>
-    `<button data-crate="${id}" class="${f.crate === id ? "active" : ""}">${esc(n)}</button>`).join("");
+  const inCrate = id => S.items.filter(i => { const p = person(i.person); return (p.crates || [p.crate]).includes(id); }).length;
+  $("#invCrateSeg").innerHTML = [["all", "Wszystkie", S.items.length], ...crateList().map(c => [c.id, `${c.emoji} ${c.short}`, inCrate(c.id)])]
+    .map(([id, n, count]) => `<button data-crate="${id}" class="${f.crate === id ? "active" : ""}">${esc(n)} <small>${count}</small></button>`).join("");
   $("#invRarity").innerHTML = S.cfg.rarityOrder.map(r =>
     `<button class="rf rf-${r}${f.rarities.has(r) ? " active" : ""}" data-r="${r}" style="--rc:${S.cfg.rarities[r].color}"><i></i>${S.cfg.rarities[r].name}</button>`).join("");
   $("#invVariant").innerHTML = [["all", "Wszystkie warianty"], ["special", "✨ Tylko specjalne"],

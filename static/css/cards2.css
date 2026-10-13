@@ -48,11 +48,6 @@
 }
 .sc-hp { font-family: Cinzel, Georgia, serif; font-weight: 900; color: #fff; text-shadow: 0 0 6px #000; white-space: nowrap; }
 .sc-hp small { font-size: .55em; margin-right: .1em; }
-.sc-ribbon {
-  position: absolute; top: 17%; right: -24%; width: 72%; transform: rotate(40deg); z-index: 2;
-  text-align: center; padding: .25em 0; font-family: Cinzel, Georgia, serif; font-weight: 900; font-size: .55em; letter-spacing: .45em;
-  color: #2a1c00; background: linear-gradient(90deg, #8a6200, #fff1c1, #8a6200); box-shadow: 0 .2em .5em #000a;
-}
 .sc-panel {
   position: absolute; left: 6%; right: 6%; bottom: 5%; z-index: 2; padding: .5em .6em .4em; border-radius: .6em;
   background: linear-gradient(180deg, #ffffff1c, #ffffff08); backdrop-filter: blur(6px);

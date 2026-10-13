@@ -218,6 +218,9 @@ function openViewer(pid, variant = "normal") {
         <div class="vf vf-back">${cardBackHTML()}</div>
       </div>
     </div>`;
+  // skrzynki, z których można zdobyć tę kartę (widać tylko w podglądzie, nie na samej karcie)
+  const cratesRow = `<tr><td>Ze skrzynek</td><td>${(p.crates || [p.crate]).map(crateOf).filter(Boolean)
+    .map(c => `${esc(c.emoji)} ${esc(c.name)}`).join("<br>")}</td></tr>`;
   if (p.masked) {
     const share = rarityShare(p.crate, "secret");
     el.innerHTML = `${stage}
@@ -229,6 +232,7 @@ function openViewer(pid, variant = "normal") {
         <table class="vi-table">
           <tr><td>Szansa z 1 skrzynki</td><td>${share ? "1 na " + Math.round(1 / share).toLocaleString("pl-PL") : "—"}</td></tr>
           <tr><td>Wartość</td><td>${fmt(S.cfg.rarities.secret.value)}+</td></tr>
+          ${cratesRow}
         </table>
         <div class="vi-actions"><button class="btn" data-act="flip">🔄 Obróć</button><button class="btn" data-act="close">✕ Zamknij</button></div>
       </div>`;
@@ -253,6 +257,7 @@ function openViewer(pid, variant = "normal") {
           <tr><td>Słabość / odporność</td><td>${S.cfg.types[type.weak].icon} ×2 · ${S.cfg.types[type.resist].icon} −20</td></tr>
           <tr><td>Wartość</td><td><b>${fmt(cardValue(pid, variant))}</b> <span class="muted">(×${String(S.cfg.variants[variant].mult).replace(".", ",")})</span></td></tr>
           <tr><td>Szansa z 1 skrzynki</td><td>${chance ? "1 na " + Math.round(1 / chance).toLocaleString("pl-PL") : "—"}</td></tr>
+          ${cratesRow}
           <tr><td>Posiadasz</td><td>${owned || '<span class="muted">brak</span>'}</td></tr>
         </table>
         <div class="vi-variants">${S.cfg.variantOrder.map(v =>
