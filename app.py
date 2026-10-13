@@ -501,9 +501,10 @@ def public_person(p, found):
     """Karta dla klienta - tajne karty są zamaskowane, dopóki ich nie zdobędziesz."""
     if p["rarity"] == "secret" and p["id"] not in found:
         return {"id": p["id"], "rarity": "secret", "crate": p["crate"], "crates": p["crates"], "number": p["number"], "masked": True,
+                "valueMult": p.get("valueMult", 1),
                 "name": "???", "type": "tv", "hp": 0, "attack": "???", "dmg": 0, "imgv": 0}
     base = {k: p.get(k) for k in ("id", "name", "rarity", "type", "hp", "attack", "dmg", "attack2", "dmg2",
-                                  "kind1", "kind2", "abilities", "crate", "crates", "number")}
+                                  "kind1", "kind2", "abilities", "crate", "crates", "number", "valueMult")}
     base["imgv"] = img_version(p["id"])
     return base
 

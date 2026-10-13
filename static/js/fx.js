@@ -236,7 +236,7 @@ function openViewer(pid, variant = "normal") {
         <p>Najrzadsza karta w tej skrzynce. Nie wiadomo, kto na niej jest — dopóki jej nie zdobędziesz.</p>
         <table class="vi-table">
           <tr><td>Szansa z 1 skrzynki</td><td>${share ? "1 na " + Math.round(1 / share).toLocaleString("pl-PL") : "—"}</td></tr>
-          <tr><td>Wartość</td><td>${fmt(S.cfg.rarities.secret.value)}+</td></tr>
+          <tr><td>Wartość</td><td>${fmt(cardValue(p.id))}+</td></tr>
           ${cratesRow}
         </table>
         <div class="vi-actions"><button class="btn" data-act="flip">🔄 Obróć</button><button class="btn" data-act="close">✕ Zamknij</button></div>

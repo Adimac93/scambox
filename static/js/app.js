@@ -53,7 +53,8 @@ function crateList() { return S.cfg.crateOrder.map(id => S.cfg.crates[id]); }
 function isSpecial(v) { return !!v && v !== "normal"; }
 function variantName(v) { return S.cfg.variants[v || "normal"].name; }
 function cardValue(pid, v = "normal") {
-  return Math.round(S.cfg.rarities[person(pid).rarity].value * S.cfg.variants[v || "normal"].mult);
+  const p = person(pid);  // valueMult: karty tylko z droższych skrzynek są warte więcej (liczy serwer)
+  return Math.round(S.cfg.rarities[p.rarity].value * (p.valueMult || 1) * S.cfg.variants[v || "normal"].mult);
 }
 function imgUrl(pid) {
   const p = person(pid);

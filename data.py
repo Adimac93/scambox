@@ -315,5 +315,6 @@ for _c in CRATES.values():
 
 
 def card_value(person, variant="normal"):
-    v = RARITIES[person["rarity"]]["value"]
+    # valueMult: karty dostępne tylko w droższych skrzynkach są warte proporcjonalnie więcej (catalog.rebuild)
+    v = RARITIES[person["rarity"]]["value"] * person.get("valueMult", 1)
     return int(round(v * VARIANTS.get(variant, VARIANTS["normal"])["mult"]))

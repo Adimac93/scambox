@@ -149,6 +149,12 @@ def rebuild(conn):
             others = sum(crate_weight(crate, r) for r in present if r != "secret")
             crate["weights"]["secret"] = others / (data.SECRET_ODDS - 1) if others else 0.0
 
+    # wartość karty rośnie z ceną NAJTAŃSZEJ skrzynki, w której można ją zdobyć: karta tylko ze skrzynek po 500 $
+    # jest warta x5 (skrzynka po 500 $ zwraca się tak samo jak po 100 $), karta, która jest też w skrzynce po 100 $ - x1
+    for p in final_people.values():
+        cheapest = min((crates[c]["price"] for c in p["crates"]), default=data.CRATE_PRICE)
+        p["valueMult"] = max(1.0, cheapest / data.CRATE_PRICE)
+
     CRATES, PEOPLE = crates, final_people
     HIDDEN_CRATES, HIDDEN_CARDS = hidden_crates, hidden_cards
 
