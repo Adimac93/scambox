@@ -5,7 +5,7 @@ const DAY_NAMES = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd"];
 const AVATARS = ["😎", "🤠", "🥷", "🧙", "🦸", "🧛", "🤖", "👽", "👻", "🎃", "🐸", "🐼", "🦊", "🐯", "🦁", "🐺",
                  "🐉", "🦄", "🐙", "🦈", "🦅", "🐝", "🍕", "🌶️", "🍀", "🔥", "⚡", "💎", "👑", "🎩", "🎮", "🎲",
                  "🏆", "⚽", "🏀", "🎸", "🚀", "🛸", "🌈", "💀"];
-const PROF = { username: null, data: null, crate: null, spread: 0, rankBy: "value", rankScope: "all" };
+const PROF = { username: null, data: null, crate: null, spread: 0, rankBy: "value", rankScope: "all", rankSearch: "", rankData: null };
 
 // ================================================================ WSPÓLNE
 
@@ -593,24 +593,36 @@ async function toggleShowcase(pid, variant) {
 // ================================================================ RANKING
 
 async function renderRanking() {
-  let r;
-  try { r = await api("/api/ranking"); } catch (e) { return toast(e.message, true); }
+  try { PROF.rankData = await api("/api/ranking"); } catch (e) { return toast(e.message, true); }
   const by = PROF.rankBy;
-  const key = { value: "value", cards: "unique", opened: "opened" }[by];
-  const list = r.players.filter(p => PROF.rankScope === "all" || p.friend || p.me)
-    .sort((a, b) => b[key] - a[key] || a.username.localeCompare(b.username, "pl"));
-  const medal = i => ["🥇", "🥈", "🥉"][i] || `#${i + 1}`;
-  const val = p => by === "value" ? fmt(p.value)
-    : by === "cards" ? `${p.unique} / ${r.totalCards} <span class="muted">(${Math.round(p.unique / Math.max(1, r.totalCards) * 100)}%)</span>`
-    : `${p.opened.toLocaleString("pl-PL")} 📦`;
   $("#rankingBody").innerHTML = `
     <div class="rank-toolbar">
       <div class="seg" id="rankBy">${[["value", "💰 Wartość kolekcji"], ["cards", "📖 Zebrane karty"], ["opened", "📦 Otwarte skrzynki"]]
         .map(([k, n]) => `<button data-by="${k}" class="${by === k ? "active" : ""}">${n}</button>`).join("")}</div>
       <div class="seg" id="rankScope">${[["all", "🌍 Wszyscy"], ["friends", "👥 Znajomi"]]
         .map(([k, n]) => `<button data-scope="${k}" class="${PROF.rankScope === k ? "active" : ""}">${n}</button>`).join("")}</div>
+      <input type="text" id="rankSearch" class="rank-search" placeholder="🔍 Szukaj gracza…" value="${esc(PROF.rankSearch)}" autocomplete="off">
     </div>
-    <div class="panel rank-list">${list.map((p, i) => `
+    <div class="panel rank-list" id="rankList"></div>`;
+  renderRankList();
+}
+
+// lista rankingu (osobno, żeby wpisywanie w wyszukiwarkę nie przebudowywało pola i nie pytało serwera)
+function renderRankList() {
+  const r = PROF.rankData;
+  if (!r) return;
+  const by = PROF.rankBy;
+  const key = { value: "value", cards: "unique", opened: "opened" }[by];
+  const ranked = r.players.filter(p => PROF.rankScope === "all" || p.friend || p.me)
+    .sort((a, b) => b[key] - a[key] || a.username.localeCompare(b.username, "pl"))
+    .map((p, i) => ({ p, i }));  // miejsce liczone przed wyszukiwaniem - znaleziony gracz ma swoje prawdziwe miejsce
+  const q = PROF.rankSearch.trim().toLowerCase();
+  const list = q ? ranked.filter(({ p }) => p.username.toLowerCase().includes(q)) : ranked;
+  const medal = i => ["🥇", "🥈", "🥉"][i] || `#${i + 1}`;
+  const val = p => by === "value" ? fmt(p.value)
+    : by === "cards" ? `${p.unique} / ${r.totalCards} <span class="muted">(${Math.round(p.unique / Math.max(1, r.totalCards) * 100)}%)</span>`
+    : `${p.opened.toLocaleString("pl-PL")} 📦`;
+  $("#rankList").innerHTML = list.map(({ p, i }) => `
       <div class="rank-row${p.me ? " me" : ""}${i < 3 ? " top" + (i + 1) : ""}">
         <span class="rpos">${medal(i)}</span>
         ${userLink(p)}
@@ -618,7 +630,7 @@ async function renderRanking() {
         ${p.isAdmin ? '<span class="rfriend" title="Admin">👑</span>' : ""}
         <span class="rval">${val(p)}</span>
         ${by === "cards" ? `<div class="rbar"><div style="width:${p.unique / Math.max(1, r.totalCards) * 100}%"></div></div>` : ""}
-      </div>`).join("") || '<div class="empty">Brak graczy.</div>'}</div>`;
+      </div>`).join("") || `<div class="empty">${q ? `Nie ma gracza „${esc(PROF.rankSearch.trim())}” w tym rankingu.` : "Brak graczy."}</div>`;
 }
 
 // ================================================================ PROFIL
@@ -845,6 +857,9 @@ function bindSocial() {
     const by = e.target.closest("[data-by]"), sc = e.target.closest("[data-scope]");
     if (by) { PROF.rankBy = by.dataset.by; Sound.click(); renderRanking(); }
     if (sc) { PROF.rankScope = sc.dataset.scope; Sound.click(); renderRanking(); }
+  });
+  $("#rankingBody").addEventListener("input", e => {
+    if (e.target.id === "rankSearch") { PROF.rankSearch = e.target.value; renderRankList(); }
   });
 
   // profil

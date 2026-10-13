@@ -216,3 +216,5 @@ details.fsection summary { cursor: pointer; color: var(--muted); font-weight: 70
 .tb-grid { max-height: 34vh; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); }
 #tbMsg { width: 100%; }
 @media (max-width: 760px) { .tb-cols { grid-template-columns: 1fr; } .t-body { grid-template-columns: 1fr; } .t-arrow { justify-self: center; transform: rotate(90deg); } }
+
+.rank-search { flex: 1 1 200px; max-width: 320px; }
