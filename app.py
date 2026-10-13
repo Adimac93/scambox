@@ -1,5 +1,6 @@
 import datetime
 import functools
+import json
 import os
 import random
 import re
@@ -550,6 +551,31 @@ def public_person(p, found):
 @login_required
 def index(view=None, name=None):
     return render_template("index.html")
+
+
+# ---------------------------------------------------------------- aplikacja na telefon (PWA)
+
+@app.route("/manifest.webmanifest")
+def manifest():
+    data = {
+        "name": "Skrzynki Sław", "short_name": "Skrzynki", "lang": "pl",
+        "description": "Otwieraj skrzynki z kartami znanych osób, zbieraj kolekcję i wymieniaj się ze znajomymi.",
+        "start_url": "/crates", "scope": "/", "display": "standalone", "orientation": "portrait",
+        "background_color": "#0b0e1a", "theme_color": "#0c0f17",
+        "icons": [{"src": url_for("static", filename="icons/icon-192.png"), "sizes": "192x192", "type": "image/png"},
+                  {"src": url_for("static", filename="icons/icon-512.png"), "sizes": "512x512", "type": "image/png"},
+                  {"src": url_for("static", filename="icons/maskable-512.png"), "sizes": "512x512", "type": "image/png",
+                   "purpose": "maskable"}],
+    }
+    return Response(json.dumps(data, ensure_ascii=False), mimetype="application/manifest+json")
+
+
+@app.route("/sw.js")
+def service_worker():
+    # z głównego adresu, żeby obejmował całą grę; bez zapisywania plików gry (zawsze najnowsza wersja)
+    resp = send_file(os.path.join(app.static_folder, "sw.js"), mimetype="application/javascript", max_age=0)
+    resp.headers["Cache-Control"] = "no-cache"
+    return resp
 
 
 @app.route("/admin")

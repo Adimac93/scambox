@@ -312,6 +312,42 @@ function plural(n, one, few, many) {
   return d >= 2 && d <= 4 && (dd < 12 || dd > 14) ? few : many;
 }
 
+// ================================================================ APLIKACJA NA TELEFON (PWA)
+// Android / Chrome / Edge: przeglądarka sama proponuje instalację (beforeinstallprompt) - pokazujemy przycisk 📲.
+// iPhone (Safari) nie ma takiego okna - przycisk otwiera instrukcję "Udostępnij -> Do ekranu początkowego".
+let installPrompt = null;
+const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+function setupInstall() {
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+  const btn = $("#installBtn");
+  if (isStandalone()) return;  // już działa jako aplikacja
+  window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installPrompt = e; btn.hidden = false; });
+  window.addEventListener("appinstalled", () => { installPrompt = null; btn.hidden = true; toast("📲 Gotowe! Gra jest na ekranie głównym."); });
+  if (isIOS()) btn.hidden = false;
+  btn.addEventListener("click", async () => {
+    Sound.click();
+    if (installPrompt) {
+      installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+      if (outcome === "accepted") { installPrompt = null; btn.hidden = true; }
+      return;
+    }
+    openDialog(`<h3>📲 Gra jako aplikacja</h3>
+      ${isIOS() ? `<ol class="install-steps">
+          <li>Otwórz grę w <b>Safari</b>.</li>
+          <li>Stuknij <b>Udostępnij</b> <span class="kbd">⎋⬆</span> na dole ekranu.</li>
+          <li>Wybierz <b>„Do ekranu początkowego”</b> i stuknij <b>Dodaj</b>.</li>
+        </ol>` : `<ol class="install-steps">
+          <li>Otwórz menu przeglądarki <span class="kbd">⋮</span>.</li>
+          <li>Wybierz <b>„Zainstaluj aplikację”</b> albo <b>„Dodaj do ekranu głównego”</b>.</li>
+        </ol>`}
+      <p class="muted">Gra pojawi się z ikoną na ekranie telefonu i otworzy się na pełnym ekranie, bez paska przeglądarki.</p>
+      <div class="daily-actions"><button class="btn" data-close>Zamknij</button></div>`);
+  });
+}
+
 // ================================================================ ADRESY STRON
 // każda zakładka ma swój adres (/inventory...), profil gracza: /player/<nazwa>; "/" = skrzynki
 const VIEW_PATHS = { crates: "/crates", binder: "/binder", inventory: "/inventory", forge: "/forge", friends: "/friends", ranking: "/ranking" };
@@ -337,7 +373,8 @@ function showRoute(how = "none") {
 function switchView(view, how = "push") {
   const path = viewPath(view);
   if (how !== "none" && location.pathname !== path) history[how === "replace" ? "replaceState" : "pushState"](null, "", path);
-  const label = view === "profile" ? (PROF.username || S.me.username) : $(`.tab[data-view="${view}"]`)?.firstChild.textContent.trim();
+  const tab = $(`.tab[data-view="${view}"]`);
+  const label = view === "profile" ? (PROF.username || S.me.username) : tab && `${tab.querySelector(".ti").textContent} ${tab.querySelector(".tl").textContent}`;
   document.title = label ? `${label} — Skrzynki Sław` : "Skrzynki Sław";
   $$(".tab").forEach(t => t.classList.toggle("active", t.dataset.view === view));
   $$(".view").forEach(v => v.classList.toggle("active", v.id === "view-" + view));
@@ -1292,6 +1329,7 @@ function bind() {
   bind();
   renderHeader();
   showRoute("replace");  // widok z adresu strony (/inventory, /player/nazwa...)
+  setupInstall();
   updateSellbar();
   applyBadges(me);
   startPolling();

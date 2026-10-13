@@ -542,3 +542,38 @@ select { background: var(--panel); color: var(--text); border: 1px solid var(--l
 .pocket.gone .card { opacity: .42; }
 .pocket.gone:hover .card { opacity: .7; }
 .pocket.gone .count { background: #000c; color: var(--muted); }
+
+/* ------------------------------------------------------------ TELEFON: zwarty nagłówek + dolny pasek zakładek jak w aplikacji */
+.tab .ti { margin-right: .3em; }
+.install-steps { margin: 4px 0 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; line-height: 1.4; }
+.kbd { display: inline-block; padding: 0 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel2); font-size: .9em; }
+@media (max-width: 700px) {
+  /* bez backdrop-filter: inaczej przypięty dolny pasek liczyłby pozycję od nagłówka zamiast od ekranu */
+  .topbar { flex-wrap: nowrap; gap: 8px; padding: calc(8px + env(safe-area-inset-top)) 10px 8px; backdrop-filter: none; background: #0c0f17; }
+  .logo { font-size: 20px; flex: none; }
+  .logo span { display: none; }  /* sama ikonka 🎴 - reszta miejsca dla pieniędzy i przycisków */
+  .top-right { margin-left: auto; gap: 6px; min-width: 0; }
+  .top-right .icon-btn, .user-chip { width: 36px; height: 36px; font-size: 16px; padding: 0; justify-content: center; }
+  .balance { font-size: 14px; padding: 6px 9px; white-space: nowrap; }
+  .tabs {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; order: initial; flex-basis: auto;
+    display: grid; grid-template-columns: 1fr 1fr 1.3fr 1fr 1fr 1fr; gap: 0;  /* "Ekwipunek" to najdłuższy podpis */
+    padding: 4px 2px calc(4px + env(safe-area-inset-bottom));
+    background: #0c0f17f2; backdrop-filter: blur(12px); border-top: 1px solid var(--line);
+  }
+  a.tab { display: flex; width: 100%; flex-direction: column; align-items: center; gap: 3px; padding: 6px 0 5px; font-size: 10.5px; border-radius: 10px; position: relative; white-space: nowrap; min-width: 0; }
+  .tab .ti { font-size: 21px; line-height: 1; margin: 0; }
+  .tab .tl { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 10px; letter-spacing: -.3px; font-weight: 600; }
+  .tab { padding-left: 1px; padding-right: 1px; }
+  .tab .badge { position: absolute; top: 1px; left: 50%; margin-left: 4px; font-size: 10px; padding: 0 5px; }
+  main { padding: 14px 12px calc(160px + env(safe-area-inset-bottom)); }
+  .sellbar { left: 8px; right: 8px; transform: none; max-width: none; bottom: calc(66px + env(safe-area-inset-bottom)); padding: 8px 10px; }
+  .sellbar { gap: 5px; }
+  .sellbar .btn { padding: 7px 9px; font-size: 12px; }
+  #selInfo { width: 100%; text-align: center; font-size: 12px; margin: 0; }
+  .toasts { top: auto; bottom: calc(76px + env(safe-area-inset-bottom)); left: 10px; right: 10px; align-items: stretch; }
+  /* rzędy przycisków (skrzynki w ekwipunku, klaserze, profilu) przewija się palcem w bok */
+  .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .seg::-webkit-scrollbar { display: none; }
+  .seg button { flex: none; white-space: nowrap; }
+}
