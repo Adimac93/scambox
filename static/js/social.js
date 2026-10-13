@@ -623,11 +623,11 @@ async function renderRanking() {
 
 // ================================================================ PROFIL
 
-function openProfile(username) {
+function openProfile(username, how = "push") {
   if (PROF.username !== username) { PROF.crate = null; PROF.spread = 0; }
   PROF.username = username;
   closeViewer(); closeModal(); closeDialogs();
-  switchView("profile");
+  switchView("profile", how);
   window.scrollTo(0, 0);
 }
 

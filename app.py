@@ -271,7 +271,7 @@ def login_required(fn):
         if current_user() is None:
             if request.path.startswith("/api/"):
                 return jsonify({"error": "Zaloguj się", "login": True}), 401
-            return redirect(url_for("login_page"))
+            return redirect(url_for("login_page", next=request.path) if request.path != "/" else url_for("login_page"))
         return fn(*a, **kw)
     return wrapper
 
@@ -509,8 +509,10 @@ def public_person(p, found):
 # ---------------------------------------------------------------- strony
 
 @app.route("/")
+@app.route("/<any(crates, binder, inventory, forge, friends, ranking):view>")
+@app.route("/player/<name>")
 @login_required
-def index():
+def index(view=None, name=None):
     return render_template("index.html")
 
 

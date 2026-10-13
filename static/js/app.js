@@ -305,7 +305,33 @@ function plural(n, one, few, many) {
   return d >= 2 && d <= 4 && (dd < 12 || dd > 14) ? few : many;
 }
 
-function switchView(view) {
+// ================================================================ ADRESY STRON
+// każda zakładka ma swój adres (/inventory...), profil gracza: /player/<nazwa>; "/" = skrzynki
+const VIEW_PATHS = { crates: "/crates", binder: "/binder", inventory: "/inventory", forge: "/forge", friends: "/friends", ranking: "/ranking" };
+
+function viewPath(view) {
+  return view === "profile" ? "/player/" + encodeURIComponent(PROF.username || S.me.username) : VIEW_PATHS[view] || "/";
+}
+
+function routeFromPath(path = location.pathname) {
+  const m = path.match(/^\/player\/([^/]+)\/?$/);
+  if (m) return { view: "profile", user: decodeURIComponent(m[1]) };
+  const clean = path.replace(/\/+$/, "") || "/";
+  return { view: Object.keys(VIEW_PATHS).find(v => VIEW_PATHS[v] === clean) || "crates" };
+}
+
+function showRoute(how = "none") {
+  const r = routeFromPath();
+  if (r.view === "profile") openProfile(r.user, how);
+  else switchView(r.view, how);
+}
+
+// how: "push" - nowy wpis w historii (kliknięcie), "replace" - podmiana (start), "none" - bez zmian (wstecz/dalej)
+function switchView(view, how = "push") {
+  const path = viewPath(view);
+  if (how !== "none" && location.pathname !== path) history[how === "replace" ? "replaceState" : "pushState"](null, "", path);
+  const label = view === "profile" ? (PROF.username || S.me.username) : $(`.tab[data-view="${view}"]`)?.firstChild.textContent.trim();
+  document.title = label ? `${label} — Skrzynki Sław` : "Skrzynki Sław";
   $$(".tab").forEach(t => t.classList.toggle("active", t.dataset.view === view));
   $$(".view").forEach(v => v.classList.toggle("active", v.id === "view-" + view));
   if (view === "binder") renderBinder();
@@ -320,7 +346,7 @@ function switchView(view) {
 
 function currentView() { return $(".view.active").id.replace("view-", ""); }
 
-function rerenderCurrent() { switchView(currentView()); }
+function rerenderCurrent() { switchView(currentView(), "none"); }
 
 // ================================================================ SKRZYNKI
 
@@ -1030,7 +1056,11 @@ async function sellAllDupes() {
 // ================================================================ ZDARZENIA
 
 function bind() {
-  $$(".tab").forEach(t => t.addEventListener("click", () => { Sound.click(); switchView(t.dataset.view); }));
+  $$(".tab").forEach(t => t.addEventListener("click", e => {
+    if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;  // otwieranie w nowej karcie przeglądarki
+    e.preventDefault(); Sound.click(); switchView(t.dataset.view);
+  }));
+  window.addEventListener("popstate", () => showRoute("none"));
 
   $("#cntMinus").addEventListener("click", () => { Sound.click(); setCount(S.count - 1); });
   $("#cntPlus").addEventListener("click", () => { Sound.click(); setCount(S.count + 1); });
@@ -1209,7 +1239,7 @@ function bind() {
   Object.keys(cfg.people).forEach(id => { const im = new Image(); im.src = imgUrl(id); });
   bind();
   renderHeader();
-  renderCrates();
+  showRoute("replace");  // widok z adresu strony (/inventory, /player/nazwa...)
   updateSellbar();
   applyBadges(me);
   startPolling();

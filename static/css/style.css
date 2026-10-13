@@ -52,6 +52,7 @@ button { font-family: inherit; cursor: pointer; }
   background: transparent; color: var(--muted); border: 1px solid transparent;
   padding: 9px 16px; border-radius: 10px; font-size: 15px; font-weight: 500;
 }
+a.tab { text-decoration: none; display: inline-block; }
 .tab:hover { color: var(--text); background: var(--panel); }
 .tab.active { color: var(--text); background: var(--panel2); border-color: var(--line); }
 .badge { background: var(--accent); color: #000; border-radius: 99px; padding: 1px 7px; font-size: 12px; font-weight: 700; }

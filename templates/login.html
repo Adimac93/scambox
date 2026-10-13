@@ -84,7 +84,9 @@
                                                   body: JSON.stringify({ username: f.username, password: f.password }) });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Błąd");
-        location.href = "/";
+        // po zalogowaniu wracamy na stronę, którą gracz chciał otworzyć (tylko adresy z tej gry)
+        const next = new URLSearchParams(location.search).get("next");
+        location.href = next && /^\/(?![\/\\])/.test(next) ? next : "/";
       } catch (err) {
         $("#err").textContent = err.message;
         $("#submit").disabled = false;
