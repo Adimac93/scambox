@@ -450,8 +450,36 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 }
 .card.v-clear :is(.card-name, .card-sub, .card-stats, .card-foot, .atk-name, .atk-dmg) { color: #fff; }
 .card.v-clear .card-photo { border-image: none; border-color: #ffffffb0; background: transparent; }
-.card.v-clear .card-photo img, .r-secret.v-clear .sc-art img { opacity: .5; }
-.r-secret.v-clear { box-shadow: 0 6px 18px #0008, inset 0 0 0 1px #ffffffaa, 0 0 22px #bfefff77; }
+.card.v-clear .card-photo img { opacity: .5; }
+/* tajna karta w wersji przezroczystej: kryształ - matowe szkło zamiast czerni, lodowa ramka zamiast złotej */
+.card.r-secret.v-clear {
+  background: transparent;
+  box-shadow: 0 6px 18px #0007, 0 0 24px #bfefff99, 0 0 60px #8fd8ff44;
+}
+.r-secret.v-clear .sc {
+  color: #f2fbff;
+  background:
+    radial-gradient(120% 70% at 50% 0%, #ffffff30, transparent 60%),
+    linear-gradient(160deg, #ffffff26, #dff4ff0d 45%, #ffffff1f);
+  backdrop-filter: blur(6px) saturate(1.5);
+}
+.r-secret.v-clear .sc-art img { opacity: .55; filter: grayscale(.35) brightness(1.18) contrast(1.05); mix-blend-mode: luminosity; }
+.r-secret.v-clear .sc-art::after {
+  background: linear-gradient(180deg, #eaf8ff40 0%, transparent 22%, transparent 52%, #dff4ff30 78%, #ffffff50 100%),
+              radial-gradient(ellipse at 50% 35%, transparent 45%, #bfefff26 100%);
+  mix-blend-mode: normal;
+}
+.r-secret.v-clear .sc-halo { background: radial-gradient(circle, transparent 37%, #e6f9ffaa 40%, transparent 44%, transparent 50%, #bfefff55 52%, transparent 56%); }
+.r-secret.v-clear .sc-stars { opacity: .8; background-image: radial-gradient(#fff 1px, transparent 1.6px), radial-gradient(#bfefff 1px, transparent 1.6px); }
+.r-secret.v-clear :is(.sc-name, .secret-text) { background: linear-gradient(180deg, #ffffff, #cdefff 55%, #8fb8d0); -webkit-background-clip: text; background-clip: text; filter: drop-shadow(0 1px 2px #0009); }
+.r-secret.v-clear .sc-seal { background: radial-gradient(circle at 35% 30%, #ffffff, #bfefff 55%, #5e94b3); color: #0d2a3a; box-shadow: 0 0 .7em #bfefff; }
+.r-secret.v-clear .sc-panel { background: linear-gradient(180deg, #ffffff38, #ffffff14); border-color: #ffffffb0; box-shadow: inset 0 0 1em #ffffff22, 0 0 .8em #bfefff44; }
+.r-secret.v-clear .sc-attack b { color: #e6f9ff; text-shadow: 0 0 6px #8fd8ff; }
+.r-secret.v-clear .sc-foot { color: #d6eef8; }
+.r-secret.v-clear .sc-frame { border-color: #ffffffb0; }
+.r-secret.v-clear .sc-border {
+  background: conic-gradient(from var(--ang, 0deg), #ffffff, #bfefff, #e9d8ff, #ffffff, #c8fff0, #9fd8ff, #fff3d6, #ffffff);
+}
 .clear-sheen {
   position: absolute; inset: 0; z-index: 3; border-radius: inherit; pointer-events: none; mix-blend-mode: screen;
   background:
@@ -460,9 +488,16 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
   background-size: 260% 100%, auto;
   animation: photoGlint 4s ease-in-out infinite;
 }
+/* tęczowe załamanie światła przesuwające się po krysztale */
+.r-secret.v-clear .clear-sheen {
+  background:
+    linear-gradient(115deg, transparent 30%, #ff9ff355 38%, #9ff6ff55 44%, #fff6a055 50%, #c8a0ff44 55%, transparent 62%),
+    radial-gradient(120% 60% at 20% 0%, #ffffff30, transparent 60%);
+  background-size: 260% 100%, auto;
+}
 .pick.v-clear { box-shadow: inset 0 0 0 2px #ffffffb0, 0 0 8px #bfefff66, inset 0 -26px 26px -18px var(--rc); }
 .pick.v-clear img { opacity: .6; }
-:is(.var-tag, .ph).vt-clear { background: #ffffff30; color: #fff; border: 1px solid #ffffffc0; backdrop-filter: blur(4px); box-shadow: 0 0 .6em #bfefff88; }
+:is(.var-tag, .ph).vt-clear { background: #0d2a3a66; color: #fff; text-shadow: 0 1px 2px #000; border: 1px solid #ffffffc0; backdrop-filter: blur(4px); box-shadow: 0 0 .6em #bfefff88; }
 .vdot.vt-clear { background: #ffffff40; box-shadow: inset 0 0 0 1px #fff, 0 0 4px #bfefff; }
 .odd.odd-v.vt-clear { border-left-color: #e0f7ff; }
 
