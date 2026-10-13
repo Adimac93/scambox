@@ -781,22 +781,6 @@ def upgrade():
                     "consumed": ids, "discovered": new, "state": get_state()})
 
 
-@app.post("/api/reset")
-@login_required
-def reset():
-    lock_me()
-    conn = db()
-    me = uid()
-    conn.execute("DELETE FROM items WHERE user_id = ?", (me,))
-    conn.execute("DELETE FROM user_state WHERE user_id = ?", (me,))
-    conn.execute("DELETE FROM user_discovered WHERE user_id = ?", (me,))
-    conn.execute("DELETE FROM showcase WHERE user_id = ?", (me,))
-    conn.execute("DELETE FROM user_chests WHERE user_id = ?", (me,))
-    ensure_state(conn, me)
-    conn.commit()
-    return jsonify({"state": get_state(), "items": []})
-
-
 # ---------------------------------------------------------------- codzienna nagroda
 
 def daily_kind(day):

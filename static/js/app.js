@@ -1158,16 +1158,6 @@ function bind() {
 
   // nagłówek
   $("#soundBtn").addEventListener("click", () => { Sound.toggle(); renderHeader(); });
-  $("#resetBtn").addEventListener("click", async () => {
-    if (!confirm(`Zacząć od nowa na swoim koncie?\nStracisz wszystkie karty, gablotę i odkryte tajne karty, a saldo wróci do ${fmt(S.cfg.startingBalance)}.\n(Odebrane nagrody dzienne zostają.)`)) return;
-    const res = await api("/api/reset", {});
-    S.items = []; S.inv.selected.clear(); S.showcase = []; S.chests = {};
-    await refreshConfig();
-    applyState(res.state);
-    Sound.coin(3);
-    toast("Nowa gra! Powodzenia 🍀");
-    rerenderCurrent();
-  });
 
   // klawiatura: Spacja/Enter = otwórz / pomiń, Esc = zamknij
   document.addEventListener("keydown", e => {

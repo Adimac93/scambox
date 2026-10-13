@@ -71,7 +71,6 @@ A new installation (empty database) loads them automatically on first start.
 - `images.py` – downloads photos from Wikipedia into `image_cache/` (alt photos come from other language versions of Wikipedia and from Wikidata).
   To fetch a card's photos again, use the "🔄 Pobierz zdjęcia ponownie" button in the admin panel.
 - `game.db` – all accounts, their cards and friends, plus changes from the admin panel. Back it up!
-  The ♻️ button resets only your own account.
 - `database.py` – database connection. Without settings the game uses the SQLite file `game.db`;
   with the `DATABASE_URL` environment variable it uses PostgreSQL (for hosting, e.g. Azure).
 - `migrate_to_postgres.py` – one-time copy of `game.db` into an empty PostgreSQL database
