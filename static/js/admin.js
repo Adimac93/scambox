@@ -31,6 +31,7 @@ function toast(msg, err = false) {
 
 async function load() {
   loadUsers();
+  loadLog();
   A.cat = await api("/api/admin/catalog");
   if (!A.crate || !A.cat.crates.some(c => c.id === A.crate)) A.crate = A.cat.crates.find(c => !c.hidden)?.id || null;
   render();
@@ -248,6 +249,7 @@ async function loadUsers() {
       <span>${avHTML(u)} <b>${esc(u.username)}</b> ${u.isAdmin ? "👑" : ""}${u.id === me ? ' <small class="muted">(ty)</small>' : ""}
         ${u.banned ? `<br><small class="ban-tag">⛔ zablokowany${u.banReason ? ": " + esc(u.banReason) : ""}</small>` : ""}
         ${u.rankingHidden ? '<br><small class="muted">🙈 ukryty w rankingu</small>' : ""}
+        ${u.moneyGenerated ? '<br><small class="money-tag" title="Dostał pieniądze lub skrzynki od admina">💸 pieniądze od admina — poza rankingiem</small>' : ""}
         ${u.access.length ? `<br><small class="muted">🔑 ${u.access.map(k => esc(A.restrictedCrates.find(c => c.id === k)?.name || k)).join(", ")}</small>` : ""}</span>
       <span>${fmt(u.balance)}</span>
       <span>${fmt(u.value)}</span>
@@ -265,6 +267,40 @@ async function loadUsers() {
         <button class="btn tiny danger" data-uact="delete">🗑</button>` : ""}
       </span>
     </div>`).join("")}`;
+  loadLog();
+}
+
+// ================================================================ DZIENNIK ADMINÓW
+
+const LOG_ACTIONS = {
+  money: "💸 Pieniądze", chests: "📦 Skrzynki", cards_delete: "🗑 Usunięte karty", access: "🔑 Dostęp do skrzynek",
+  ban: "⛔ Blokada", unban: "✅ Odblokowanie", admin_grant: "👑 Dał admina", admin_revoke: "👑 Odebrał admina",
+  password: "🔑 Zmiana hasła", user_delete: "🗑 Usunięte konto", ranking_hide: "🙈 Ukrył w rankingu", ranking_show: "🏆 Pokazał w rankingu",
+  crate_save: "📦 Zapis skrzynki", crate_delete: "📦 Usunięcie skrzynki", crate_restore: "📦 Przywrócenie skrzynki",
+  card_save: "🎴 Zapis karty", card_delete: "🎴 Usunięcie karty", card_restore: "🎴 Przywrócenie karty",
+};
+
+async function loadLog() {
+  try { A.log = (await api("/api/admin/log?limit=500")).log; } catch (e) { return; }
+  const sel = $("#logFilter");
+  if (!sel.options.length) {
+    sel.innerHTML = `<option value="">Wszystkie działania</option><option value="@money">💸 Tylko pieniądze i skrzynki</option>` +
+      Object.entries(LOG_ACTIONS).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+  }
+  renderLog();
+}
+
+function renderLog() {
+  const f = $("#logFilter").value, q = $("#logSearch").value.trim().toLowerCase();
+  const rows = (A.log || []).filter(r => (!f || (f === "@money" ? ["money", "chests"].includes(r.action) : r.action === f)) &&
+    (!q || r.admin.toLowerCase().includes(q) || r.target.toLowerCase().includes(q)));
+  const when = t => new Date(t * 1000).toLocaleString("pl-PL", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  $("#adminLog").innerHTML = rows.length ? `
+    <div class="a-log-row head"><span>Kiedy</span><span>Admin</span><span>Działanie</span><span>Komu</span><span>Szczegóły</span></div>
+    ${rows.map(r => `<div class="a-log-row${["money", "chests"].includes(r.action) ? " money" : ""}">
+      <span class="muted">${when(r.time)}</span><b>${esc(r.admin)}</b><span>${esc(LOG_ACTIONS[r.action] || r.action)}</span>
+      <span>${r.target ? esc(r.target) : '<span class="muted">—</span>'}</span><span>${esc(r.details) || '<span class="muted">—</span>'}</span>
+    </div>`).join("")}` : '<div class="muted">Brak wpisów.</div>';
 }
 
 async function userAction(row, act) {
@@ -421,6 +457,9 @@ function openAccessDialog(id, name) {
 // ================================================================ ZDARZENIA
 
 function bind() {
+  $("#logFilter").addEventListener("change", renderLog);
+  $("#logSearch").addEventListener("input", renderLog);
+  $("#logRefresh").addEventListener("click", loadLog);
   $("#userList").addEventListener("click", e => {
     const b = e.target.closest("[data-uact]"); if (b) userAction(b.closest(".a-user"), b.dataset.uact);
   });

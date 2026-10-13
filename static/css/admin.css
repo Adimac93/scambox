@@ -110,3 +110,11 @@ fieldset .chk { display: flex; margin: 4px 0; color: var(--text); font-size: 14p
 /* dodatkowe zdolności karty: nazwa, wartość, rodzaj i mały przycisk usuwania w jednym wierszu */
 .a-ability { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1.4fr) auto; align-items: end; margin-bottom: 8px; }
 .a-ability .btn { padding: 8px 12px; }
+
+/* dziennik adminów */
+.a-log { display: flex; flex-direction: column; gap: 4px; max-height: 520px; overflow: auto; }
+.a-log-row { display: grid; grid-template-columns: 9.5em 1fr 1.3fr 1fr 2fr; gap: 10px; padding: 6px 10px; border-radius: 8px; background: var(--panel2); font-size: 13px; align-items: center; }
+.a-log-row.head { background: none; color: var(--muted); font-weight: 700; position: sticky; top: 0; background: var(--panel); }
+.a-log-row.money { border-left: 3px solid var(--good); }
+@media (max-width: 760px) { .a-log-row { grid-template-columns: 1fr 1fr; } }
+.money-tag { color: #ffcf3f; font-weight: 700; }
