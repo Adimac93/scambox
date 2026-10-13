@@ -814,12 +814,16 @@ def contract():
     if len(rows) != CONTRACT_SIZE[rarity]:
         return jsonify({"error": f"Kontrakt wymaga {CONTRACT_SIZE[rarity]} kart"}), 400
     target = RARITY_ORDER[RARITY_ORDER.index(rarity) + 1]
+    # wynik nie może być "droższą" kartą (np. tylko ze skrzynek po 500 $) niż najtańsza z włożonych
+    max_mult = min(catalog.PEOPLE[r["person_id"]].get("valueMult", 1) for r in rows)
+    candidates = lambda c: [p for p in catalog.CRATES[c]["people"]
+                            if p["rarity"] == target and p.get("valueMult", 1) <= max_mult]
     pool = [catalog.PEOPLE[r["person_id"]]["crate"] for r in rows]
-    pool = [c for c in pool if any(p["rarity"] == target for p in catalog.CRATES[c]["people"])]
+    pool = [c for c in pool if candidates(c)]
     if not pool:
         return jsonify({"error": "W tych skrzynkach nie ma kart wyższej rzadkości"}), 400
     crate_id = rng.choice(pool)
-    person = rng.choice([p for p in catalog.CRATES[crate_id]["people"] if p["rarity"] == target])
+    person = rng.choice(candidates(crate_id))
     specials = sum(r["variant"] != "normal" for r in rows)
     delete_items(ids)
     item = insert_item(person["id"], roll_variant(1 + CONTRACT_VARIANT_BONUS * specials))

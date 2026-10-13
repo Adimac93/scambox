@@ -33,8 +33,11 @@ VARIANTS = {
 VARIANT_ORDER = list(VARIANTS)   # od najpospolitszego do najrzadszego
 
 # Kuźnia - kontrakt: ile kart danej rzadkości daje 1 kartę rzadkości wyższej
-CONTRACT_SIZE = {"green": 3, "blue": 3, "purple": 3, "red": 3, "gold": 4}   # tajnych kart nie da się wytworzyć
-CONTRACT_VARIANT_BONUS = 0.5   # każda karta w specjalnym wariancie zwiększa szanse na wariant o 50%
+# Liczby dobrane tak, żeby kontrakt NIE dawał zysku: średnio zwraca 81-87% wartości włożonych kart (jak ulepszacz <= 90%).
+# Wcześniej (3 karty, bonus 50%) zwracał 146-162% - dało się zarabiać bez końca: skrzynki -> kontrakty -> sprzedaż.
+# Przy zmianie wartości rzadkości / wariantów trzeba to przeliczyć.
+CONTRACT_SIZE = {"green": 5, "blue": 5, "purple": 6, "red": 6, "gold": 7}   # tajnych kart nie da się wytworzyć
+CONTRACT_VARIANT_BONUS = 0.1   # każda karta w specjalnym wariancie zwiększa szanse na wariant o 10%
 # Kuźnia - ulepszacz: szansa = wartość wkładu / wartość celu * UPGRADE_EDGE (max UPGRADE_MAX)
 UPGRADE_EDGE = 0.9
 UPGRADE_MAX = 0.8
