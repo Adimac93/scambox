@@ -42,6 +42,23 @@
    "deleted": false
   },
   {
+   "id": "skrzynia_krolow",
+   "data": {
+    "name": "Skrzynia Królów",
+    "short": "Królewska",
+    "code": "RL",
+    "emoji": "👑",
+    "color1": "#ffcf3f",
+    "color2": "#9e7400",
+    "price": 500,
+    "desc": "",
+    "shop": true,
+    "restricted": false,
+    "weights": {}
+   },
+   "deleted": false
+  },
+  {
    "id": "world",
    "data": {
     "name": "Skrzynka Świat",
@@ -122,6 +139,28 @@
     "wiki": [
      "pl",
      "Andrzej Lepper"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_anna_maria_zukowska",
+   "data": {
+    "name": "Anna Maria Żukowska",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "blue",
+    "type": "polityka",
+    "hp": 70,
+    "dmg": 70,
+    "attack": "Męski poród",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Anna Maria Żukowska"
     ]
    },
    "deleted": false
@@ -303,6 +342,69 @@
    "deleted": false
   },
   {
+   "id": "pl_hardkor",
+   "data": {
+    "name": "Hardkor",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "blue",
+    "type": "polityka",
+    "hp": 75,
+    "dmg": 50,
+    "attack": "Kabel od internetu",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": null
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_jacek_sasin",
+   "data": {
+    "name": "Jacek Sasin",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "blue",
+    "type": "polityka",
+    "hp": 85,
+    "dmg": 70,
+    "attack": "70 milionów",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Jacek Sasin"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_janusz_kowalski",
+   "data": {
+    "name": "Janusz Kowalski",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "polityka",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Bardzo polskie imię",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Janusz Kowalski (polityk)"
+    ]
+   },
+   "deleted": false
+  },
+  {
    "id": "pl_kaczynski",
    "data": {
     "name": "Jarosław Kaczyński",
@@ -325,6 +427,28 @@
    "deleted": false
   },
   {
+   "id": "pl_karina_bosak",
+   "data": {
+    "name": "Karina Bosak",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "polityka",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Wejście z drugiego miejsca",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Karina Bosak"
+    ]
+   },
+   "deleted": false
+  },
+  {
    "id": "pl_kazik",
    "data": {
     "name": "Kazik Staszewski",
@@ -342,6 +466,28 @@
     "wiki": [
      "pl",
      "Kazik Staszewski"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_konrad_berkowicz",
+   "data": {
+    "name": "Konrad Berkowicz",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "polityka",
+    "hp": 55,
+    "dmg": 50,
+    "attack": "Zawinięcie patelni",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Konrad Berkowicz"
     ]
    },
    "deleted": false
@@ -474,6 +620,154 @@
    "deleted": false
   },
   {
+   "id": "pl_lukasz_mejza",
+   "data": {
+    "name": "Łukasz Mejza",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "polityka",
+    "hp": 55,
+    "dmg": 45,
+    "attack": "Afera",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Łukasz Mejza"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_lukasz_schreiber",
+   "data": {
+    "name": "Łukasz Schreiber",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "polityka",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Rozwód",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Łukasz Schreiber"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_magik",
+   "data": {
+    "name": "Magik",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "red",
+    "type": "muzyka",
+    "hp": 145,
+    "dmg": 130,
+    "attack": "Jestem bogiem",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": null
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_malik_montana",
+   "data": {
+    "name": "Malik Montana",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "polityka",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Świąteczny bigos",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Malik Montana"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_marcin_jozefaciuk",
+   "data": {
+    "name": "Marcin Józefaciuk",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "polityka",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Dyrektor",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Marcin Józefaciuk"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_marcin_matczak",
+   "data": {
+    "name": "Marcin Matczak",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "polityka",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Porada prawna",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Marcin Matczak"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_marianna_schreiber",
+   "data": {
+    "name": "Marianna Schreiber",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "internet",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Gra po obu stronach",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": null
+   },
+   "deleted": false
+  },
+  {
    "id": "pl_mata",
    "data": {
     "name": "Mata",
@@ -540,6 +834,28 @@
    "deleted": false
   },
   {
+   "id": "pl_michal_pazdan",
+   "data": {
+    "name": "Michał Pazdan",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "sport",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Pazdan Boy",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Michał Pazdan"
+    ]
+   },
+   "deleted": false
+  },
+  {
    "id": "pl_pashabiceps",
    "data": {
     "name": "pashaBiceps",
@@ -557,6 +873,94 @@
     "wiki": [
      "pl",
      "Jarosław Jarząbkowski"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_patryk_vega",
+   "data": {
+    "name": "Patryk Vega",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "kino",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Pibull",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Patryk Vega"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_paulina_matysiak",
+   "data": {
+    "name": "Paulina Matysiak",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "polityka",
+    "hp": 55,
+    "dmg": 40,
+    "attack": "CPK",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Paulina Matysiak"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_piotr_zgorzelski",
+   "data": {
+    "name": "Piotr Zgorzelski",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "polityka",
+    "hp": 55,
+    "dmg": 45,
+    "attack": "Trzecia droga",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Piotr Zgorzelski"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_przemyslaw_wipler",
+   "data": {
+    "name": "Przemysław Wipler",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "polityka",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Zmiana partii",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Przemysław Wipler"
     ]
    },
    "deleted": false
@@ -601,6 +1005,28 @@
     "wiki": [
      "pl",
      "Robert Biedroń"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_roman_fritz",
+   "data": {
+    "name": "Roman Fritz",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "polityka",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Szur tank",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Roman Fritz"
     ]
    },
    "deleted": false
@@ -651,6 +1077,69 @@
    "deleted": false
   },
   {
+   "id": "pl_slawosz_uznanski_wisniewski",
+   "data": {
+    "name": "Sławosz Uznański-Wiśniewski",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "nauka",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Drugi lot",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Sławosz Uznański-Wiśniewski"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_srebrny_brek",
+   "data": {
+    "name": "Srebrny Brek",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "blue",
+    "type": "internet",
+    "hp": 75,
+    "dmg": 45,
+    "attack": "Srebrna spray",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": null
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_stanislaw_zoltek",
+   "data": {
+    "name": "Stanisław Żółtek",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "polityka",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Menelowe+",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Stanisław Żółtek"
+    ]
+   },
+   "deleted": false
+  },
+  {
    "id": "pl_szydlo",
    "data": {
     "name": "Beata Szydło",
@@ -669,6 +1158,25 @@
      "pl",
      "Beata Szydło"
     ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_ten_co_gral_w_gre",
+   "data": {
+    "name": "Ten co grał w grę",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "blue",
+    "type": "internet",
+    "hp": 60,
+    "dmg": 45,
+    "attack": "Gra w grę",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": null
    },
    "deleted": false
   },
@@ -762,6 +1270,50 @@
    "deleted": false
   },
   {
+   "id": "pl_wladyslaw_kosiniak_kamysz",
+   "data": {
+    "name": "Władysław Kosiniak-Kamysz",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "purple",
+    "type": "polityka",
+    "hp": 125,
+    "dmg": 95,
+    "attack": "Narodowy agraryzm",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Władysław Kosiniak-Kamysz"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_wlodzimierz_czarzasty",
+   "data": {
+    "name": "Włodzimierz Czarzasty",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "blue",
+    "type": "polityka",
+    "hp": 80,
+    "dmg": 75,
+    "attack": "ZOMO",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Włodzimierz Czarzasty"
+    ]
+   },
+   "deleted": false
+  },
+  {
    "id": "pl_zbigniew_stonoga",
    "data": {
     "name": "Zbigniew Stonoga",
@@ -779,6 +1331,28 @@
     "wiki": [
      "pl",
      "Zbigniew Stonoga"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_zenek",
+   "data": {
+    "name": "Zenek Martyniuk",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "muzyka",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Oczy zielone",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Zenon Martyniuk"
     ]
    },
    "deleted": false
@@ -894,6 +1468,28 @@
    "deleted": false
   },
   {
+   "id": "prl_konstanty_rokossowski",
+   "data": {
+    "name": "Konstanty Rokossowski",
+    "crate": "prl",
+    "crates": [
+     "prl"
+    ],
+    "rarity": "purple",
+    "type": "polityka",
+    "hp": 125,
+    "dmg": 110,
+    "attack": "Удар немца по каске",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Konstanty Rokossowski"
+    ]
+   },
+   "deleted": false
+  },
+  {
    "id": "prl_kuron",
    "data": {
     "name": "Jacek Kuroń",
@@ -960,6 +1556,28 @@
    "deleted": false
   },
   {
+   "id": "skrzynia_historyczna_adam_stanislaw_krasinski",
+   "data": {
+    "name": "Adam Stanisław Krasiński",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "green",
+    "type": "polityka",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Wielki Sejm",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Adam Stanisław Krasiński (biskup kamieniecki)"
+    ]
+   },
+   "deleted": false
+  },
+  {
    "id": "skrzynia_historyczna_cyprian_kamil_norwid",
    "data": {
     "name": "Cyprian Kamil Norwid",
@@ -1004,6 +1622,72 @@
    "deleted": false
   },
   {
+   "id": "skrzynia_historyczna_emilia_plater",
+   "data": {
+    "name": "Emilia Plater",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "blue",
+    "type": "polityka",
+    "hp": 95,
+    "dmg": 60,
+    "attack": "Powstanie listopadowe",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Emilia Plater"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_historyczna_fryderyk_chopin",
+   "data": {
+    "name": "Fryderyk Chopin",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "gold",
+    "type": "muzyka",
+    "hp": 215,
+    "dmg": 180,
+    "attack": "Fortepian Chopina",
+    "attack2": "Mazurek",
+    "dmg2": 170,
+    "wiki": [
+     "pl",
+     "Fryderyk Chopin"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_historyczna_hugo_kollataj",
+   "data": {
+    "name": "Hugo Kołłątaj",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "green",
+    "type": "polityka",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Wielki Sejm",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Hugo Kołłątaj"
+    ]
+   },
+   "deleted": false
+  },
+  {
    "id": "skrzynia_historyczna_ignacy_krasicki",
    "data": {
     "name": "Ignacy Krasicki",
@@ -1026,6 +1710,50 @@
    "deleted": false
   },
   {
+   "id": "skrzynia_historyczna_ignacy_potocki",
+   "data": {
+    "name": "Ignacy Potocki",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "green",
+    "type": "polityka",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Wielki Sejm",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Ignacy Potocki"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_historyczna_jan_karol_chodkiewicz",
+   "data": {
+    "name": "Jan Karol Chodkiewicz",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "purple",
+    "type": "polityka",
+    "hp": 125,
+    "dmg": 110,
+    "attack": "Bitwa pod Kircholmem",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Jan Karol Chodkiewicz"
+    ]
+   },
+   "deleted": false
+  },
+  {
    "id": "skrzynia_historyczna_jan_kochanowski",
    "data": {
     "name": "Jan Kochanowski",
@@ -1043,6 +1771,94 @@
     "wiki": [
      "pl",
      "Jan Kochanowski"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_historyczna_jan_matejko",
+   "data": {
+    "name": "Jan Matejko",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "blue",
+    "type": "kino",
+    "hp": 95,
+    "dmg": 70,
+    "attack": "Stańczyk",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Jan Matejko"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_historyczna_jan_suchorzewski",
+   "data": {
+    "name": "Jan Suchorzewski",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "green",
+    "type": "polityka",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Wielki Sejm",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Jan Suchorzewski (poseł)"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_historyczna_jan_zamoyski",
+   "data": {
+    "name": "Jan Zamoyski",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "green",
+    "type": "polityka",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Bicie moskali",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Jan Zamoyski"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_historyczna_jozef_poniatowski",
+   "data": {
+    "name": "Józef Poniatowski",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "red",
+    "type": "polityka",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Marszałek Francji",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Józef Poniatowski"
     ]
    },
    "deleted": false
@@ -1092,6 +1908,28 @@
    "deleted": false
   },
   {
+   "id": "skrzynia_historyczna_piotr_skarga",
+   "data": {
+    "name": "Piotr Skarga",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "green",
+    "type": "wiara",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Skargi",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Piotr Skarga"
+    ]
+   },
+   "deleted": false
+  },
+  {
    "id": "skrzynia_historyczna_piotr_wysocki",
    "data": {
     "name": "Piotr Wysocki",
@@ -1136,6 +1974,94 @@
    "deleted": false
   },
   {
+   "id": "skrzynia_historyczna_stanislaw_moniuszko",
+   "data": {
+    "name": "Stanisław Moniuszko",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "green",
+    "type": "muzyka",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Halka",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Stanisław Moniuszko"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_historyczna_stanislaw_ze_szczepanowa",
+   "data": {
+    "name": "Stanisław ze Szczepanowa",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "green",
+    "type": "wiara",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Kanonizacja",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Stanisław ze Szczepanowa"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_historyczna_stanislaw_zolkiewski",
+   "data": {
+    "name": "Stanisław Żółkiewski",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "purple",
+    "type": "polityka",
+    "hp": 125,
+    "dmg": 110,
+    "attack": "Bitwa pod Kłuszynem",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Stanisław Żółkiewski"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_historyczna_stefan_czarniecki",
+   "data": {
+    "name": "Stefan Czarniecki",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "blue",
+    "type": "polityka",
+    "hp": 80,
+    "dmg": 70,
+    "attack": "Powrót przez morze",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Stefan Czarniecki"
+    ]
+   },
+   "deleted": false
+  },
+  {
    "id": "skrzynia_historyczna_tadeusz_kosciuszko",
    "data": {
     "name": "Tadeusz Kościuszko",
@@ -1158,6 +2084,28 @@
    "deleted": false
   },
   {
+   "id": "skrzynia_historyczna_tadeusz_reytan",
+   "data": {
+    "name": "Tadeusz Reytan",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "blue",
+    "type": "polityka",
+    "hp": 70,
+    "dmg": 65,
+    "attack": "Rozdarcie koszuli",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Tadeusz Reytan"
+    ]
+   },
+   "deleted": false
+  },
+  {
    "id": "skrzynia_historyczna_wincenty_kadlubek",
    "data": {
     "name": "Wincenty Kadłubek",
@@ -1175,6 +2123,116 @@
     "wiki": [
      "pl",
      "Wincenty Kadłubek"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_historyczna_wojciech_kossak",
+   "data": {
+    "name": "Wojciech Kossak",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "blue",
+    "type": "kino",
+    "hp": 90,
+    "dmg": 75,
+    "attack": "Pejzaż bitewny",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Wojciech Kossak"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_krolow_boleslaw_i_chrobry",
+   "data": {
+    "name": "Bolesław I Chrobry",
+    "crate": "skrzynia_krolow",
+    "crates": [
+     "skrzynia_krolow"
+    ],
+    "rarity": "ultra",
+    "type": "polityka",
+    "hp": 300,
+    "dmg": 260,
+    "attack": "Koronacja",
+    "attack2": "Pokój w Budziszynie",
+    "dmg2": 220,
+    "wiki": [
+     "pl",
+     "Bolesław I Chrobry"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_krolow_boleslaw_ii_szczodry",
+   "data": {
+    "name": "Bolesław II Szczodry",
+    "crate": "skrzynia_krolow",
+    "crates": [
+     "skrzynia_krolow"
+    ],
+    "rarity": "green",
+    "type": "polityka",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Wyprawa kijowska",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Bolesław II Szczodry"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_krolow_mieszko_ii_lambert",
+   "data": {
+    "name": "Mieszko II Lambert",
+    "crate": "skrzynia_krolow",
+    "crates": [
+     "skrzynia_krolow"
+    ],
+    "rarity": "green",
+    "type": "polityka",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Odzyskanie tronu",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Mieszko II Lambert"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_krolow_przemysl_ii",
+   "data": {
+    "name": "Przemysł II",
+    "crate": "skrzynia_krolow",
+    "crates": [
+     "skrzynia_krolow"
+    ],
+    "rarity": "blue",
+    "type": "polityka",
+    "hp": 80,
+    "dmg": 65,
+    "attack": "Biały Orzeł",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Przemysł II"
     ]
    },
    "deleted": false
