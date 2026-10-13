@@ -18,7 +18,7 @@ import catalog
 import database
 import export_catalog
 import images
-from data import (CONTRACT_SIZE, CONTRACT_VARIANT_BONUS, CRATE_PRICE, JACKPOT_WEEKDAY, MAX_DEPOSIT,
+from data import (ABILITY_KINDS, MAX_EXTRA_ABILITIES, CONTRACT_SIZE, CONTRACT_VARIANT_BONUS, CRATE_PRICE, JACKPOT_WEEKDAY, MAX_DEPOSIT,
                   MAX_OPEN, MONEY_CHESTS, RARITIES, RARITY_ORDER, SECRET_ODDS, SHOWCASE_SIZE,
                   STARTING_BALANCE, TYPES, UPGRADE_EDGE, UPGRADE_MAX, UPGRADE_MAX_ITEMS, VARIANT_ORDER,
                   VARIANTS, card_value)
@@ -503,7 +503,7 @@ def public_person(p, found):
         return {"id": p["id"], "rarity": "secret", "crate": p["crate"], "crates": p["crates"], "number": p["number"], "masked": True,
                 "name": "???", "type": "tv", "hp": 0, "attack": "???", "dmg": 0, "imgv": 0}
     base = {k: p.get(k) for k in ("id", "name", "rarity", "type", "hp", "attack", "dmg", "attack2", "dmg2",
-                                  "crate", "crates", "number")}
+                                  "kind1", "kind2", "abilities", "crate", "crates", "number")}
     base["imgv"] = img_version(p["id"])
     return base
 
@@ -582,6 +582,7 @@ def config():
         "variants": VARIANTS,
         "variantOrder": VARIANT_ORDER,
         "types": TYPES,
+        "abilityKinds": ABILITY_KINDS,
         "people": {pid: public_person(p, found) for pid, p in catalog.PEOPLE.items()},
         "crates": {cid: crate_json(c) | {"canBuy": can_buy(c)} for cid, c in catalog.CRATES.items()},
         "crateOrder": list(catalog.CRATES),
@@ -1425,6 +1426,7 @@ def unique_id(base, taken):
 
 def admin_card_json(p):
     return dict({k: p.get(k) for k in ("id", "name", "rarity", "type", "hp", "attack", "dmg", "attack2", "dmg2",
+                                       "kind1", "kind2", "abilities",
                                        "crate", "crates", "number", "builtin", "modified")},
                 wiki=list(p["wiki"]) if p.get("wiki") else None,
                 hasImage=bool(images.find(p["id"])), hasAlt=bool(images.find(p["id"], True)),
@@ -1454,7 +1456,8 @@ def admin_catalog():
               for p in catalog.HIDDEN_CARDS.values() if p.get("crate") in catalog.CRATES]
     users = [user_json(u) for u in db().execute("SELECT * FROM users ORDER BY LOWER(username)")]
     return jsonify({"crates": crates, "cards": cards, "rarities": RARITIES, "rarityOrder": RARITY_ORDER,
-                    "types": TYPES, "defaultPrice": CRATE_PRICE, "users": users})
+                    "types": TYPES, "abilityKinds": ABILITY_KINDS, "maxExtraAbilities": MAX_EXTRA_ABILITIES,
+                    "defaultPrice": CRATE_PRICE, "users": users})
 
 
 @app.post("/api/admin/crates")
@@ -1557,6 +1560,10 @@ def admin_save_card():
         "attack2": (f.get("attack2") or "").strip()[:40] or None,
         "dmg2": max(0, min(9999, int(f.get("dmg2") or 0))) if (f.get("dmg2") or "").strip().lstrip("-").isdigit() else 0,
         "wiki": [(f.get("wiki_lang") or "pl").strip()[:5], wiki_title] if wiki_title else None,
+        "kind1": f.get("kind1") if f.get("kind1") in ABILITY_KINDS else "off",
+        "kind2": f.get("kind2") if f.get("kind2") in ABILITY_KINDS else "off",
+        "abilities": catalog.clean_abilities([{"name": n, "kind": k, "value": v} for n, k, v in
+                                              zip(f.getlist("ab_name"), f.getlist("ab_kind"), f.getlist("ab_value"))]),
     }
     pid = f.get("id")
     old = catalog.PEOPLE.get(pid) if pid else None

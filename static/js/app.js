@@ -83,6 +83,13 @@ function variantLayers(v) {
   return html;
 }
 
+// wszystkie zdolności karty po kolei: [{ name, kind: "off" | "def", value }]
+function abilitiesOf(p) {
+  const list = [{ name: p.attack, kind: p.kind1 || "off", value: p.dmg }];
+  if (p.attack2) list.push({ name: p.attack2, kind: p.kind2 || "off", value: p.dmg2 });
+  return list.concat(p.abilities || []);
+}
+
 function cardHTML(pid, variant = "normal") {
   const p = person(pid);
   if (p.masked) return mysteryCardHTML(p);
@@ -92,8 +99,9 @@ function cardHTML(pid, variant = "normal") {
   const crate = crateOf(p.crate);
   const total = String(crate.people.length).padStart(3, "0");
   const cost = type.icon.repeat(Math.min(3, 1 + Math.floor(rarityIdx(p.rarity) / 2)));
+  const abils = abilitiesOf(p);
   return `
-  <div class="card r-${p.rarity} v-${variant}${p.attack2 ? " two-atk" : ""}" data-pid="${p.id}" data-variant="${variant}">
+  <div class="card r-${p.rarity} v-${variant}${abils.length > 1 ? " two-atk" : ""}${abils.length > 2 ? ` atk-${abils.length}` : ""}" data-pid="${p.id}" data-variant="${variant}">
     <div class="card-inner">
       ${variant === "reverse" ? '<div class="rev-foil"></div>' : ""}
       <div class="card-head">
@@ -103,16 +111,11 @@ function cardHTML(pid, variant = "normal") {
       </div>
       <div class="card-photo"><img src="${imgUrl(p.id)}" alt="${esc(p.name)}" loading="lazy" draggable="false"></div>
       <div class="card-sub">${type.name} · ${esc(crate.short)}</div>
-      <div class="card-attack">
-        <span class="atk-cost">${cost}</span>
-        <span class="atk-name">${esc(p.attack)}</span>
-        <span class="atk-dmg">${p.dmg}</span>
-      </div>
-      ${p.attack2 ? `<div class="card-attack atk2">
-        <span class="atk-cost">${cost}${type.icon}</span>
-        <span class="atk-name">${esc(p.attack2)}</span>
-        <span class="atk-dmg">${p.dmg2}</span>
-      </div>` : ""}
+      ${abils.map((a, i) => `<div class="card-attack${i ? " atk2" : ""}${a.kind === "def" ? " def" : ""}">
+        <span class="atk-cost">${a.kind === "def" ? "🛡️" : cost + (i ? type.icon : "")}</span>
+        <span class="atk-name">${esc(a.name)}</span>
+        <span class="atk-dmg">${a.value}</span>
+      </div>`).join("")}
       <div class="card-stats">
         <span>słabość<b>${S.cfg.types[type.weak].icon}×2</b></span>
         <span>odporność<b>${S.cfg.types[type.resist].icon}-20</b></span>
@@ -146,8 +149,7 @@ function secretCardHTML(p, variant) {
         <span class="sc-hp"><small>HP</small>${p.hp}</span>
       </div>
       <div class="sc-panel">
-        <div class="sc-attack"><span>${type.icon}</span><span class="sc-atk">${esc(p.attack)}</span><b>${p.dmg}</b></div>
-        ${p.attack2 ? `<div class="sc-attack"><span>${type.icon}${type.icon}</span><span class="sc-atk">${esc(p.attack2)}</span><b>${p.dmg2}</b></div>` : ""}
+        ${abilitiesOf(p).map((a, i) => `<div class="sc-attack${a.kind === "def" ? " def" : ""}"><span>${a.kind === "def" ? "🛡️" : type.icon.repeat(i ? 2 : 1)}</span><span class="sc-atk">${esc(a.name)}</span><b>${a.value}</b></div>`).join("")}
         <div class="sc-foot"><span>★ TAJNA ★</span><span>${esc(crate.code)} ★${String(p.number).padStart(3, "0")}</span><span class="sc-val">${fmt(cardValue(p.id, variant))}</span></div>
       </div>
       <div class="sc-frame"></div>

@@ -425,4 +425,13 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 .card.two-atk .card-attack .atk-name { font-size: .6em; }
 .card.two-atk .card-attack .atk-dmg { font-size: .9em; }
 .card.two-atk .card-stats { margin-top: 2%; }
+/* 3-4 zdolności (dodatkowe z panelu admina): mniejsze zdjęcie i ciaśniejsze wiersze */
+.card.atk-3 .card-photo { aspect-ratio: 1 / .72; }
+.card.atk-4 .card-photo { aspect-ratio: 1 / .64; }
+.card:is(.atk-3, .atk-4) .card-attack { padding: .2em 0; }
+.card:is(.atk-3, .atk-4) .card-attack .atk-name { font-size: .56em; }
+.card:is(.atk-3, .atk-4) .card-stats { margin-top: 1%; }
+/* zdolność defensywna: tarcza zamiast kosztu, niebieska wartość osłony */
+.card-attack.def .atk-dmg, .sc-attack.def b { color: #1e6bff; }
+.card-attack.def .atk-dmg::before { content: "🛡"; font-size: .6em; margin-right: .1em; vertical-align: middle; }
 .sc-attack + .sc-attack { margin-top: .3em; padding-top: .3em; border-top: 1px solid #f3e3b033; }

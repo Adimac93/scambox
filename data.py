@@ -77,6 +77,8 @@ TYPES = {
     "internet": {"name": "Internet",  "icon": "📱"},
     "nauka":    {"name": "Nauka",     "icon": "🔬"},
     "wiara":    {"name": "Wiara",     "icon": "✝️"},
+    "artysta":  {"name": "Artysta",   "icon": "🎨"},
+    "wojsko":   {"name": "Wojsko",    "icon": "🪖"},
 }
 
 # Słabość / odporność (jak w kartach Pokémon) - czysto dekoracyjne
@@ -91,7 +93,15 @@ MATCHUPS = {
     "internet": ("biznes", "polityka"),
     "nauka":    ("polityka", "internet"),
     "wiara":    ("internet", "polityka"),
+    "artysta":  ("biznes", "internet"),
+    "wojsko":   ("polityka", "sport"),
 }
+
+# Zdolności kart: każda jest ofensywna (atak, wartość = obrażenia) albo defensywna (obrona, wartość = osłona).
+# Pierwsze dwie to pola attack/dmg i attack2/dmg2 (rodzaj: kind1/kind2, domyślnie ofensywna),
+# kolejne admin dodaje w panelu jako listę "abilities".
+ABILITY_KINDS = {"off": {"name": "Ofensywna", "icon": "⚔️"}, "def": {"name": "Defensywna", "icon": "🛡️"}}
+MAX_EXTRA_ABILITIES = 2
 for _t, (_weak, _res) in MATCHUPS.items():
     TYPES[_t]["weak"] = _weak
     TYPES[_t]["resist"] = _res

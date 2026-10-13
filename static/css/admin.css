@@ -107,3 +107,6 @@ fieldset .chk { display: flex; margin: 4px 0; color: var(--text); font-size: 14p
 .a-access-form { display: flex; flex-direction: column; gap: 8px; min-width: min(420px, 90vw); }
 .av-card { display: inline-grid; place-items: center; line-height: 0; vertical-align: middle; }
 .av-card img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; object-position: 50% 18%; box-shadow: 0 0 0 2px var(--rc); }
+/* dodatkowe zdolności karty: nazwa, wartość, rodzaj i mały przycisk usuwania w jednym wierszu */
+.a-ability { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1.4fr) auto; align-items: end; margin-bottom: 8px; }
+.a-ability .btn { padding: 8px 12px; }

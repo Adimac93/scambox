@@ -13,7 +13,23 @@ import json
 import data
 
 CRATE_FIELDS = ("name", "short", "code", "emoji", "color1", "color2", "price", "desc", "shop", "restricted", "weights")
-CARD_FIELDS = ("name", "wiki", "rarity", "type", "hp", "attack", "dmg", "attack2", "dmg2", "crate", "crates")
+CARD_FIELDS = ("name", "wiki", "rarity", "type", "hp", "attack", "dmg", "attack2", "dmg2", "kind1", "kind2", "abilities",
+               "crate", "crates")
+
+
+def clean_abilities(raw):
+    """Dodatkowe zdolności karty: [{"name", "kind": off/def, "value"}], najwyżej data.MAX_EXTRA_ABILITIES."""
+    out = []
+    for a in raw if isinstance(raw, list) else []:
+        name = str((a or {}).get("name") or "").strip()[:40]
+        if not name:
+            continue
+        try:
+            value = max(0, min(9999, int(a.get("value") or 0)))
+        except (TypeError, ValueError):
+            value = 0
+        out.append({"name": name, "kind": a.get("kind") if a.get("kind") in data.ABILITY_KINDS else "off", "value": value})
+    return out[:data.MAX_EXTRA_ABILITIES]
 
 CRATES = {}         # id -> skrzynka (z listą "people" w kolejności numerów)
 PEOPLE = {}         # id -> karta
@@ -101,6 +117,10 @@ def rebuild(conn):
         p["hp"], p["dmg"] = int(p.get("hp") or 0), int(p.get("dmg") or 0)
         p["attack2"] = (p.get("attack2") or "").strip() or None
         p["dmg2"] = int(p.get("dmg2") or 0) if p["attack2"] else 0
+        # rodzaj zdolności: istniejące karty nie mają tych pól - zostają ofensywne
+        p["kind1"] = p.get("kind1") if p.get("kind1") in data.ABILITY_KINDS else "off"
+        p["kind2"] = p.get("kind2") if p["attack2"] and p.get("kind2") in data.ABILITY_KINDS else "off"
+        p["abilities"] = clean_abilities(p.get("abilities"))
         if p.get("rarity") not in data.RARITIES:
             p["rarity"] = "green"
         if p.get("type") not in data.TYPES:

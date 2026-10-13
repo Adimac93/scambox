@@ -181,9 +181,18 @@ function openCardForm(id) {
         <label>HP<input type="number" name="hp" value="${c.hp}" min="0" max="9999"></label>
         <label>Nazwa ataku<input type="text" name="attack" value="${esc(c.attack)}" maxlength="40"></label>
         <label>Obrażenia<input type="number" name="dmg" value="${c.dmg}" min="0" max="9999"></label>
+        <label>Rodzaj<select name="kind1">${kindOpts(c.kind1)}</select></label>
         <label>Druga zdolność <small class="muted">(opcjonalna)</small><input type="text" name="attack2" value="${esc(c.attack2 || "")}" maxlength="40" placeholder="np. dla legendarnych"></label>
         <label>Obrażenia 2<input type="number" name="dmg2" value="${c.dmg2 || ""}" min="0" max="9999"></label>
+        <label>Rodzaj 2<select name="kind2">${kindOpts(c.kind2)}</select></label>
       </div>
+
+      <fieldset>
+        <legend>Dodatkowe zdolności <small class="muted">(max ${A.cat.maxExtraAbilities})</small></legend>
+        <div id="abilityRows">${(c.abilities || []).map(abilityRowHTML).join("")}</div>
+        <button class="btn tiny" type="button" data-act="add-ability">➕ Dodaj zdolność</button>
+        <p class="muted small">Ofensywna: wartość to obrażenia. Defensywna: wartość to osłona (🛡️).</p>
+      </fieldset>
 
       <fieldset>
         <legend>Zdjęcie główne</legend>
@@ -205,6 +214,20 @@ function openCardForm(id) {
       ${c.owned ? `<p class="muted small">Masz ${c.owned} ${c.owned === 1 ? "egzemplarz" : "egzemplarzy"} tej karty. Usunięta karta zniknie z ekwipunku (ukrytą można przywrócić).</p>` : ""}
     </div>`;
   $("#cardModal").hidden = false;
+}
+
+function kindOpts(sel) {
+  return Object.entries(A.cat.abilityKinds).map(([k, v]) =>
+    `<option value="${k}"${k === (sel || "off") ? " selected" : ""}>${v.icon} ${esc(v.name)}</option>`).join("");
+}
+
+function abilityRowHTML(a = {}) {
+  return `<div class="a-grid a-ability">
+    <label>Nazwa<input type="text" name="ab_name" value="${esc(a.name || "")}" maxlength="40" required></label>
+    <label>Wartość<input type="number" name="ab_value" value="${a.value ?? 30}" min="0" max="9999"></label>
+    <label>Rodzaj<select name="ab_kind">${kindOpts(a.kind)}</select></label>
+    <button class="btn tiny danger" type="button" data-act="del-ability" title="Usuń zdolność">✕</button>
+  </div>`;
 }
 
 function closeCardForm() { $("#cardModal").hidden = true; }
@@ -494,6 +517,11 @@ function bind() {
     const c = A.cat.cards.find(x => x.id === id);
     try {
       if (act === "close-card") return closeCardForm();
+      if (act === "add-ability") {
+        if (document.querySelectorAll("#abilityRows .a-ability").length >= A.cat.maxExtraAbilities) return toast(`Maksymalnie ${A.cat.maxExtraAbilities} dodatkowe zdolności`, true);
+        return $("#abilityRows").insertAdjacentHTML("beforeend", abilityRowHTML());
+      }
+      if (act === "del-ability") return e.target.closest(".a-ability").remove();
       if (act === "refetch") {
         e.target.disabled = true; e.target.textContent = "Pobieram…";
         const r = await api(`/api/admin/cards/${encodeURIComponent(id)}/refetch`, { method: "POST" });
