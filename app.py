@@ -760,22 +760,6 @@ def set_favorite():
     return jsonify({"ok": True})
 
 
-@app.post("/api/deposit")
-@admin_required
-def deposit():
-    lock_me()
-    try:
-        amount = int(request.get_json(force=True).get("amount", 0))
-    except (TypeError, ValueError):
-        amount = 0
-    if not 1 <= amount <= MAX_DEPOSIT:
-        return jsonify({"error": f"Kwota musi być od 1 do {MAX_DEPOSIT:,} $".replace(",", " ")}), 400
-    add_state("balance", amount)
-    add_state("deposited", amount)
-    db().commit()
-    return jsonify({"state": get_state()})
-
-
 @app.post("/api/contract")
 @login_required
 def contract():

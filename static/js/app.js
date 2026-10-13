@@ -245,9 +245,7 @@ function renderHeader() {
   requestAnimationFrame(step);
   const broke = target < Math.min(...crateList().map(c => c.price));
   el.classList.toggle("neg", broke);
-  $("#bankBtn").hidden = !S.me?.isAdmin;
   $("#adminLink").hidden = !S.me?.isAdmin;
-  $("#bankBtn").classList.toggle("pulse", broke);
   if (S.me) {
     $("#userAvatar").outerHTML = avatarHTML(S.me, "").replace('<span class="', '<span id="userAvatar" class="');
     $("#userName").textContent = S.me.username;
@@ -560,8 +558,8 @@ async function openCrates() {
   if (S.state.balance < cost) {
     Sound.error();
     const msg = `Brakuje ci ${fmt(cost - S.state.balance)}, żeby otworzyć ${S.count} ${plural(S.count, "skrzynkę", "skrzynki", "skrzynek")}.`;
-    if (S.me?.isAdmin) openBank(msg);
-    else if (S.dailyClaimable) { toast(msg + " Odbierz nagrodę dzienną!", true); openDaily(); }
+    // bez darmowych pieniędzy po bankructwie - tylko nagroda dzienna (i sprzedaż kart)
+    if (S.dailyClaimable) { toast(msg + " Odbierz nagrodę dzienną!", true); openDaily(); }
     else toast(msg + " Sprzedaj kilka kart albo wróć jutro po nagrodę dzienną 🎁", true);
     return;
   }
@@ -1213,15 +1211,6 @@ function bind() {
     if (c) { e.stopPropagation(); openViewer(c.dataset.pid, c.dataset.variant); }
   }, true);
 
-  // bankomat
-  $("#bankBtn").addEventListener("click", () => openBank());
-  $("#bankClose").addEventListener("click", closeBank);
-  $("#bank").addEventListener("click", e => {
-    if (e.target.id === "bank") return closeBank();
-    const b = e.target.closest(".bank-preset"); if (b) deposit(+b.dataset.v);
-  });
-  $("#bankForm").addEventListener("submit", e => { e.preventDefault(); deposit($("#bankAmount").value); });
-
   bindForge();
   bindSocial();
 
@@ -1234,7 +1223,6 @@ function bind() {
     if (epicOpen() || document.querySelector(".money-stage, .forge-anim")) return;
     if (dialogOpen()) { if (e.key === "Escape") closeDialogs(); return; }
     if (viewerOpen()) { if (e.key === "Escape" || e.key === " ") { e.preventDefault(); closeViewer(); } return; }
-    if (!$("#bank").hidden) { if (e.key === "Escape") closeBank(); return; }
     if (e.key === "Escape") {
       if (!$("#modal").hidden) return closeModal();
       if (S.opening?.spinning) return skipSpin();

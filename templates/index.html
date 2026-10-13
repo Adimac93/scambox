@@ -30,7 +30,6 @@
     <div class="top-right">
       <button class="icon-btn daily-btn" id="dailyBtn" title="Nagroda dzienna">🎁</button>
       <div class="balance" id="balance" title="Twoje pieniądze">0 $</div>
-      <button class="icon-btn bank-btn" id="bankBtn" title="Bankomat (admin) — dodaj pieniądze" hidden>💸</button>
       <button class="icon-btn" id="soundBtn" title="Dźwięk">🔊</button>
       <a class="icon-btn" href="/admin" title="Panel admina" id="adminLink" hidden>⚙️</a>
       <button class="user-chip" id="userChip" title="Twój profil"><span id="userAvatar">😎</span><span id="userName"></span></button>
@@ -177,21 +176,6 @@
   <!-- MODAL KARTY -->
   <div class="modal" id="modal" hidden>
     <div class="modal-box" id="modalBox"></div>
-  </div>
-
-  <!-- BANKOMAT -->
-  <div class="bank" id="bank" hidden>
-    <div class="bank-box">
-      <div class="bank-head">🏦 <span>Bankomat</span></div>
-      <div class="bank-reason" id="bankReason" hidden></div>
-      <p class="muted">Zbankrutowałeś? Żaden problem — to tylko zabawa. Wybierz kwotę:</p>
-      <div class="bank-presets" id="bankPresets"></div>
-      <form class="bank-custom" id="bankForm">
-        <input type="number" id="bankAmount" min="1" max="1000000" placeholder="Własna kwota…">
-        <button class="btn primary" type="submit">Wpłać</button>
-      </form>
-      <button class="btn bank-close" id="bankClose">Zamknij</button>
-    </div>
   </div>
 
   <canvas id="confetti"></canvas>

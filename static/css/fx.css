@@ -234,30 +234,6 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .vi-table td:first-child { color: var(--muted); white-space: nowrap; padding-right: 12px; }
 .vi-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
-/* ============================================================ BANKOMAT */
-.bank { position: fixed; inset: 0; z-index: 160; display: grid; place-items: center; background: #000b; backdrop-filter: blur(6px); padding: 16px; animation: fadeIn .2s; }
-.bank-box {
-  width: min(460px, 100%); background: linear-gradient(180deg, #1d2536, #141a27); border: 1px solid var(--line);
-  border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 20px 60px #000a;
-  animation: zoomIn .35s cubic-bezier(.2, 1.4, .4, 1);
-}
-.bank-box p { margin: 0; }
-.bank-head { font-family: Bungee, Rubik, sans-serif; font-size: 26px; }
-.bank-head span { background: linear-gradient(90deg, #3ddc84, #ffcf3f); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.bank-reason { background: #3a1520; border: 1px solid #7a2b3b; color: #ffb3bf; border-radius: 10px; padding: 10px 12px; font-size: 14px; }
-.bank-presets { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.bank-preset {
-  font-family: Bungee, Rubik, sans-serif; font-size: 17px; padding: 14px 8px; border-radius: 12px;
-  border: 1px solid #1f5a3a; background: linear-gradient(180deg, #1a4a30, #0f2a1d); color: var(--good);
-  transition: transform .12s, filter .12s;
-}
-.bank-preset:hover { transform: translateY(-2px); filter: brightness(1.25); }
-.bank-custom { display: flex; gap: 8px; }
-.bank-custom input { flex: 1; }
-.bank-close { align-self: flex-end; }
-.bank-btn.pulse { border-color: var(--good); animation: bankPulse 1.2s ease-in-out infinite; }
-@keyframes bankPulse { 0% { box-shadow: 0 0 0 0 #3ddc8499; } 100% { box-shadow: 0 0 0 12px transparent; } }
-
 /* ============================================================ KUŹNIA */
 .forge-toolbar { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
 .forge-info { font-size: 14px; flex: 1; min-width: 240px; }

@@ -1,5 +1,5 @@
 "use strict";
-// Efekty: cząsteczki, wielkie odsłonięcie (legendarne/ultra), podgląd karty, bankomat.
+// Efekty: cząsteczki, wielkie odsłonięcie (legendarne/ultra), podgląd karty, deszcz monet.
 // Korzysta z globalnych funkcji z app.js (S, $, person, cardHTML, fmt, esc...).
 
 const RAINBOW = ["#ff3b3b", "#ff9f1a", "#ffe53b", "#3bff6b", "#3bd5ff", "#6b5bff", "#ff3bd8"];
@@ -297,35 +297,7 @@ function openViewer(pid, variant = "normal") {
 function closeViewer() { document.querySelector(".viewer")?.remove(); }
 function viewerOpen() { return !!document.querySelector(".viewer"); }
 
-// ================================================================ BANKOMAT
-
-const BANK_PRESETS = [1000, 5000, 20000, 100000];
-
-function openBank(reason = "") {
-  const el = $("#bank");
-  $("#bankReason").textContent = reason;
-  $("#bankReason").hidden = !reason;
-  $("#bankPresets").innerHTML = BANK_PRESETS.map(v => `<button class="bank-preset" data-v="${v}">+${fmt(v)}</button>`).join("");
-  $("#bankAmount").value = "";
-  el.hidden = false;
-  Sound.click();
-}
-
-function closeBank() { $("#bank").hidden = true; }
-
-async function deposit(amount) {
-  amount = Math.floor(Number(amount));
-  if (!amount || amount < 1) { Sound.error(); toast("Podaj kwotę", true); return; }
-  try {
-    const res = await api("/api/deposit", { amount });
-    applyState(res.state);
-    closeBank();
-    Sound.cash();
-    coinRain(Math.min(160, 25 + Math.round(Math.log10(amount) * 25)));
-    toast(`🏦 Wpłacono ${fmt(amount)}`);
-    rerenderCurrent();
-  } catch (e) { Sound.error(); toast(e.message, true); }
-}
+// ================================================================ DESZCZ MONET
 
 function coinRain(n) {
   const cv = $("#confetti");
