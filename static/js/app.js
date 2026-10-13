@@ -271,8 +271,12 @@ function applyState(state) {
   renderHeader();
 }
 
+// klaser pamięta każdą kartę, którą gracz kiedykolwiek miał ("osoba|wariant")
+function noteCollected(items) { items.forEach(i => S.collected.add(`${i.person}|${i.variant}`)); }
+
 function removeItems(ids) {
   const set = new Set(ids);
+  noteCollected(S.items.filter(i => set.has(i.id)));
   S.items = S.items.filter(i => !set.has(i.id));
   ids.forEach(id => S.inv.selected.delete(id));
 }
@@ -882,7 +886,18 @@ function ownedMap() {
   return m;
 }
 
-// owned: { personId: { best: wariant, count: liczba } }
+// karty, które gracz kiedyś miał, a teraz nie ma: { personId: { best: najlepszy wariant, count: 0 } }
+function collectedOwned(pairs) {
+  const out = {};
+  for (const [pid, v] of pairs) {
+    if (!S.cfg.people[pid]) continue;
+    const o = (out[pid] ||= { best: v, count: 0 });
+    if (varRank(v) > varRank(o.best)) o.best = v;
+  }
+  return out;
+}
+
+// owned: { personId: { best: wariant, count: liczba } } - count 0 = karta była, ale już jej nie ma (sprzedana / oddana)
 function binderHTML(crate, owned, spread, { mine = true } = {}) {
   const ids = crate.people;
   const pages = [];
@@ -899,7 +914,7 @@ function binderHTML(crate, owned, spread, { mine = true } = {}) {
         if (p.rarity === "secret") return `<div class="pocket secret-pocket"><div class="card-back secret-back"><div><div class="q">★</div><div class="n">TAJNA</div></div></div></div>`;
         return `<div class="pocket"><div class="card-back"><div><div class="q">?</div><div class="n">#${String(crate.people.indexOf(id) + 1).padStart(3, "0")}</div></div></div></div>`;
       }
-      return `<div class="pocket owned${p.rarity === "secret" ? " secret-pocket" : ""}" data-pid="${id}" data-variant="${o.best}">${cardHTML(id, o.best)}${o.count > 1 ? `<span class="count">×${o.count}</span>` : ""}</div>`;
+      return `<div class="pocket owned${o.count ? "" : " gone"}${p.rarity === "secret" ? " secret-pocket" : ""}" data-pid="${id}" data-variant="${o.best}"${o.count ? "" : ' title="Ta karta jest w kolekcji, ale nie masz już żadnego egzemplarza"'}>${cardHTML(id, o.best)}${o.count > 1 ? `<span class="count">×${o.count}</span>` : o.count ? "" : '<span class="count">×0</span>'}</div>`;
     }).join("")}</div>`;
   };
   const html = pageHTML(pages[spread * 2], "left") + pageHTML(pages[spread * 2 + 1], "right") +
@@ -924,7 +939,8 @@ function renderBinder() {
     `<button data-crate="${c.id}" class="${S.binderCrate === c.id ? "active" : ""}">${esc(c.emoji)} ${esc(c.short)}</button>`).join("");
   const crate = crateOf(S.binderCrate);
   if (!crate) { $("#binder").innerHTML = ""; return; }
-  const owned = {};
+  noteCollected(S.items);
+  const owned = collectedOwned([...S.collected].map(k => k.split("|")));
   for (const [pid, o] of Object.entries(ownedMap())) owned[pid] = { best: o.best, count: o.ids.length };
   const b = binderHTML(crate, owned, S.spread);
   S.spread = b.spread;
@@ -1152,7 +1168,10 @@ function bind() {
   $("#pagePrev").addEventListener("click", () => flipBinder(-1));
   $("#pageNext").addEventListener("click", () => flipBinder(1));
   $("#binder").addEventListener("click", e => {
-    const p = e.target.closest(".pocket.owned"); if (p) { Sound.click(); openModal(p.dataset.pid); }
+    const p = e.target.closest(".pocket.owned"); if (!p) return;
+    Sound.click();
+    if (p.classList.contains("gone")) openViewer(p.dataset.pid, p.dataset.variant);  // nie ma już egzemplarza - tylko podgląd
+    else openModal(p.dataset.pid);
   });
 
   // modal
@@ -1265,6 +1284,7 @@ function bind() {
   S.items = st.items;
   S.showcase = st.showcase || [];
   S.chests = st.chests || {};
+  S.collected = new Set((st.collected || []).map(([p, v]) => `${p}|${v}`));
   S.crate = S.binderCrate = cfg.crateOrder[0];
   try { S.fast = localStorage.getItem("fast") === "1"; } catch (_) {}
   // podgrzej cache zdjęć, żeby bębny od razu miały obrazki

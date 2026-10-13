@@ -537,3 +537,8 @@ select { background: var(--panel); color: var(--text); border: 1px solid var(--l
 .result .rbtns .rsell { flex: 1; }
 .result .rsell:disabled { opacity: .45; cursor: not-allowed; }
 .fav-note { color: #ffd54a; font-weight: 900; font-size: 12px; }
+
+/* klaser: karta, którą gracz kiedyś miał, ale już jej nie ma (sprzedana / oddana) - zostaje, wyblakła */
+.pocket.gone .card { opacity: .42; }
+.pocket.gone:hover .card { opacity: .7; }
+.pocket.gone .count { background: #000c; color: var(--muted); }

@@ -689,9 +689,9 @@ async function renderProfile() {
 
 function renderProfileBinder(flip = 0) {
   const d = PROF.data;
-  const owned = {};
+  const owned = collectedOwned(d.collected || []);  // karty, które gracz kiedyś miał (zostają w klaserze)
   for (const c of d.collection) {
-    const o = (owned[c.person] ||= { best: c.variant, count: 0 });
+    const o = owned[c.person]?.count ? owned[c.person] : (owned[c.person] = { best: c.variant, count: 0 });
     o.count += c.count;
     if (varRank(c.variant) > varRank(o.best)) o.best = c.variant;
   }

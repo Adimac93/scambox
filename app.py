@@ -99,6 +99,15 @@ def init_db():
     else:
         init_sqlite(conn)
     catalog.init_tables(conn)
+    # klaser pamięta karty, które gracz kiedykolwiek miał: uzupełniamy z obecnych kart i z aktywności
+    # (wszystko, co ktoś wylosował / pokazał, kiedyś było jego) - bezpieczne przy każdym starcie
+    conn.execute("INSERT INTO user_collected (user_id, person_id, variant) SELECT DISTINCT user_id, person_id, variant "
+                 "FROM items WHERE user_id IS NOT NULL ON CONFLICT DO NOTHING")
+    conn.execute("INSERT INTO user_collected (user_id, person_id, variant) SELECT DISTINCT author_id, person_id, variant "
+                 "FROM feed WHERE author_id IS NOT NULL ON CONFLICT DO NOTHING")
+    # kto kiedykolwiek dostał pieniądze z bankomatu / od admina (statystyka "deposited") - poza rankingiem
+    conn.execute("UPDATE users SET money_generated = 1 WHERE money_generated = 0 AND id IN "
+                 "(SELECT user_id FROM user_state WHERE key = 'deposited' AND value > 0)")
     conn.commit()
     if export_catalog.import_if_empty(conn):  # nowa instalacja: karty i skrzynki z catalog_export.json
         print("  Wczytano karty i skrzynki z catalog_export.json")
@@ -130,6 +139,8 @@ def init_sqlite(conn):
                                                PRIMARY KEY (user_id, key));
         CREATE TABLE IF NOT EXISTS user_discovered (user_id INTEGER NOT NULL, person_id TEXT NOT NULL,
                                                     PRIMARY KEY (user_id, person_id));
+        CREATE TABLE IF NOT EXISTS user_collected (user_id INTEGER NOT NULL, person_id TEXT NOT NULL, variant TEXT NOT NULL,
+                                                   PRIMARY KEY (user_id, person_id, variant));
         CREATE TABLE IF NOT EXISTS daily_claims (user_id INTEGER NOT NULL, day TEXT NOT NULL, amount INTEGER NOT NULL,
                                                  PRIMARY KEY (user_id, day));
         CREATE TABLE IF NOT EXISTS friendships (requester_id INTEGER NOT NULL, addressee_id INTEGER NOT NULL,
@@ -153,6 +164,14 @@ def init_sqlite(conn):
                                                  PRIMARY KEY (user_id, crate_id));
         CREATE TABLE IF NOT EXISTS user_chests (user_id INTEGER NOT NULL, kind TEXT NOT NULL, count INTEGER NOT NULL,
                                                 PRIMARY KEY (user_id, kind));
+        CREATE TABLE IF NOT EXISTS admin_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at REAL NOT NULL,
+            admin_id INTEGER, admin_name TEXT NOT NULL,
+            action TEXT NOT NULL,
+            target_id INTEGER, target_name TEXT NOT NULL DEFAULT '',
+            details TEXT NOT NULL DEFAULT ''
+        );
         CREATE TABLE IF NOT EXISTS feed (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             author_id INTEGER NOT NULL,
@@ -186,6 +205,8 @@ def init_sqlite(conn):
         conn.execute("ALTER TABLE users ADD COLUMN ban_reason TEXT NOT NULL DEFAULT ''")
     if "ranking_hidden" not in ucols:  # migracja: admin może ukryć gracza w rankingu
         conn.execute("ALTER TABLE users ADD COLUMN ranking_hidden INTEGER NOT NULL DEFAULT 0")
+    if "money_generated" not in ucols:  # migracja: gracze, którzy dostali pieniądze od admina (poza rankingiem)
+        conn.execute("ALTER TABLE users ADD COLUMN money_generated INTEGER NOT NULL DEFAULT 0")
 
 
 def ensure_state(conn, uid):
@@ -468,8 +489,20 @@ def item_json(row):
             "value": card_value(person, variant), "created": row["created_at"], "fav": bool(row["favorite"])}
 
 
+def note_collected(user_id, person_id, variant):
+    """Karta trafia na stałe do klasera gracza (zostaje tam także po sprzedaży)."""
+    db().execute("INSERT INTO user_collected (user_id, person_id, variant) VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
+                 (user_id, person_id, variant))
+
+
+def collected_list(user_id):
+    return [[r[0], r[1]] for r in db().execute("SELECT person_id, variant FROM user_collected WHERE user_id = ?", (user_id,))
+            if r[0] in catalog.PEOPLE]
+
+
 def insert_item(person_id, variant):
     now = time.time()
+    note_collected(uid(), person_id, variant)
     new_id = db().execute("INSERT INTO items (person_id, holo, variant, created_at, user_id) VALUES (?, ?, ?, ?, ?) "
                           "RETURNING id", (person_id, int(variant != "normal"), variant, now, uid())).fetchone()[0]
     return {"id": new_id, "person": person_id, "variant": variant,
@@ -610,7 +643,8 @@ def my_items():
 @app.get("/api/state")
 @login_required
 def state():
-    return jsonify({"state": get_state(), "items": my_items(), "showcase": showcase_ids(uid()), "chests": get_chests()})
+    return jsonify({"state": get_state(), "items": my_items(), "showcase": showcase_ids(uid()), "chests": get_chests(),
+                    "collected": collected_list(uid())})
 
 
 def roll_variant(factor=1.0):
@@ -1008,7 +1042,7 @@ def friend_owns(owner_name, person_id):
     owner = find_user(owner_name) if owner_name else None
     if owner is None or owner["id"] not in friend_ids(uid()):
         return False
-    return db().execute("SELECT 1 FROM items WHERE user_id = ? AND person_id = ? LIMIT 1",
+    return db().execute("SELECT 1 FROM user_collected WHERE user_id = ? AND person_id = ? LIMIT 1",
                         (owner["id"], person_id)).fetchone() is not None
 
 
@@ -1236,7 +1270,8 @@ def trade_accept(tid):
     # tajne karty, które ktoś dostał w wymianie, są dla niego odkryte
     for item_ids, user_id in ((give, t["to_id"]), (want, t["from_id"])):
         for item_id in item_ids:
-            pid = conn.execute("SELECT person_id FROM items WHERE id = ?", (item_id,)).fetchone()[0]
+            pid, var = conn.execute("SELECT person_id, variant FROM items WHERE id = ?", (item_id,)).fetchone()
+            note_collected(user_id, pid, var)
             if catalog.PEOPLE.get(pid, {}).get("rarity") == "secret":
                 conn.execute("INSERT INTO user_discovered (user_id, person_id) VALUES (?, ?) ON CONFLICT DO NOTHING", (user_id, pid))
     conn.execute("UPDATE trades SET status = 'accepted', updated_at = ? WHERE id = ?", (time.time(), tid))
@@ -1343,12 +1378,13 @@ def profile(name):
         if it:
             show.append(it)
     rel = relation(uid(), u["id"])
+    collected = collected_list(u["id"])
     # tajne karty znajomego widać na jego profilu, nawet jeśli samemu się ich jeszcze nie odkryło
     reveal = {}
     if rel == "friend":
         found = discovered()
-        for c in collection:
-            p = catalog.PEOPLE[c["person"]]
+        for pid in {c["person"] for c in collection} | {c[0] for c in collected}:
+            p = catalog.PEOPLE[pid]
             if p["rarity"] == "secret" and p["id"] not in found:
                 reveal[p["id"]] = public_person(p, {p["id"]})
     return jsonify({
@@ -1358,6 +1394,7 @@ def profile(name):
         "stats": {"opened": st.get("opened", 0), "contracts": st.get("contracts", 0),
                   "upgradesWon": st.get("upgrades_won", 0), "upgradesLost": st.get("upgrades_lost", 0)},
         "collection": collection,
+        "collected": collected,
         "showcase": show,
     })
 
@@ -1369,7 +1406,8 @@ def ranking():
     opened = {r[0]: r[1] for r in db().execute("SELECT user_id, value FROM user_state WHERE key = 'opened'")}
     friends_of_me = friend_ids(uid())
     players = []
-    for u in db().execute("SELECT * FROM users WHERE banned = 0 AND ranking_hidden = 0"):
+    # bez zablokowanych, ukrytych przez admina i tych, którzy dostali pieniądze / skrzynki od admina
+    for u in db().execute("SELECT * FROM users WHERE banned = 0 AND ranking_hidden = 0 AND money_generated = 0"):
         b = brief(u, stats)
         b["opened"] = opened.get(u["id"], 0)
         b["friend"] = u["id"] in friends_of_me
@@ -1420,6 +1458,39 @@ def admin_card_json(p):
 
 def refresh_catalog():
     catalog.rebuild(db())
+
+
+# ---------------------------------------------------------------- dziennik działań adminów
+
+def log_admin(action, target_id=None, details=""):
+    """Zapisuje działanie admina (kto, co, komu) - widać je w panelu admina w "Dzienniku adminów"."""
+    target = db().execute("SELECT username FROM users WHERE id = ?", (target_id,)).fetchone() if target_id else None
+    db().execute("INSERT INTO admin_log (created_at, admin_id, admin_name, action, target_id, target_name, details) "
+                 "VALUES (?, ?, ?, ?, ?, ?, ?)", (time.time(), uid(), current_user()["username"], action, target_id,
+                                                  target[0] if target else "", str(details)[:300]))
+
+
+def mark_money_generated(user_id):
+    """Gracz dostał pieniądze / skrzynki od admina - na stałe znika z rankingu."""
+    db().execute("UPDATE users SET money_generated = 1 WHERE id = ?", (user_id,))
+
+
+def money_txt(amount):
+    return f"{amount:+,} $".replace(",", " ")
+
+
+def chest_name(kind):
+    m = money_kind(kind)
+    return MONEY_CHESTS[m]["name"] if m else catalog.CRATES[kind]["name"]
+
+
+@app.get("/api/admin/log")
+@admin_required
+def admin_log_list():
+    limit = max(1, min(1000, int(request.args.get("limit") or 300)))
+    rows = db().execute("SELECT * FROM admin_log ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+    return jsonify({"log": [{"id": r["id"], "time": r["created_at"], "admin": r["admin_name"], "action": r["action"],
+                             "target": r["target_name"], "details": r["details"]} for r in rows]})
 
 
 @app.get("/api/admin/catalog")
@@ -1479,6 +1550,7 @@ def admin_save_crate():
     cid = body.get("id")
     if not cid:
         cid = unique_id(slug(name), set(catalog.CRATES) | set(catalog.HIDDEN_CRATES))
+    log_admin("crate_save", details=f"{'nowa: ' if not body.get('id') else ''}{fields['name']} · cena {price} $")
     catalog.save_override(db(), "catalog_crates", cid, fields)
     if "allowed" in body:  # lista graczy z dostępem do skrzynki
         db().execute("DELETE FROM crate_access WHERE crate_id = ?", (cid,))
@@ -1496,6 +1568,7 @@ def admin_delete_crate(cid):
     crate = catalog.CRATES.get(cid)
     if crate is None:
         return jsonify({"error": "Nie ma takiej skrzynki"}), 404
+    log_admin("crate_delete", details=f"{crate['name']}{' (ukryta)' if crate['builtin'] else ''}")
     if crate["builtin"]:
         catalog.mark_deleted(conn, "catalog_crates", cid)  # wbudowaną tylko ukrywamy
     else:
@@ -1515,6 +1588,7 @@ def admin_restore_crate(cid):
     if catalog.builtin_crate(cid) is None:
         return jsonify({"error": "To nie jest wbudowana skrzynka"}), 400
     catalog.remove_row(db(), "catalog_crates", cid)
+    log_admin("crate_restore", details=catalog.builtin_crate(cid)["name"])
     db().commit()
     refresh_catalog()
     return jsonify({"ok": True})
@@ -1556,6 +1630,7 @@ def admin_save_card():
         prefix = {"world": "w"}.get(crate, crate)
         pid = unique_id(f"{prefix}_{slug(name)}", set(catalog.PEOPLE) | set(catalog.HIDDEN_CARDS))
     catalog.save_override(db(), "catalog_cards", pid, fields)
+    log_admin("card_save", details=f"{'nowa: ' if not old else ''}{fields['name']} · {RARITIES[fields['rarity']]['name']}")
     db().commit()
     refresh_catalog()
 
@@ -1587,6 +1662,7 @@ def admin_delete_card(pid):
     p = catalog.PEOPLE.get(pid)
     if p is None:
         return jsonify({"error": "Nie ma takiej karty"}), 404
+    log_admin("card_delete", details=f"{p['name']}{' (ukryta)' if p['builtin'] else ''}")
     if p["builtin"]:
         catalog.mark_deleted(db(), "catalog_cards", pid)
     else:
@@ -1604,6 +1680,7 @@ def admin_restore_card(pid):
     if catalog.builtin_card(pid) is None:
         return jsonify({"error": "To nie jest wbudowana karta"}), 400
     catalog.remove_row(db(), "catalog_cards", pid)
+    log_admin("card_restore", details=catalog.builtin_card(pid)["name"])
     db().commit()
     refresh_catalog()
     return jsonify({"ok": True})
@@ -1628,7 +1705,7 @@ def admin_users():
         access.setdefault(r[0], []).append(r[1])
     users = [dict(brief(u, stats), balance=bal.get(u["id"], 0), created=u["created_at"], chests=get_chests(u["id"]),
                   banned=bool(u["banned"]), banReason=u["ban_reason"], access=access.get(u["id"], []),
-                  rankingHidden=bool(u["ranking_hidden"]))
+                  rankingHidden=bool(u["ranking_hidden"]), moneyGenerated=bool(u["money_generated"]))
              for u in db().execute("SELECT * FROM users ORDER BY id")]
     restricted = [{"id": c["id"], "name": c["name"], "emoji": c["emoji"], "shop": c["shop"]}
                   for c in catalog.CRATES.values() if c["restricted"]]
@@ -1644,8 +1721,9 @@ def admin_ban(user_id):
         return jsonify({"error": "Nie możesz zablokować samego siebie"}), 400
     body = request.get_json(force=True)
     ban = bool(body.get("ban", True))
-    db().execute("UPDATE users SET banned = ?, ban_reason = ? WHERE id = ?",
-                 (int(ban), (body.get("reason") or "").strip()[:200] if ban else "", user_id))
+    reason = (body.get("reason") or "").strip()[:200] if ban else ""
+    db().execute("UPDATE users SET banned = ?, ban_reason = ? WHERE id = ?", (int(ban), reason, user_id))
+    log_admin("ban" if ban else "unban", user_id, reason)
     db().commit()
     return jsonify({"ok": True})
 
@@ -1655,6 +1733,7 @@ def admin_ban(user_id):
 def admin_ranking_hidden(user_id):
     hidden = bool(request.get_json(force=True).get("hidden", True))
     db().execute("UPDATE users SET ranking_hidden = ? WHERE id = ?", (int(hidden), user_id))
+    log_admin("ranking_hide" if hidden else "ranking_show", user_id)
     db().commit()
     return jsonify({"ok": True})
 
@@ -1690,6 +1769,10 @@ def admin_delete_user_cards(user_id):
         marks = ",".join("?" * len(ids))
         conn.execute(f"DELETE FROM items WHERE id IN ({marks})", ids)
         conn.execute(f"DELETE FROM showcase WHERE item_id IN ({marks})", ids)
+        p = catalog.PEOPLE.get(body.get("person"))
+        what = "wszystkie karty" if body.get("all") else \
+            f"{p['name'] if p else body.get('person')} · {VARIANTS.get(body.get('variant'), {}).get('name', '?')}"
+        log_admin("cards_delete", user_id, f"{len(ids)} szt. ({what})")
     conn.commit()
     return jsonify({"ok": True, "deleted": len(ids)})
 
@@ -1701,6 +1784,7 @@ def admin_set_access(user_id):
     db().execute("DELETE FROM crate_access WHERE user_id = ?", (user_id,))
     for cid in crates:
         db().execute("INSERT INTO crate_access (user_id, crate_id) VALUES (?, ?) ON CONFLICT DO NOTHING", (user_id, cid))
+    log_admin("access", user_id, ", ".join(catalog.CRATES[c]["name"] for c in crates) or "brak")
     db().commit()
     return jsonify({"ok": True})
 
@@ -1719,6 +1803,9 @@ def admin_give_chests(user_id):
     if db().execute("SELECT 1 FROM users WHERE id = ?", (user_id,)).fetchone() is None:
         return jsonify({"error": "Nie ma takiego gracza"}), 404
     add_chests(kind, count, user_id)
+    if count > 0:  # skrzynki od admina to darmowe pieniądze / karty
+        mark_money_generated(user_id)
+    log_admin("chests", user_id, f"{chest_name(kind)} {count:+}")
     db().commit()
     return jsonify({"ok": True, "chests": get_chests(user_id)})
 
@@ -1736,6 +1823,8 @@ def admin_money(user_id):
     add_state("balance", amount, user_id)
     if amount > 0:
         add_state("deposited", amount, user_id)
+        mark_money_generated(user_id)
+    log_admin("money", user_id, money_txt(amount))
     db().commit()
     return jsonify({"ok": True})
 
@@ -1746,6 +1835,8 @@ def admin_toggle(user_id):
     if user_id == uid():
         return jsonify({"error": "Nie możesz odebrać uprawnień samemu sobie"}), 400
     db().execute("UPDATE users SET is_admin = 1 - is_admin WHERE id = ?", (user_id,))
+    now_admin = db().execute("SELECT is_admin FROM users WHERE id = ?", (user_id,)).fetchone()
+    log_admin("admin_grant" if now_admin and now_admin[0] else "admin_revoke", user_id)
     db().commit()
     return jsonify({"ok": True})
 
@@ -1757,6 +1848,7 @@ def admin_password(user_id):
     if len(pw) < MIN_PASSWORD:
         return jsonify({"error": PASSWORD_ERROR}), 400
     db().execute("UPDATE users SET password_hash = ? WHERE id = ?", (generate_password_hash(pw), user_id))
+    log_admin("password", user_id)
     db().commit()
     return jsonify({"ok": True})
 
@@ -1767,8 +1859,10 @@ def admin_delete_user(user_id):
     if user_id == uid():
         return jsonify({"error": "Nie możesz usunąć samego siebie"}), 400
     conn = db()
+    log_admin("user_delete", user_id)  # przed usunięciem - żeby zapisać nazwę gracza
     for sql in ("DELETE FROM items WHERE user_id = ?", "DELETE FROM user_state WHERE user_id = ?",
                 "DELETE FROM user_discovered WHERE user_id = ?", "DELETE FROM daily_claims WHERE user_id = ?",
+                "DELETE FROM user_collected WHERE user_id = ?",
                 "DELETE FROM showcase WHERE user_id = ?", "DELETE FROM feed WHERE author_id = ? OR to_user_id = ?",
                 "DELETE FROM user_chests WHERE user_id = ?", "DELETE FROM crate_access WHERE user_id = ?",
                 "DELETE FROM trade_lines WHERE trade_id IN (SELECT id FROM trades WHERE from_id = ? OR to_id = ?)",
