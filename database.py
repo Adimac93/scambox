@@ -34,8 +34,11 @@ PG_SCHEMA = """
         holo INTEGER NOT NULL DEFAULT 0,
         created_at DOUBLE PRECISION NOT NULL,
         variant TEXT NOT NULL DEFAULT 'normal',
-        user_id BIGINT
+        user_id BIGINT,
+        favorite INTEGER NOT NULL DEFAULT 0
     );
+    -- kolumny dodane po pierwszym wdrożeniu (istniejąca baza na serwerze ich jeszcze nie ma)
+    ALTER TABLE items ADD COLUMN IF NOT EXISTS favorite INTEGER NOT NULL DEFAULT 0;
     CREATE INDEX IF NOT EXISTS items_user ON items (user_id);
     CREATE TABLE IF NOT EXISTS discovered (person_id TEXT PRIMARY KEY);
     CREATE TABLE IF NOT EXISTS users (

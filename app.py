@@ -168,6 +168,8 @@ def init_sqlite(conn):
     conn.execute("UPDATE feed SET variant = 'holo' WHERE variant = 'alt'")
     if "user_id" not in cols:  # migracja: karty należą do kont
         conn.execute("ALTER TABLE items ADD COLUMN user_id INTEGER")
+    if "favorite" not in cols:  # migracja: ulubione karty (nie da się ich sprzedać)
+        conn.execute("ALTER TABLE items ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0")
     conn.execute("CREATE INDEX IF NOT EXISTS items_user ON items (user_id)")
     ucols = [r[1] for r in conn.execute("PRAGMA table_info(users)")]
     if "avatar_card" not in ucols:  # migracja: ikona gracza ze zdjęcia karty
@@ -406,7 +408,7 @@ def item_json(row):
         return None
     variant = row["variant"] if row["variant"] in VARIANTS else "normal"
     return {"id": row["id"], "person": person["id"], "variant": variant,
-            "value": card_value(person, variant), "created": row["created_at"]}
+            "value": card_value(person, variant), "created": row["created_at"], "fav": bool(row["favorite"])}
 
 
 def insert_item(person_id, variant):
@@ -414,7 +416,7 @@ def insert_item(person_id, variant):
     new_id = db().execute("INSERT INTO items (person_id, holo, variant, created_at, user_id) VALUES (?, ?, ?, ?, ?) "
                           "RETURNING id", (person_id, int(variant != "normal"), variant, now, uid())).fetchone()[0]
     return {"id": new_id, "person": person_id, "variant": variant,
-            "value": card_value(catalog.PEOPLE[person_id], variant), "created": now}
+            "value": card_value(catalog.PEOPLE[person_id], variant), "created": now, "fav": False}
 
 
 def note_drops(items, kind="drop"):
@@ -671,13 +673,31 @@ def sell():
     if not ids:
         return jsonify({"error": "Nic nie wybrano"}), 400
     marks = ",".join("?" * len(ids))
-    rows = db().execute(f"SELECT * FROM items WHERE user_id = ? AND id IN ({marks})", [uid(), *ids]).fetchall()
+    rows = db().execute(f"SELECT * FROM items WHERE user_id = ? AND favorite = 0 AND id IN ({marks})",
+                        [uid(), *ids]).fetchall()  # ulubionych kart nie sprzedajemy
     total = sum(row_value(r) for r in rows if r["person_id"] in catalog.PEOPLE)
     delete_items([r["id"] for r in rows] or [-1])
     add_state("balance", total)
     add_state("earned", total)
     db().commit()
     return jsonify({"sold": [r["id"] for r in rows], "total": total, "state": get_state()})
+
+
+FAV_ERROR = "Ulubionych kart (⭐) nie da się zużyć ani sprzedać — najpierw odznacz gwiazdkę"
+
+
+@app.post("/api/favorite")
+@login_required
+def set_favorite():
+    body = request.get_json(force=True)
+    ids = [int(i) for i in body.get("ids", [])][:500]
+    if not ids:
+        return jsonify({"error": "Nic nie wybrano"}), 400
+    marks = ",".join("?" * len(ids))
+    db().execute(f"UPDATE items SET favorite = ? WHERE user_id = ? AND id IN ({marks})",
+                 [int(bool(body.get("fav", True))), uid(), *ids])
+    db().commit()
+    return jsonify({"ok": True})
 
 
 @app.post("/api/deposit")
@@ -704,6 +724,8 @@ def contract():
     rows = owned_rows(ids)
     if rows is None:
         return jsonify({"error": "Nie masz tych kart"}), 400
+    if any(r["favorite"] for r in rows):
+        return jsonify({"error": FAV_ERROR}), 400
     rarities = {catalog.PEOPLE[r["person_id"]]["rarity"] for r in rows}
     rarity = rarities.pop() if len(rarities) == 1 else None
     if rarity is not None and rarity not in CONTRACT_SIZE:
@@ -739,6 +761,8 @@ def upgrade():
     rows = owned_rows(ids)
     if rows is None or not 1 <= len(rows) <= UPGRADE_MAX_ITEMS or target is None or variant not in VARIANTS:
         return jsonify({"error": "Nieprawidłowy wybór kart"}), 400
+    if any(r["favorite"] for r in rows):
+        return jsonify({"error": FAV_ERROR}), 400
     if target["rarity"] == "secret":
         return jsonify({"error": "Tajnych kart nie da się wytworzyć w kuźni"}), 400
     stake = sum(row_value(r) for r in rows)
@@ -1170,10 +1194,11 @@ def trade_accept(tid):
     moved = give + want
     if give:
         marks = ",".join("?" * len(give))
-        conn.execute(f"UPDATE items SET user_id = ? WHERE id IN ({marks})", [t["to_id"], *give])
+        # nowy właściciel dostaje kartę bez gwiazdki
+        conn.execute(f"UPDATE items SET user_id = ?, favorite = 0 WHERE id IN ({marks})", [t["to_id"], *give])
     if want:
         marks = ",".join("?" * len(want))
-        conn.execute(f"UPDATE items SET user_id = ? WHERE id IN ({marks})", [t["from_id"], *want])
+        conn.execute(f"UPDATE items SET user_id = ?, favorite = 0 WHERE id IN ({marks})", [t["from_id"], *want])
     if moved:
         marks = ",".join("?" * len(moved))
         conn.execute(f"DELETE FROM showcase WHERE item_id IN ({marks})", moved)

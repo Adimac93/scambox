@@ -9,7 +9,9 @@ const FORGE = {
   upg: { inputs: new Set(), target: null, variant: "all", search: "", angle: 0 },
 };
 const PICK_LIMIT = 300;
-const PICK_TAGS = { bw: "B&W", reverse: "REV", silver: "SILV", holo: "HOLO", gold: "GOLD", diamond: "💎" };
+// ulubione karty (⭐) nie trafiają do kuźni
+const forgeItems = () => S.items.filter(i => !i.fav);
+const PICK_TAGS = { bw: "B&W", reverse: "REV", silver: "SILV", holo: "HOLO", gold: "GOLD", emerald: "💚", ruby: "❤️", diamond: "💎" };
 
 function pickHTML(item, { sel = false, extra = "" } = {}) {
   const p = person(item.person);
@@ -49,11 +51,11 @@ function renderContract() {
   const next = order[order.indexOf(tier) + 1];
   const R = S.cfg.rarities[tier], NR = S.cfg.rarities[next];
 
-  const byId = new Map(S.items.map(i => [i.id, i]));
+  const byId = new Map(forgeItems().map(i => [i.id, i]));
   FORGE.slots = FORGE.slots.filter(id => byId.has(id) && person(byId.get(id).person).rarity === tier).slice(0, need);
   const slotItems = FORGE.slots.map(id => byId.get(id));
   const inSlots = new Set(FORGE.slots);
-  const eligible = S.items.filter(i => person(i.person).rarity === tier && !inSlots.has(i.id))
+  const eligible = forgeItems().filter(i => person(i.person).rarity === tier && !inSlots.has(i.id))
     .sort((a, b) => varRank(a.variant) - varRank(b.variant) || person(a.person).name.localeCompare(person(b.person).name, "pl"));
 
   const specials = slotItems.filter(i => isSpecial(i.variant)).length;
@@ -74,7 +76,7 @@ function renderContract() {
   <div class="forge-cols">
     <div class="panel forge-pick">
       <div class="tier-chips">${tiers.map(t => {
-        const n = S.items.filter(i => person(i.person).rarity === t).length;
+        const n = forgeItems().filter(i => person(i.person).rarity === t).length;
         return `<button class="rf rf-${t}${t === tier ? " active" : ""}" data-tier="${t}" style="--rc:${S.cfg.rarities[t].color}"><i></i>${S.cfg.rarities[t].name} <small>${n}</small></button>`;
       }).join("")}</div>
       <div class="muted small">Kliknij kartę, aby dodać ją do kontraktu.</div>
@@ -108,7 +110,7 @@ function renderContract() {
 function contractAutoFill() {
   const tier = FORGE.tier, need = S.cfg.contractSize[tier];
   const inSlots = new Set(FORGE.slots);
-  const pool = S.items.filter(i => person(i.person).rarity === tier && !inSlots.has(i.id));
+  const pool = forgeItems().filter(i => person(i.person).rarity === tier && !inSlots.has(i.id));
   // najpierw duplikaty (zostawiamy po 1 karcie każdej osoby), zwykłe przed specjalnymi
   const count = {};
   S.items.forEach(i => { count[i.person] = (count[i.person] || 0) + 1; });
@@ -252,7 +254,7 @@ async function runContract() {
   reel.hidden = true;
   const box = el.querySelector(".fa-result");
   box.hidden = false;
-  const canAgain = S.items.filter(i => person(i.person).rarity === FORGE.tier).length >= S.cfg.contractSize[FORGE.tier];
+  const canAgain = forgeItems().filter(i => person(i.person).rarity === FORGE.tier).length >= S.cfg.contractSize[FORGE.tier];
   box.innerHTML = `
     <div class="fa-result-card">${cardHTML(res.item.person, res.item.variant)}</div>
     <div class="fa-result-name">${esc(person(res.item.person).name)}${isSpecial(res.item.variant) ? ` <span class="holo-txt">✨ ${variantName(res.item.variant)}</span>` : ""}</div>
@@ -296,7 +298,7 @@ function allTargets() {
 
 function renderUpgrader() {
   const u = FORGE.upg;
-  const owned = new Set(S.items.map(i => i.id));
+  const owned = new Set(forgeItems().map(i => i.id));
   [...u.inputs].forEach(id => { if (!owned.has(id)) u.inputs.delete(id); });
   const stake = upgStake();
   const everything = allTargets();
@@ -305,7 +307,7 @@ function renderUpgrader() {
   let target = u.target ? everything.find(t => t.key === u.target) : null;
   if (target && target.value <= stake) { target = null; u.target = null; }
   const chance = target ? upgChance(stake, target.value) : 0;
-  const mine = S.items.slice().sort((a, b) => b.value - a.value || b.id - a.id);
+  const mine = forgeItems().sort((a, b) => b.value - a.value || b.id - a.id);
 
   $("#forgeBody").innerHTML = `
   <div class="upg-cols">

@@ -9,7 +9,8 @@ const fmt = n => Math.round(n).toLocaleString("pl-PL") + " $";
 
 const COUNT_CHIPS = [1, 2, 3, 5, 10, 15, 20];
 const INV_PAGE = 120;
-const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", silver: "SILVER", holo: "HOLO", gold: "GOLDEN", diamond: "💎 DIAMOND" };
+const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", silver: "SILVER", holo: "HOLO", gold: "GOLDEN", emerald: "💚 EMERALD", ruby: "❤️ RUBY", diamond: "💎 DIAMOND" };
+const GEMS = ["emerald", "ruby", "diamond"];  // warianty z kamieniami szlachetnymi - wspólny wygląd, inne kolory
 
 const S = {
   cfg: null,
@@ -77,7 +78,7 @@ function variantLayers(v) {
   let html = "";
   if (v === "holo") html += '<div class="holo-layer"></div>';
   if (v === "gold" || v === "silver") html += '<div class="gold-sheen"></div>';
-  if (v === "diamond") html += '<div class="diamond-layer"></div><div class="diamond-glints"><i></i><i></i><i></i><i></i><i></i></div>';
+  if (GEMS.includes(v)) html += '<div class="diamond-layer"></div><div class="diamond-glints"><i></i><i></i><i></i><i></i><i></i></div>';
   if (isSpecial(v)) html += `<div class="var-tag vt-${v}">${VARIANT_TAGS[v]}</div>`;
   return html;
 }
@@ -210,7 +211,7 @@ document.addEventListener("pointermove", e => {
   const b = zone ? zone.getBoundingClientRect() : flatRect(card);
   const px = Math.min(1, Math.max(0, (e.clientX - b.left) / b.width));
   const py = Math.min(1, Math.max(0, (e.clientY - b.top) / b.height));
-  const fancy = card.matches(".r-secret, .v-holo, .v-reverse, .v-gold, .v-silver, .v-diamond, .v-bw");
+  const fancy = card.matches(".r-secret, .v-holo, .v-reverse, .v-gold, .v-silver, .v-diamond, .v-emerald, .v-ruby, .v-bw");
   const strength = card.closest(".viewer") ? 1.5 : fancy || card.closest(".modal") ? 1 : 0.6;
   card.classList.add("tilting");
   card.style.setProperty("--rx", ((0.5 - py) * 16 * strength).toFixed(2) + "deg");
@@ -273,8 +274,23 @@ function removeItems(ids) {
   ids.forEach(id => S.inv.selected.delete(id));
 }
 
+async function setFavorite(ids, fav) {
+  await api("/api/favorite", { ids, fav });
+  const set = new Set(ids);
+  S.items.forEach(i => { if (set.has(i.id)) i.fav = fav; });
+  S.opening?.drops.forEach(d => { if (set.has(d.id)) d.fav = fav; });
+  Sound.click();
+}
+
+function favBtnHTML(id, fav, cls = "") {
+  return `<button class="fav-btn${fav ? " on" : ""} ${cls}" data-fav="${id}" title="${fav ? "Ulubiona — nie da się jej sprzedać ani zużyć. Kliknij, aby odznaczyć" : "Dodaj do ulubionych (ochrona przed sprzedażą)"}">${fav ? "★" : "☆"}</button>`;
+}
+
 async function sellIds(ids) {
   if (!ids.length) return 0;
+  const favs = new Set(S.items.filter(i => i.fav).map(i => i.id));
+  ids = ids.filter(id => !favs.has(id));  // ulubionych nie sprzedajemy (serwer też je pomija)
+  if (!ids.length) { toast("⭐ Ulubionych kart nie da się sprzedać"); return 0; }
   const res = await api("/api/sell", { ids });
   removeItems(res.sold);
   applyState(res.state);
@@ -654,7 +670,7 @@ function showResults(afterEpic = false) {
               style="--rc:${S.cfg.rarities[p.rarity].color}; animation-delay:${i * (o.fast ? 25 : 70)}ms">
       ${isNew ? '<span class="new-badge">NOWA!</span>' : ""}
       ${cardHTML(d.person, d.variant)}
-      <button class="btn sell rsell" data-id="${d.id}" title="Sprzedaj">💰 ${fmt(d.value)}</button>
+      <div class="rbtns">${favBtnHTML(d.id, d.fav)}<button class="btn sell rsell" data-id="${d.id}" title="Sprzedaj" ${d.fav ? "disabled" : ""}>💰 ${fmt(d.value)}</button></div>
     </div>`;
   }).join("");
 
@@ -677,11 +693,12 @@ function showResults(afterEpic = false) {
   if (specials.length && !afterEpic) {
     const top = specials.reduce((a, d) => varRank(d.variant) > varRank(a.variant) ? d : a);
     const colors = {
-      diamond: ["#e8fbff", "#9ff6ff", "#c9b8ff", "#ffffff"], gold: ["#ffc531", "#fff3b0", "#fff"], holo: ["#9ff6ff", "#ff9ff3", "#fff"],
+      diamond: ["#e8fbff", "#9ff6ff", "#c9b8ff", "#ffffff"], emerald: ["#00c853", "#6dffb0", "#c6ffe0", "#ffffff"],
+      ruby: ["#ff1744", "#ff8a9c", "#ffd0d8", "#ffffff"], gold: ["#ffc531", "#fff3b0", "#fff"], holo: ["#9ff6ff", "#ff9ff3", "#fff"],
       silver: ["#e6ebf2", "#b8c2d0", "#ffffff"], reverse: ["#c9d6ff", "#ffffff", "#9ff6ff"], bw: ["#ffffff", "#111111", "#888888"],
     }[top.variant];
-    setTimeout(() => confetti(colors, top.variant === "diamond" ? 260 : top.variant === "gold" ? 140 : 60), 300);
-    if (top.variant === "gold" || top.variant === "diamond") toast(`✨ ${variantName(top.variant).toUpperCase()}: ${person(top.person).name}!`);
+    setTimeout(() => confetti(colors, GEMS.includes(top.variant) ? 260 : top.variant === "gold" ? 140 : 60), 300);
+    if (top.variant === "gold" || GEMS.includes(top.variant)) toast(`✨ ${variantName(top.variant).toUpperCase()}: ${person(top.person).name}!`);
   }
 
   updateStageBar();
@@ -690,10 +707,11 @@ function showResults(afterEpic = false) {
 function updateStageBar() {
   const o = S.opening;
   const unsold = o.drops.filter(d => !d.sold);
+  const sellable = unsold.filter(d => !d.fav);  // ulubione (⭐) zostają
   $("#stageSum").textContent = unsold.length ? `Wartość: ${fmt(unsold.reduce((a, d) => a + d.value, 0))}` : "Wszystko sprzedane";
   const sellAll = $("#sellAllBtn");
-  sellAll.hidden = !unsold.length;
-  sellAll.textContent = `💰 Sprzedaj wszystko (${fmt(unsold.reduce((a, d) => a + d.value, 0))})`;
+  sellAll.hidden = !sellable.length;
+  sellAll.textContent = `💰 Sprzedaj ${sellable.length < unsold.length ? "resztę" : "wszystko"} (${fmt(sellable.reduce((a, d) => a + d.value, 0))})`;
   const again = $("#againBtn");
   const price = crateOf(o.crate).price;
   again.hidden = false;
@@ -869,11 +887,13 @@ function openModal(pid) {
   const p = person(pid);
   const R = S.cfg.rarities[p.rarity];
   const rows = S.cfg.variantOrder.slice().reverse().filter(v => o.byVar[v]).map(v => {
-    const list = o.byVar[v], val = cardValue(pid, v);
+    const favs = new Set(S.items.filter(i => i.fav).map(i => i.id));
+    const all = o.byVar[v], list = all.filter(id => !favs.has(id)), val = cardValue(pid, v);  // ulubionych nie sprzedajemy
+    const nFav = all.length - list.length;
     return `<div class="copy-row">
-      <span class="lbl"><span class="vdot vt-${v}"></span>${variantName(v)} ×${list.length} <small>· ${fmt(val)}/szt.</small></span>
-      <span><button class="btn" data-sell="${list[0]}">Sprzedaj 1</button>
-      ${list.length > 1 ? `<button class="btn sell" data-sell="${list.join(",")}">Wszystkie (${fmt(val * list.length)})</button>` : ""}</span>
+      <span class="lbl"><span class="vdot vt-${v}"></span>${variantName(v)} ×${all.length}${nFav ? ` <span class="fav-note">★${nFav}</span>` : ""} <small>· ${fmt(val)}/szt.</small></span>
+      <span>${list.length ? `<button class="btn" data-sell="${list[0]}">Sprzedaj 1</button>` : ""}
+      ${list.length > 1 ? `<button class="btn sell" data-sell="${list.join(",")}">${nFav ? "Pozostałe" : "Wszystkie"} (${fmt(val * list.length)})</button>` : ""}</span>
     </div>`;
   }).join("");
   const dupes = dupesOf(o);
@@ -894,9 +914,10 @@ function openModal(pid) {
 }
 
 function dupesOf(o) {
-  // zostawiamy jedną kartę - w najlepszym wariancie
-  const keep = o.byVar[o.best][0];
-  return o.ids.filter(id => id !== keep);
+  // zostawiamy jedną kartę - w najlepszym wariancie (najlepiej ulubioną) - i wszystkie ulubione
+  const favs = new Set(S.items.filter(i => i.fav).map(i => i.id));
+  const keep = o.byVar[o.best].find(id => favs.has(id)) ?? o.byVar[o.best][0];
+  return o.ids.filter(id => id !== keep && !favs.has(id));
 }
 
 function closeModal() { $("#modal").hidden = true; }
@@ -909,7 +930,7 @@ function filteredItems() {
     const p = person(i.person);
     return (f.crate === "all" || (p.crates || [p.crate]).includes(f.crate)) &&
            (!f.rarities.size || f.rarities.has(p.rarity)) &&
-           (f.variant === "all" || (f.variant === "special" ? isSpecial(i.variant) : i.variant === f.variant));
+           (f.variant === "all" || (f.variant === "fav" ? i.fav : f.variant === "special" ? isSpecial(i.variant) : i.variant === f.variant));
   });
   const byName = (a, b) => person(a.person).name.localeCompare(person(b.person).name, "pl");
   const by = {
@@ -955,7 +976,7 @@ function renderInventory() {
     .map(([id, n, count]) => `<button data-crate="${id}" class="${f.crate === id ? "active" : ""}">${esc(n)} <small>${count}</small></button>`).join("");
   $("#invRarity").innerHTML = S.cfg.rarityOrder.map(r =>
     `<button class="rf rf-${r}${f.rarities.has(r) ? " active" : ""}" data-r="${r}" style="--rc:${S.cfg.rarities[r].color}"><i></i>${S.cfg.rarities[r].name}</button>`).join("");
-  $("#invVariant").innerHTML = [["all", "Wszystkie warianty"], ["special", "✨ Tylko specjalne"],
+  $("#invVariant").innerHTML = [["all", "Wszystkie warianty"], ["fav", "⭐ Tylko ulubione"], ["special", "✨ Tylko specjalne"],
     ...S.cfg.variantOrder.map(v => [v, variantName(v)])].map(([v, n]) =>
     `<option value="${v}"${f.variant === v ? " selected" : ""}>${n}</option>`).join("");
   $("#invSort").value = f.sort;
@@ -969,7 +990,7 @@ function renderInventory() {
     grid.innerHTML = `<div class="empty" style="grid-column:1/-1">${S.items.length ? "Brak kart pasujących do filtrów." : "Ekwipunek jest pusty. Otwórz jakąś skrzynkę! 📦"}</div>`;
   } else {
     grid.innerHTML = list.slice(0, f.limit).map(i =>
-      `<div class="inv-item${f.selected.has(i.id) ? " sel" : ""}" data-id="${i.id}"><span class="tick">✓</span><button class="zoom-btn" title="Powiększ">🔍</button>${cardHTML(i.person, i.variant)}</div>`).join("");
+      `<div class="inv-item${f.selected.has(i.id) ? " sel" : ""}${i.fav ? " fav" : ""}" data-id="${i.id}"><span class="tick">✓</span><button class="zoom-btn" title="Powiększ">🔍</button>${favBtnHTML(i.id, i.fav)}${cardHTML(i.person, i.variant)}</div>`).join("");
   }
   $("#invMore").parentElement.hidden = list.length <= f.limit;
   $("#invMore").textContent = `Pokaż więcej (${list.length - f.limit})`;
@@ -977,7 +998,7 @@ function renderInventory() {
 }
 
 function updateSellbar() {
-  const sel = S.items.filter(i => S.inv.selected.has(i.id));
+  const sel = S.items.filter(i => S.inv.selected.has(i.id) && !i.fav);
   $("#selInfo").textContent = `Zaznaczono ${sel.length}` + (sel.length ? ` (${fmt(sel.reduce((a, i) => a + i.value, 0))})` : "");
   $("#sellSel").disabled = !sel.length;
   $("#selNone").disabled = !sel.length;
@@ -985,8 +1006,8 @@ function updateSellbar() {
 }
 
 async function sellSelected() {
-  const sel = S.items.filter(i => S.inv.selected.has(i.id));
-  if (!sel.length) return;
+  const sel = S.items.filter(i => S.inv.selected.has(i.id) && !i.fav);
+  if (!sel.length) { toast("⭐ Zaznaczone karty są ulubione — nie da się ich sprzedać"); return; }
   const value = sel.reduce((a, i) => a + i.value, 0);
   const rare = sel.filter(i => rarityIdx(person(i.person).rarity) >= 4);
   if ((rare.length || value >= 1000) &&
@@ -1037,8 +1058,17 @@ function bind() {
   $("#skipBtn").addEventListener("click", skipSpin);
   $("#closeBtn").addEventListener("click", closeStage);
   $("#againBtn").addEventListener("click", openAgain);
-  $("#sellAllBtn").addEventListener("click", () => sellResult(S.opening.drops.filter(d => !d.sold).map(d => d.id)));
-  $("#results").addEventListener("click", e => {
+  $("#sellAllBtn").addEventListener("click", () => sellResult(S.opening.drops.filter(d => !d.sold && !d.fav).map(d => d.id)));
+  $("#results").addEventListener("click", async e => {
+    const f = e.target.closest("[data-fav]");
+    if (f) {
+      const id = +f.dataset.fav, d = S.opening.drops.find(d => d.id === id);
+      try { await setFavorite([id], !d.fav); } catch (err) { Sound.error(); toast(err.message, true); return; }
+      f.outerHTML = favBtnHTML(id, d.fav);
+      $(`.result[data-id="${id}"] .rsell`).disabled = d.fav;
+      updateStageBar();
+      return;
+    }
     const b = e.target.closest(".rsell"); if (b) sellResult([+b.dataset.id]);
   });
 
@@ -1080,9 +1110,17 @@ function bind() {
   $("#invVariant").addEventListener("change", e => { S.inv.variant = e.target.value; S.inv.limit = INV_PAGE; renderInventory(); });
   $("#invSort").addEventListener("change", e => { S.inv.sort = e.target.value; renderInventory(); });
   $("#invMore").addEventListener("click", () => { S.inv.limit += INV_PAGE; renderInventory(); });
-  $("#invGrid").addEventListener("click", e => {
+  $("#invGrid").addEventListener("click", async e => {
     const it = e.target.closest(".inv-item"); if (!it) return;
     if (e.target.closest(".zoom-btn")) return;
+    if (e.target.closest("[data-fav]")) {
+      const item = S.items.find(i => i.id === +it.dataset.id);
+      try { await setFavorite([item.id], !item.fav); } catch (err) { Sound.error(); toast(err.message, true); return; }
+      it.classList.toggle("fav", item.fav);
+      it.querySelector("[data-fav]").outerHTML = favBtnHTML(item.id, item.fav);
+      updateSellbar();
+      return;
+    }
     const id = +it.dataset.id;
     S.inv.selected.has(id) ? S.inv.selected.delete(id) : S.inv.selected.add(id);
     it.classList.toggle("sel");

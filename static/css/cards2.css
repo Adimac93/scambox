@@ -289,20 +289,14 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 .sr-flash { position: absolute; inset: 0; z-index: 6; pointer-events: none; opacity: 0; background: radial-gradient(circle, #fff 30%, #fff6d0 60%, #ffd54a); }
 .sreveal.p-reveal .sr-flash { animation: flash 1.2s ease-out; }
 
-/* ============================================================ NOWE WARIANTY: czarno-biała, srebrna, diamentowa */
+/* ============================================================ NOWE WARIANTY: czarno-biała, srebrna, kamienie szlachetne (niżej) */
 /* tagi */
 .var-tag.vt-bw, .ph.vt-bw { background: #000; color: #fff; border: 1px solid #fff; box-shadow: .15em .15em 0 #fff8; }
 .var-tag.vt-silver, .ph.vt-silver { background: linear-gradient(90deg, #6f7a88, #f4f7fb, #9aa5b4); color: #1e2430; text-shadow: none; box-shadow: 0 0 .6em #dfe6f0; }
-.var-tag.vt-diamond, .ph.vt-diamond {
-  background: linear-gradient(90deg, #9ff6ff, #ffffff, #c9b8ff, #9ff6ff); background-size: 200% 100%; color: #123047; text-shadow: none;
-  box-shadow: 0 0 .8em #9ff6ff, 0 0 1.6em #c9b8ff88; animation: rainbowSlide 2.5s linear infinite;
-}
 .vdot.vt-bw { background: linear-gradient(90deg, #000 50%, #fff 50%); border: 1px solid #888; }
 .vdot.vt-silver { background: #c9d1dc; }
-.vdot.vt-diamond { background: linear-gradient(135deg, #9ff6ff, #fff, #c9b8ff); box-shadow: 0 0 6px #9ff6ff; }
 .odd.odd-v.vt-bw { border-left-color: #fff; }
 .odd.odd-v.vt-silver { border-left-color: #c9d1dc; }
-.odd.odd-v.vt-diamond { border-left-color: #9ff6ff; }
 
 /* Czarno-biała - cała karta w czerni i bieli, mocny kontrast, czarna ramka */
 .card.v-bw { filter: grayscale(1) contrast(1.18); --frame: linear-gradient(145deg, #2a2a2a, #000 50%, #2a2a2a); box-shadow: 0 6px 18px #000a, 0 0 0 1px #fff4; }
@@ -329,30 +323,49 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 .pick.v-silver img { filter: grayscale(1) brightness(1.1) contrast(1.1); }
 .pick.v-silver { box-shadow: inset 0 0 0 2px #dfe6f0, inset 0 -26px 26px -18px var(--rc); }
 
-/* Diamentowa - lodowy błękit: niebieska pryzmatyczna ramka, fasety, zdjęcie zabarwione na niebiesko, błyski */
-.card.v-diamond {
-  --frame: conic-gradient(from var(--ang, 0deg), #0a4dff, #6fd3ff, #ffffff, #1e7bff, #00c8ff, #b8ecff, #0a4dff);
+/* Kamienie szlachetne: Szmaragdowa (zielona), Rubinowa (czerwona), Diamentowa (lodowy błękit).
+   Jeden wygląd - pryzmatyczna ramka, fasety, zabarwione zdjęcie, błyski - kolory z własnych zmiennych --gem-* */
+.v-diamond, .vt-diamond, .avv-diamond {
+  --gem-1: #0a4dff; --gem-2: #2f8cff; --gem-3: #6fd3ff; --gem-4: #b8ecff; --gem-5: #1e7bff; --gem-6: #00b4ff; --gem-7: #00c8ff;
+  --gem-in1: #d9f1ff; --gem-in2: #8fd0ff; --gem-in3: #c4e6ff; --gem-in4: #eef8ff; --gem-f1: #7fc8ff33; --gem-f2: #9fd8ff44;
+  --gem-ink: #06204a; --gem-name1: #0a3a8f; --gem-name2: #021638; --gem-sub: #0b2d63;
+  --gem-t1: #1e6bff; --gem-t2: #3fd0ff; --gem-t3: #0a3dbb; --gem-glint: #3fb6ff; --gem-hue: 170deg;
+}
+.v-emerald, .vt-emerald, .avv-emerald {
+  --gem-1: #00753a; --gem-2: #12c466; --gem-3: #6dffb0; --gem-4: #c6ffe0; --gem-5: #00a651; --gem-6: #00e676; --gem-7: #2cf59a;
+  --gem-in1: #d8ffea; --gem-in2: #7fe8b0; --gem-in3: #bff5d8; --gem-in4: #effff6; --gem-f1: #7fe8b033; --gem-f2: #a0f0c844;
+  --gem-ink: #03361c; --gem-name1: #0a6b35; --gem-name2: #022b14; --gem-sub: #0b4a28;
+  --gem-t1: #00b35a; --gem-t2: #3fffa0; --gem-t3: #006b33; --gem-glint: #3fff9f; --gem-hue: 100deg;
+}
+.v-ruby, .vt-ruby, .avv-ruby {
+  --gem-1: #b0001b; --gem-2: #ff2448; --gem-3: #ff8a9c; --gem-4: #ffd0d8; --gem-5: #e0002b; --gem-6: #ff0040; --gem-7: #ff4f6d;
+  --gem-in1: #ffe0e5; --gem-in2: #ff9aa9; --gem-in3: #ffc2cc; --gem-in4: #fff1f3; --gem-f1: #ff9aa933; --gem-f2: #ffb0bd44;
+  --gem-ink: #4a0612; --gem-name1: #8f0a22; --gem-name2: #38020b; --gem-sub: #630b1c;
+  --gem-t1: #ff1e3c; --gem-t2: #ff6f86; --gem-t3: #a3001a; --gem-glint: #ff4f6d; --gem-hue: 325deg;
+}
+.card.v-diamond, .card.v-emerald, .card.v-ruby {
+  --frame: conic-gradient(from var(--ang, 0deg), var(--gem-1), var(--gem-3), #ffffff, var(--gem-5), var(--gem-7), var(--gem-4), var(--gem-1));
   animation: ultraSpin 4s linear infinite;
-  box-shadow: 0 6px 18px #000a, 0 0 26px #2f8cffdd, 0 0 60px #00b4ff88;
+  box-shadow: 0 6px 18px #000a, 0 0 26px color-mix(in srgb, var(--gem-2) 87%, transparent), 0 0 60px color-mix(in srgb, var(--gem-6) 53%, transparent);
 }
-.card.v-diamond .card-inner {
+:is(.card.v-diamond, .card.v-emerald, .card.v-ruby) .card-inner {
   background:
-    repeating-conic-gradient(from 0deg at 30% 20%, #ffffff40 0 12deg, #7fc8ff33 12deg 24deg),
-    repeating-conic-gradient(from 45deg at 75% 80%, #9fd8ff44 0 15deg, transparent 15deg 30deg),
-    linear-gradient(160deg, #d9f1ff, #8fd0ff 40%, #c4e6ff 70%, #eef8ff);
-  color: #06204a;
+    repeating-conic-gradient(from 0deg at 30% 20%, #ffffff40 0 12deg, var(--gem-f1) 12deg 24deg),
+    repeating-conic-gradient(from 45deg at 75% 80%, var(--gem-f2) 0 15deg, transparent 15deg 30deg),
+    linear-gradient(160deg, var(--gem-in1), var(--gem-in2) 40%, var(--gem-in3) 70%, var(--gem-in4));
+  color: var(--gem-ink);
 }
-.card.v-diamond .card-name { background: linear-gradient(180deg, #0a3a8f, #021638); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.card.v-diamond .card-sub, .card.v-diamond .card-stats, .card.v-diamond .card-foot { color: #0b2d63; }
-.card.v-diamond .card-photo { border-image: linear-gradient(135deg, #ffffff, #2f8cff, #9fe6ff, #0a4dff) 1; }
-/* samo zdjęcie też zmienia się w "lodowy diament" */
-.card.v-diamond .card-photo img, .r-secret.v-diamond .sc-art img { filter: grayscale(.35) brightness(1.08) contrast(1.15) saturate(1.3); }
-.card.v-diamond .card-photo::before, .r-secret.v-diamond .sc-art::before {
+:is(.card.v-diamond, .card.v-emerald, .card.v-ruby) .card-name { background: linear-gradient(180deg, var(--gem-name1), var(--gem-name2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+:is(.card.v-diamond, .card.v-emerald, .card.v-ruby) :is(.card-sub, .card-stats, .card-foot) { color: var(--gem-sub); }
+:is(.card.v-diamond, .card.v-emerald, .card.v-ruby) .card-photo { border-image: linear-gradient(135deg, #ffffff, var(--gem-2), var(--gem-4), var(--gem-1)) 1; }
+/* samo zdjęcie też zmienia się w kamień */
+:is(.card, .r-secret):is(.v-diamond, .v-emerald, .v-ruby) :is(.card-photo, .sc-art) img { filter: grayscale(.35) brightness(1.08) contrast(1.15) saturate(1.3); }
+:is(.card, .r-secret):is(.v-diamond, .v-emerald, .v-ruby) :is(.card-photo, .sc-art)::before {
   content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
-  background: linear-gradient(160deg, #1e6bff, #3fd0ff 45%, #0a3dbb);
+  background: linear-gradient(160deg, var(--gem-t1), var(--gem-t2) 45%, var(--gem-t3));
   mix-blend-mode: color; opacity: .78;
 }
-.card.v-diamond .card-photo::after, .r-secret.v-diamond .sc-art::after {
+:is(.card, .r-secret):is(.v-diamond, .v-emerald, .v-ruby) :is(.card-photo, .sc-art)::after {
   content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
   background:
     linear-gradient(115deg, transparent 35%, #ffffffaa 47%, transparent 58%),
@@ -361,13 +374,13 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
   background-size: 250% 100%, auto, auto;
   mix-blend-mode: screen; animation: photoGlint 2.8s ease-in-out infinite;
 }
-.r-secret.v-diamond .sc-art::after { background: linear-gradient(180deg, #000a 0%, #0000 20%, #0000 48%, #000d 78%, #000 100%), linear-gradient(115deg, transparent 35%, #ffffffaa 47%, transparent 58%); background-size: auto, 250% 100%; mix-blend-mode: normal; }
-.r-secret.v-diamond { box-shadow: 0 6px 18px #000c, 0 0 26px #2f8cffdd, 0 0 60px #00b4ff88; }
+.r-secret:is(.v-diamond, .v-emerald, .v-ruby) .sc-art::after { background: linear-gradient(180deg, #000a 0%, #0000 20%, #0000 48%, #000d 78%, #000 100%), linear-gradient(115deg, transparent 35%, #ffffffaa 47%, transparent 58%); background-size: auto, 250% 100%; mix-blend-mode: normal; }
+.r-secret:is(.v-diamond, .v-emerald, .v-ruby) { box-shadow: 0 6px 18px #000c, 0 0 26px color-mix(in srgb, var(--gem-2) 87%, transparent), 0 0 60px color-mix(in srgb, var(--gem-6) 53%, transparent); }
 .diamond-layer {
   position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none; mix-blend-mode: screen; opacity: .6;
   background:
-    linear-gradient(115deg, transparent 30%, #ffffffcc 42%, #6fd3ff99 47%, transparent 58%),
-    linear-gradient(65deg, transparent 40%, #2f8cff88 50%, transparent 60%);
+    linear-gradient(115deg, transparent 30%, #ffffffcc 42%, color-mix(in srgb, var(--gem-3) 60%, transparent) 47%, transparent 58%),
+    linear-gradient(65deg, transparent 40%, color-mix(in srgb, var(--gem-2) 53%, transparent) 50%, transparent 60%);
   background-size: 260% 100%, 300% 100%;
   animation: diamondSweep 3.2s ease-in-out infinite;
 }
@@ -378,7 +391,7 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
   background: radial-gradient(circle, #fff 0 12%, transparent 13%),
               linear-gradient(0deg, transparent 46%, #fff 50%, transparent 54%),
               linear-gradient(90deg, transparent 46%, #fff 50%, transparent 54%);
-  filter: drop-shadow(0 0 5px #3fb6ff);
+  filter: drop-shadow(0 0 5px var(--gem-glint));
   animation: glint 2.4s ease-in-out infinite;
 }
 .diamond-glints i:nth-child(1) { left: 12%; top: 18%; animation-delay: 0s; }
@@ -387,19 +400,19 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 .diamond-glints i:nth-child(4) { left: 20%; top: 70%; animation-delay: 1.5s; }
 .diamond-glints i:nth-child(5) { left: 84%; top: 84%; animation-delay: 1.9s; }
 @keyframes glint { 0%, 100% { opacity: 0; transform: scale(.3) rotate(0deg); } 45% { opacity: 1; transform: scale(1.15) rotate(45deg); } 60% { opacity: 0; } }
-.pick.v-diamond { box-shadow: inset 0 0 0 2px #2f8cff, 0 0 10px #2f8cff99, inset 0 -26px 26px -18px var(--rc); }
-.pick.v-diamond img { filter: grayscale(.35) brightness(1.05) contrast(1.1) sepia(.4) hue-rotate(170deg) saturate(2.2); }
-.pick.v-diamond::after, .pick.v-silver::after {
+.pick:is(.v-diamond, .v-emerald, .v-ruby) { box-shadow: inset 0 0 0 2px var(--gem-2), 0 0 10px color-mix(in srgb, var(--gem-2) 60%, transparent), inset 0 -26px 26px -18px var(--rc); }
+.pick:is(.v-diamond, .v-emerald, .v-ruby) img { filter: grayscale(.35) brightness(1.05) contrast(1.1) sepia(.4) hue-rotate(var(--gem-hue)) saturate(2.2); }
+.pick:is(.v-diamond, .v-emerald, .v-ruby, .v-silver)::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(115deg, transparent 30%, #ffffff60 45%, transparent 60%); background-size: 250% 100%;
   animation: photoGlint 2.6s ease-in-out infinite;
 }
-.var-tag.vt-diamond, .ph.vt-diamond {
-  background: linear-gradient(90deg, #0a4dff, #6fd3ff, #ffffff, #1e7bff); background-size: 200% 100%; color: #fff; text-shadow: 0 1px 2px #021638;
-  box-shadow: 0 0 .8em #2f8cff, 0 0 1.6em #00b4ff88; animation: rainbowSlide 2.5s linear infinite;
+:is(.var-tag, .ph):is(.vt-diamond, .vt-emerald, .vt-ruby) {
+  background: linear-gradient(90deg, var(--gem-1), var(--gem-3), #ffffff, var(--gem-5)); background-size: 200% 100%; color: #fff; text-shadow: 0 1px 2px var(--gem-name2);
+  box-shadow: 0 0 .8em var(--gem-2), 0 0 1.6em color-mix(in srgb, var(--gem-6) 53%, transparent); animation: rainbowSlide 2.5s linear infinite;
 }
-.vdot.vt-diamond { background: linear-gradient(135deg, #0a4dff, #6fd3ff); box-shadow: 0 0 6px #2f8cff; }
-.odd.odd-v.vt-diamond { border-left-color: #2f8cff; }
+.vdot:is(.vt-diamond, .vt-emerald, .vt-ruby) { background: linear-gradient(135deg, var(--gem-1), var(--gem-3)); box-shadow: 0 0 6px var(--gem-2); }
+.odd.odd-v:is(.vt-diamond, .vt-emerald, .vt-ruby) { border-left-color: var(--gem-2); }
 
 /* tajna karta znajomego w aktywności */
 .feed-item.fi-secret { background: linear-gradient(90deg, #3a2a08cc, var(--panel2)); border-color: #f3e3b088; box-shadow: 0 0 18px #ffd54a33; }
