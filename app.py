@@ -27,7 +27,7 @@ TEST_MODE = "--test" in sys.argv  # osobny zapis do testów: python app.py --tes
 LAN_MODE = "--lan" in sys.argv    # dostęp z innych komputerów w sieci: python app.py --lan
 DEV_MODE = "--dev" in sys.argv    # tryb deweloperski (auto-przeładowanie, debugger) - NIGDY dla innych graczy
 DB_PATH = os.path.join(BASE_DIR, "test.db" if TEST_MODE else "game.db")
-KEY_PATH = os.path.join(BASE_DIR, "secret_key.txt")
+KEY_PATH = os.path.join(images.DATA_DIR, "secret_key.txt")
 
 STATE_KEYS = (("balance", STARTING_BALANCE), ("opened", 0), ("spent", 0), ("earned", 0), ("deposited", 0),
               ("contracts", 0), ("upgrades_won", 0), ("upgrades_lost", 0), ("feed_seen", 0), ("daily_total", 0))
@@ -36,6 +36,8 @@ FEED_RARITY = 4  # od legendarnych w górę dropy trafiają automatycznie do akt
 
 
 def load_secret_key():
+    if os.environ.get("SECRET_KEY"):  # hosting: klucz w ustawieniach aplikacji, nie w pliku
+        return os.environ["SECRET_KEY"]
     if not os.path.exists(KEY_PATH):
         with open(KEY_PATH, "w") as f:
             f.write(secrets.token_hex(32))

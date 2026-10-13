@@ -76,6 +76,9 @@ A new installation (empty database) loads them automatically on first start.
   with the `DATABASE_URL` environment variable it uses PostgreSQL (for hosting, e.g. Azure).
 - `migrate_to_postgres.py` – one-time copy of `game.db` into an empty PostgreSQL database
   (set `DATABASE_URL` first; `game.db` is only read).
+- `wsgi.py` – entry point for a real server (Azure App Service, Linux):
+  `gunicorn --workers 1 --threads 8 --timeout 120 --bind 0.0.0.0:8000 wsgi:app`.
+  App settings: `DATABASE_URL` (PostgreSQL), `SECRET_KEY` (session key), `DATA_DIR` (e.g. `/home/data`, keeps photos across restarts).
 - `secret_key.txt` – login session key (generated automatically, do not share it).
 - `static/js/social.js` – daily reward, friends, activity feed, ranking, profiles.
 - `static/js/sound.js` – sounds (generated in the browser, no audio files).

@@ -12,7 +12,9 @@ import urllib.request
 
 import catalog
 
-CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "image_cache")
+# DATA_DIR: folder na dane, które muszą przetrwać restart (na Azure np. /home/data); domyślnie folder gry
+DATA_DIR = os.environ.get("DATA_DIR") or os.path.dirname(os.path.abspath(__file__))
+CACHE_DIR = os.path.join(DATA_DIR, "image_cache")
 ALT_MISSING_FILE = os.path.join(CACHE_DIR, "alt_missing.json")
 USER_AGENT = "CelebCrates/1.0 (private hobby project; python-urllib)"
 THUMB_SIZE = 500
