@@ -56,6 +56,15 @@ To stop sharing: `tailscale serve --https=443 off`.
 - 💸 Bank: admin only
 - ⚒️ Forge: **Kontrakt** (N cards of one rarity → 1 card of the next) and **Ulepszacz** (upgrade wheel, CS-site style); secret cards cannot be crafted
 
+## Saving admin-panel changes to GitHub
+Cards and crates added in the admin panel live in `game.db` (which is not on GitHub, because it also holds player accounts).
+Before pushing, run:
+
+    .venv\Scripts\python export_catalog.py
+
+It writes `catalog_export.json` + `custom_images/` (cards and crates only, no player data).
+A new installation (empty database) loads them automatically on first start.
+
 ## Files
 - `data.py` – DEFAULT cards and crates, rarities, odds, variants, prices. The easiest way to change cards is the admin panel (/admin).
 - `catalog.py` – combines `data.py` with changes from the admin panel (stored in the database).

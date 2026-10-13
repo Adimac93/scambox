@@ -16,6 +16,7 @@ from flask import (Flask, Response, g, jsonify, redirect, render_template, reque
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import catalog
+import export_catalog
 import images
 from data import (CONTRACT_SIZE, CONTRACT_VARIANT_BONUS, CRATE_PRICE, JACKPOT_WEEKDAY, MAX_DEPOSIT,
                   MAX_OPEN, MONEY_CHESTS, RARITIES, RARITY_ORDER, SECRET_ODDS, SHOWCASE_SIZE,
@@ -163,6 +164,8 @@ def init_db():
         conn.execute("ALTER TABLE users ADD COLUMN ban_reason TEXT NOT NULL DEFAULT ''")
     catalog.init_tables(conn)
     conn.commit()
+    if export_catalog.import_if_empty(conn):  # nowa instalacja: karty i skrzynki z catalog_export.json
+        print("  Wczytano karty i skrzynki z catalog_export.json")
     catalog.rebuild(conn)
     conn.close()
 

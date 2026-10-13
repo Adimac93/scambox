@@ -1,0 +1,1183 @@
+{
+ "crates": [
+  {
+   "id": "prl",
+   "data": {
+    "name": "Skrzynka PRL",
+    "short": "PRL",
+    "code": "PRL",
+    "emoji": "🏭",
+    "color1": "#ffffff",
+    "color2": "#db6161",
+    "price": 500,
+    "desc": "Polska Ludowa 1945–1989: władza, opozycja i gwiazdy epoki",
+    "shop": true,
+    "restricted": false,
+    "weights": {
+     "green": 40.0,
+     "blue": 30.0,
+     "purple": 18.0,
+     "red": 9.0,
+     "gold": 3.0,
+     "ultra": 0.5
+    }
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_historyczna",
+   "data": {
+    "name": "Skrzynia Historyczna",
+    "short": "Historyczna",
+    "code": "SH",
+    "emoji": "⌛",
+    "color1": "#d0920b",
+    "color2": "#828282",
+    "price": 500,
+    "desc": "",
+    "shop": true,
+    "restricted": false,
+    "weights": {}
+   },
+   "deleted": false
+  },
+  {
+   "id": "world",
+   "data": {
+    "name": "Skrzynka Świat",
+    "short": "Świat",
+    "code": "ŚW",
+    "emoji": "🌍",
+    "color1": "#3d7bff",
+    "color2": "#0e2a7a",
+    "price": 100,
+    "desc": "światowe gwiazdy i politycy",
+    "shop": true,
+    "restricted": false,
+    "weights": {}
+   },
+   "deleted": false
+  }
+ ],
+ "cards": [
+  {
+   "id": "pl_adrian_zandberg",
+   "data": {
+    "name": "Adrian Zandberg",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "purple",
+    "type": "polityka",
+    "hp": 120,
+    "dmg": 95,
+    "attack": "Potężny Tuńczyk",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Adrian Zandberg"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_aleksander_kwasniewski",
+   "data": {
+    "name": "Aleksander Kwaśniewski",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "purple",
+    "type": "polityka",
+    "hp": 125,
+    "dmg": 100,
+    "attack": "Pół człowiek, pół litra",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Aleksander Kwaśniewski"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_andrzej_lepper",
+   "data": {
+    "name": "Andrzej Lepper",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "blue",
+    "type": "polityka",
+    "hp": 85,
+    "dmg": 70,
+    "attack": "Taczka",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Andrzej Lepper"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_bartosz_walaszek",
+   "data": {
+    "name": "Bartosz Walaszek",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "purple",
+    "type": "internet",
+    "hp": 130,
+    "dmg": 110,
+    "attack": "30%",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Bartosz Walaszek"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_bartosz_zmarzlik",
+   "data": {
+    "name": "Bartosz Zmarzlik",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "blue",
+    "type": "sport",
+    "hp": 65,
+    "dmg": 40,
+    "attack": "Motocykl",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Bartosz Zmarzlik"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_curie",
+   "data": {
+    "name": "Maria Skłodowska-Curie",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "ultra",
+    "type": "nauka",
+    "hp": 290,
+    "dmg": 260,
+    "attack": "Polon",
+    "attack2": "Rad",
+    "dmg2": 230,
+    "wiki": [
+     "pl",
+     "Maria Skłodowska-Curie"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_duda",
+   "data": {
+    "name": "Andrzej Duda",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "purple",
+    "type": "polityka",
+    "hp": 120,
+    "dmg": 100,
+    "attack": "Ostry cień mgły",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Andrzej Duda"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_friz",
+   "data": {
+    "name": "Friz",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "internet",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Rzut karłem",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Friz"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_gessler",
+   "data": {
+    "name": "Magda Gessler",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "purple",
+    "type": "kuchnia",
+    "hp": 125,
+    "dmg": 110,
+    "attack": "Rzut talerzem",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Magda Gessler"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_gracjan_roztocki",
+   "data": {
+    "name": "Gracjan Roztocki",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "internet",
+    "hp": 50,
+    "dmg": 35,
+    "attack": "Kupa",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Gracjan Roztocki"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_grzegorz_braun",
+   "data": {
+    "name": "Grzegorz Braun",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "purple",
+    "type": "polityka",
+    "hp": 120,
+    "dmg": 95,
+    "attack": "Gaśnica",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Grzegorz Braun"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_kaczynski",
+   "data": {
+    "name": "Jarosław Kaczyński",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "red",
+    "type": "polityka",
+    "hp": 150,
+    "dmg": 130,
+    "attack": "Prawo",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Jarosław Kaczyński"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_kazik",
+   "data": {
+    "name": "Kazik Staszewski",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "blue",
+    "type": "muzyka",
+    "hp": 90,
+    "dmg": 75,
+    "attack": "12 groszy",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Kazik Staszewski"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_korwin",
+   "data": {
+    "name": "Janusz Korwin-Mikke",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "gold",
+    "type": "polityka",
+    "hp": 200,
+    "dmg": 180,
+    "attack": "A na drzewach zamiast liści",
+    "wiki": [
+     "pl",
+     "Janusz Korwin-Mikke"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_krzysztof_kononowicz",
+   "data": {
+    "name": "Krzysztof Kononowicz",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "blue",
+    "type": "internet",
+    "hp": 85,
+    "dmg": 60,
+    "attack": "Nie będzie niczego",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": null
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_krzysztof_rutkowski",
+   "data": {
+    "name": "Krzysztof Rutkowski",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "blue",
+    "type": "biznes",
+    "hp": 85,
+    "dmg": 75,
+    "attack": "Rutkowski Patrol",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Krzysztof Rutkowski (ur. 1960)"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_kubica",
+   "data": {
+    "name": "Robert Kubica",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "blue",
+    "type": "sport",
+    "hp": 100,
+    "dmg": 80,
+    "attack": "Klątwa zakolaka",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Robert Kubica"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_lech_kaczynski",
+   "data": {
+    "name": "Lech Kaczyński",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "red",
+    "type": "polityka",
+    "hp": 130,
+    "dmg": 150,
+    "attack": "Sprawiedliwość",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Lech Kaczyński"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_lewandowski",
+   "data": {
+    "name": "Robert Lewandowski",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "ultra",
+    "type": "sport",
+    "hp": 300,
+    "dmg": 250,
+    "attack": "Laga na Robercika",
+    "attack2": "Grappa Ice",
+    "dmg2": 220,
+    "wiki": [
+     "pl",
+     "Robert Lewandowski"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_mata",
+   "data": {
+    "name": "Mata",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "polityka",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Patointeligencja",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Mata (raper)"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_mentzen",
+   "data": {
+    "name": "Sławomir Mentzen",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "blue",
+    "type": "polityka",
+    "hp": 90,
+    "dmg": 70,
+    "attack": "Piwo z Mentzenem",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Sławomir Mentzen"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_michal_kolodziejczak",
+   "data": {
+    "name": "Michał Kołodziejczak",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "polityka",
+    "hp": 60,
+    "dmg": 45,
+    "attack": "Rzut telewizorem",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Michał Kołodziejczak"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_pashabiceps",
+   "data": {
+    "name": "pashaBiceps",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "blue",
+    "type": "sport",
+    "hp": 85,
+    "dmg": 80,
+    "attack": "Jarek pasha runda nasza",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Jarosław Jarząbkowski"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_radoslaw_sikorski",
+   "data": {
+    "name": "Radosław Sikorski",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "purple",
+    "type": "polityka",
+    "hp": 120,
+    "dmg": 90,
+    "attack": "Rusofobia",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Radosław Sikorski"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_robert_biedron",
+   "data": {
+    "name": "Robert Biedroń",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "polityka",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Żeński boks",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Robert Biedroń"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_roman_giertych",
+   "data": {
+    "name": "Roman Giertych",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "blue",
+    "type": "polityka",
+    "hp": 80,
+    "dmg": 75,
+    "attack": "Przeliczenie głosów",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Roman Giertych"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_secret",
+   "data": {
+    "name": "Jan Paweł II",
+    "crate": "pl",
+    "crates": [
+     "pl",
+     "prl"
+    ],
+    "rarity": "secret",
+    "type": "wiara",
+    "hp": 500,
+    "dmg": 300,
+    "attack": "Barka",
+    "attack2": "Rzułta morda",
+    "dmg2": 280,
+    "wiki": [
+     "pl",
+     "Jan Paweł II"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_szydlo",
+   "data": {
+    "name": "Beata Szydło",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "purple",
+    "type": "polityka",
+    "hp": 115,
+    "dmg": 100,
+    "attack": "500+",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Beata Szydło"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_tomasz_karolak",
+   "data": {
+    "name": "Tomasz Karolak",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "kino",
+    "hp": 60,
+    "dmg": 40,
+    "attack": "Ludwiczek",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Tomasz Karolak"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_tusk",
+   "data": {
+    "name": "Donald Tusk",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "red",
+    "type": "polityka",
+    "hp": 150,
+    "dmg": 120,
+    "attack": "Für Deutschland!",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Donald Tusk"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_walesa",
+   "data": {
+    "name": "Lech Wałęsa",
+    "crate": "pl",
+    "crates": [
+     "pl",
+     "prl"
+    ],
+    "rarity": "gold",
+    "type": "polityka",
+    "hp": 210,
+    "dmg": 170,
+    "attack": "Skok przez płot",
+    "attack2": "100 milionów",
+    "dmg2": 130,
+    "wiki": [
+     "pl",
+     "Lech Wałęsa"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_wilfredo_leon",
+   "data": {
+    "name": "Wilfredo León",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "green",
+    "type": "polityka",
+    "hp": 60,
+    "dmg": 45,
+    "attack": "Przyjęcie",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Wilfredo León"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "pl_zbigniew_stonoga",
+   "data": {
+    "name": "Zbigniew Stonoga",
+    "crate": "pl",
+    "crates": [
+     "pl"
+    ],
+    "rarity": "red",
+    "type": "internet",
+    "hp": 155,
+    "dmg": 115,
+    "attack": "Szkoda strzępić ryja",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Zbigniew Stonoga"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "prl_bierut",
+   "data": {
+    "name": "Bolesław Bierut",
+    "crate": "prl",
+    "crates": [
+     "prl"
+    ],
+    "rarity": "red",
+    "type": "polityka",
+    "hp": 150,
+    "dmg": 120,
+    "attack": "Sadzenie drzew",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Bolesław Bierut"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "prl_gierek",
+   "data": {
+    "name": "Edward Gierek",
+    "crate": "prl",
+    "crates": [
+     "prl"
+    ],
+    "rarity": "ultra",
+    "type": "polityka",
+    "hp": 290,
+    "dmg": 250,
+    "attack": "Pomożecie?",
+    "attack2": "Żelbet",
+    "dmg2": 210,
+    "wiki": [
+     "pl",
+     "Edward Gierek"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "prl_gomulka",
+   "data": {
+    "name": "Władysław Gomułka",
+    "crate": "prl",
+    "crates": [
+     "prl"
+    ],
+    "rarity": "red",
+    "type": "polityka",
+    "hp": 150,
+    "dmg": 125,
+    "attack": "Deportacja Żydów",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Władysław Gomułka"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "prl_hermaszewski",
+   "data": {
+    "name": "Mirosław Hermaszewski",
+    "crate": "prl",
+    "crates": [
+     "prl"
+    ],
+    "rarity": "gold",
+    "type": "nauka",
+    "hp": 205,
+    "dmg": 180,
+    "attack": "Lot w kosmos",
+    "attack2": "Spory krok",
+    "dmg2": 130,
+    "wiki": [
+     "pl",
+     "Mirosław Hermaszewski"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "prl_jaruzelski",
+   "data": {
+    "name": "Wojciech Jaruzelski",
+    "crate": "prl",
+    "crates": [
+     "prl"
+    ],
+    "rarity": "gold",
+    "type": "polityka",
+    "hp": 205,
+    "dmg": 180,
+    "attack": "Stan wojenny",
+    "attack2": "Ścieżka zdrowia",
+    "dmg2": 140,
+    "wiki": [
+     "pl",
+     "Wojciech Jaruzelski"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "prl_kuron",
+   "data": {
+    "name": "Jacek Kuroń",
+    "crate": "prl",
+    "crates": [
+     "prl"
+    ],
+    "rarity": "purple",
+    "type": "polityka",
+    "hp": 115,
+    "dmg": 100,
+    "attack": "Demokratyczna opozycja",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Jacek Kuroń"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "prl_urban",
+   "data": {
+    "name": "Jerzy Urban",
+    "crate": "prl",
+    "crates": [
+     "prl"
+    ],
+    "rarity": "red",
+    "type": "tv",
+    "hp": 145,
+    "dmg": 130,
+    "attack": "A ja mam to w dupie",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Jerzy Urban"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_historyczna_adam_mickiewicz",
+   "data": {
+    "name": "Adam Mickiewicz",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "ultra",
+    "type": "muzyka",
+    "hp": 280,
+    "dmg": 260,
+    "attack": "Wielka Improwizacja",
+    "attack2": "44",
+    "dmg2": 250,
+    "wiki": [
+     "pl",
+     "Adam Mickiewicz"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_historyczna_cyprian_kamil_norwid",
+   "data": {
+    "name": "Cyprian Kamil Norwid",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "red",
+    "type": "polityka",
+    "hp": 150,
+    "dmg": 125,
+    "attack": "Trzeci wieszcz",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Cyprian Kamil Norwid"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_historyczna_cyprian_zablocki",
+   "data": {
+    "name": "Cyprian Zabłocki",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "green",
+    "type": "muzyka",
+    "hp": 60,
+    "dmg": 30,
+    "attack": "Handel mydłem",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Cyprian Zabłocki"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_historyczna_ignacy_krasicki",
+   "data": {
+    "name": "Ignacy Krasicki",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "red",
+    "type": "muzyka",
+    "hp": 150,
+    "dmg": 130,
+    "attack": "Nie boska komedia",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Ignacy Krasicki"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_historyczna_jan_kochanowski",
+   "data": {
+    "name": "Jan Kochanowski",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "gold",
+    "type": "polityka",
+    "hp": 200,
+    "dmg": 130,
+    "attack": "Na zdrowie",
+    "attack2": "Rzut Urszulką",
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Jan Kochanowski"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_historyczna_juliusz_slowacki",
+   "data": {
+    "name": "Juliusz Słowacki",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "ultra",
+    "type": "muzyka",
+    "hp": 280,
+    "dmg": 240,
+    "attack": "Grób Agamemnona",
+    "attack2": "Smutno mi Boże",
+    "dmg2": 230,
+    "wiki": [
+     "pl",
+     "Juliusz Słowacki"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_historyczna_mikolaj_kopernik",
+   "data": {
+    "name": "Mikołaj Kopernik",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "gold",
+    "type": "nauka",
+    "hp": 200,
+    "dmg": 180,
+    "attack": "Wstrzymał Słońce",
+    "attack2": "Ruszył Ziemię",
+    "dmg2": 170,
+    "wiki": [
+     "pl",
+     "Mikołaj Kopernik"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_historyczna_piotr_wysocki",
+   "data": {
+    "name": "Piotr Wysocki",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "purple",
+    "type": "polityka",
+    "hp": 120,
+    "dmg": 100,
+    "attack": "Noc listopadowa",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Piotr Wysocki (wojskowy)"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_historyczna_romuald_traugutt",
+   "data": {
+    "name": "Romuald Traugutt",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "red",
+    "type": "polityka",
+    "hp": 150,
+    "dmg": 130,
+    "attack": "Powstanie styczniowe",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Romuald Traugutt"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_historyczna_tadeusz_kosciuszko",
+   "data": {
+    "name": "Tadeusz Kościuszko",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "gold",
+    "type": "polityka",
+    "hp": 210,
+    "dmg": 120,
+    "attack": "Racławickie kosy",
+    "attack2": "Fortyfikacje wojenne",
+    "dmg2": 110,
+    "wiki": [
+     "pl",
+     "Tadeusz Kościuszko"
+    ]
+   },
+   "deleted": false
+  },
+  {
+   "id": "skrzynia_historyczna_wincenty_kadlubek",
+   "data": {
+    "name": "Wincenty Kadłubek",
+    "crate": "skrzynia_historyczna",
+    "crates": [
+     "skrzynia_historyczna"
+    ],
+    "rarity": "blue",
+    "type": "nauka",
+    "hp": 85,
+    "dmg": 60,
+    "attack": "Piast glazing",
+    "attack2": null,
+    "dmg2": 0,
+    "wiki": [
+     "pl",
+     "Wincenty Kadłubek"
+    ]
+   },
+   "deleted": false
+  }
+ ]
+}
