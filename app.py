@@ -1,12 +1,10 @@
 import datetime
 import functools
-import json
 import os
 import random
 import re
 import secrets
 import socket
-import sqlite3
 import sys
 import time
 import unicodedata
@@ -16,6 +14,7 @@ from flask import (Flask, Response, g, jsonify, redirect, render_template, reque
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import catalog
+import database
 import export_catalog
 import images
 from data import (CONTRACT_SIZE, CONTRACT_VARIANT_BONUS, CRATE_PRICE, JACKPOT_WEEKDAY, MAX_DEPOSIT,
@@ -75,8 +74,7 @@ def no_cache_pages(resp):
 
 def db():
     if "db" not in g:
-        g.db = sqlite3.connect(DB_PATH, timeout=10)
-        g.db.row_factory = sqlite3.Row
+        g.db = database.connect(DB_PATH)
     return g.db
 
 
@@ -88,7 +86,21 @@ def close_db(_exc):
 
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = database.connect(DB_PATH)
+    if conn.pg:
+        conn.executescript(database.PG_SCHEMA)
+    else:
+        init_sqlite(conn)
+    catalog.init_tables(conn)
+    conn.commit()
+    if export_catalog.import_if_empty(conn):  # nowa instalacja: karty i skrzynki z catalog_export.json
+        print("  Wczytano karty i skrzynki z catalog_export.json")
+    catalog.rebuild(conn)
+    conn.close()
+
+
+def init_sqlite(conn):
+    """Schemat SQLite razem z migracjami starszych zapisów gry (PostgreSQL: database.PG_SCHEMA)."""
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS state (key TEXT PRIMARY KEY, value INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS items (
@@ -162,25 +174,20 @@ def init_db():
     if "banned" not in ucols:  # migracja: blokowanie kont
         conn.execute("ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0")
         conn.execute("ALTER TABLE users ADD COLUMN ban_reason TEXT NOT NULL DEFAULT ''")
-    catalog.init_tables(conn)
-    conn.commit()
-    if export_catalog.import_if_empty(conn):  # nowa instalacja: karty i skrzynki z catalog_export.json
-        print("  Wczytano karty i skrzynki z catalog_export.json")
-    catalog.rebuild(conn)
-    conn.close()
 
 
 def ensure_state(conn, uid):
     for key, val in STATE_KEYS:
-        conn.execute("INSERT OR IGNORE INTO user_state (user_id, key, value) VALUES (?, ?, ?)", (uid, key, val))
+        conn.execute("INSERT INTO user_state (user_id, key, value) VALUES (?, ?, ?) ON CONFLICT DO NOTHING", (uid, key, val))
 
 
 def adopt_legacy_save(conn, uid):
     """Pierwsze konto przejmuje zapis gry sprzed wprowadzenia kont."""
     conn.execute("UPDATE items SET user_id = ? WHERE user_id IS NULL", (uid,))
     for key, value in conn.execute("SELECT key, value FROM state").fetchall():
-        conn.execute("INSERT OR REPLACE INTO user_state (user_id, key, value) VALUES (?, ?, ?)", (uid, key, value))
-    conn.execute("INSERT OR IGNORE INTO user_discovered (user_id, person_id) SELECT ?, person_id FROM discovered", (uid,))
+        conn.execute("INSERT INTO user_state (user_id, key, value) VALUES (?, ?, ?) "
+                 "ON CONFLICT (user_id, key) DO UPDATE SET value = excluded.value", (uid, key, value))
+    conn.execute("INSERT INTO user_discovered (user_id, person_id) SELECT ?, person_id FROM discovered ON CONFLICT DO NOTHING", (uid,))
     conn.execute("DELETE FROM state")
     conn.execute("DELETE FROM discovered")
 
@@ -196,6 +203,12 @@ def current_user():
 
 def uid():
     return current_user()["id"]
+
+
+def lock_me():
+    """Na początku zapytań, które sprawdzają stan gracza i potem go zmieniają (pieniądze, karty, skrzynki):
+    podwójne kliknięcie nie wyda tych samych pieniędzy ani kart dwa razy."""
+    db().lock_users(uid())
 
 
 def login_required(fn):
@@ -244,7 +257,7 @@ def user_json(u):
 
 
 def find_user(name):
-    return db().execute("SELECT * FROM users WHERE username = ?", ((name or "").strip(),)).fetchone()
+    return db().execute("SELECT * FROM users WHERE LOWER(username) = LOWER(?)", ((name or "").strip(),)).fetchone()
 
 
 @app.route("/login")
@@ -268,9 +281,8 @@ def register():
     if find_user(name):
         return jsonify({"error": "Ta nazwa jest już zajęta"}), 400
     first = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0
-    cur = conn.execute("INSERT INTO users (username, password_hash, is_admin, created_at) VALUES (?, ?, ?, ?)",
-                       (name, generate_password_hash(pw), int(first), time.time()))
-    new_id = cur.lastrowid
+    new_id = conn.execute("INSERT INTO users (username, password_hash, is_admin, created_at) VALUES (?, ?, ?, ?) "
+                          "RETURNING id", (name, generate_password_hash(pw), int(first), time.time())).fetchone()[0]
     if first:
         adopt_legacy_save(conn, new_id)
     ensure_state(conn, new_id)
@@ -308,6 +320,7 @@ def logout():
 @app.post("/api/password")
 @login_required
 def change_password():
+    lock_me()
     body = request.get_json(force=True)
     if not check_password_hash(current_user()["password_hash"], body.get("old") or ""):
         return jsonify({"error": "Obecne hasło jest nieprawidłowe"}), 400
@@ -334,7 +347,8 @@ def add_state(key, delta, user_id=None):
 
 
 def set_state(key, value):
-    db().execute("INSERT OR REPLACE INTO user_state (user_id, key, value) VALUES (?, ?, ?)", (uid(), key, value))
+    db().execute("INSERT INTO user_state (user_id, key, value) VALUES (?, ?, ?) "
+                 "ON CONFLICT (user_id, key) DO UPDATE SET value = excluded.value", (uid(), key, value))
 
 
 def discovered(user_id=None):
@@ -360,7 +374,8 @@ def add_chests(kind, delta, user_id=None):
     user_id = user_id or uid()
     db().execute("INSERT INTO user_chests (user_id, kind, count) VALUES (?, ?, 0) ON CONFLICT(user_id, kind) DO NOTHING",
                  (user_id, kind))
-    db().execute("UPDATE user_chests SET count = MAX(0, count + ?) WHERE user_id = ? AND kind = ?", (delta, user_id, kind))
+    db().execute("UPDATE user_chests SET count = CASE WHEN count + ? > 0 THEN count + ? ELSE 0 END "
+                 "WHERE user_id = ? AND kind = ?", (delta, delta, user_id, kind))
 
 
 def has_access(crate_id, user_id=None):
@@ -393,9 +408,9 @@ def item_json(row):
 
 def insert_item(person_id, variant):
     now = time.time()
-    cur = db().execute("INSERT INTO items (person_id, holo, variant, created_at, user_id) VALUES (?, ?, ?, ?, ?)",
-                       (person_id, int(variant != "normal"), variant, now, uid()))
-    return {"id": cur.lastrowid, "person": person_id, "variant": variant,
+    new_id = db().execute("INSERT INTO items (person_id, holo, variant, created_at, user_id) VALUES (?, ?, ?, ?, ?) "
+                          "RETURNING id", (person_id, int(variant != "normal"), variant, now, uid())).fetchone()[0]
+    return {"id": new_id, "person": person_id, "variant": variant,
             "value": card_value(catalog.PEOPLE[person_id], variant), "created": now}
 
 
@@ -405,7 +420,7 @@ def note_drops(items, kind="drop"):
     for it in items:
         rarity = catalog.PEOPLE[it["person"]]["rarity"]
         if rarity == "secret":
-            cur = db().execute("INSERT OR IGNORE INTO user_discovered (user_id, person_id) VALUES (?, ?)",
+            cur = db().execute("INSERT INTO user_discovered (user_id, person_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
                                (uid(), it["person"]))
             if cur.rowcount:
                 new.append(it["person"])
@@ -555,6 +570,7 @@ def roll(crate):
 @app.post("/api/open")
 @login_required
 def open_crates():
+    lock_me()
     body = request.get_json(force=True)
     crate = catalog.CRATES.get(body.get("crate"))
     count = int(body.get("count", 1))
@@ -588,6 +604,7 @@ def open_crates():
 @app.post("/api/chests/buy")
 @login_required
 def buy_chests():
+    lock_me()
     body = request.get_json(force=True)
     crate = catalog.CRATES.get(body.get("crate"))
     count = int(body.get("count", 1))
@@ -608,6 +625,7 @@ def buy_chests():
 @app.post("/api/chests/money")
 @login_required
 def open_money_chest():
+    lock_me()
     kind = request.get_json(force=True).get("kind")
     if kind not in MONEY_CHESTS:
         return jsonify({"error": "Nieznana skrzynka"}), 400
@@ -645,6 +663,7 @@ def row_value(r):
 @app.post("/api/sell")
 @login_required
 def sell():
+    lock_me()
     ids = [int(i) for i in request.get_json(force=True).get("ids", [])]
     if not ids:
         return jsonify({"error": "Nic nie wybrano"}), 400
@@ -661,6 +680,7 @@ def sell():
 @app.post("/api/deposit")
 @admin_required
 def deposit():
+    lock_me()
     try:
         amount = int(request.get_json(force=True).get("amount", 0))
     except (TypeError, ValueError):
@@ -676,6 +696,7 @@ def deposit():
 @app.post("/api/contract")
 @login_required
 def contract():
+    lock_me()
     ids = [int(i) for i in request.get_json(force=True).get("ids", [])]
     rows = owned_rows(ids)
     if rows is None:
@@ -707,6 +728,7 @@ def contract():
 @app.post("/api/upgrade")
 @login_required
 def upgrade():
+    lock_me()
     body = request.get_json(force=True)
     ids = [int(i) for i in body.get("ids", [])]
     target = catalog.PEOPLE.get(body.get("target"))
@@ -735,6 +757,7 @@ def upgrade():
 @app.post("/api/reset")
 @login_required
 def reset():
+    lock_me()
     conn = db()
     me = uid()
     conn.execute("DELETE FROM items WHERE user_id = ?", (me,))
@@ -776,9 +799,10 @@ def daily():
 @app.post("/api/daily/claim")
 @login_required
 def daily_claim():
+    lock_me()
     today = datetime.date.today()
     kind = daily_kind(today)
-    cur = db().execute("INSERT OR IGNORE INTO daily_claims (user_id, day, amount) VALUES (?, ?, 0)",
+    cur = db().execute("INSERT INTO daily_claims (user_id, day, amount) VALUES (?, ?, 0) ON CONFLICT DO NOTHING",
                        (uid(), today.isoformat()))
     if not cur.rowcount:
         return jsonify({"error": "Dzisiejsza skrzynka jest już odebrana"}), 400
@@ -850,6 +874,7 @@ def friends():
 @app.post("/api/friends/request")
 @login_required
 def friend_request():
+    lock_me()
     other = find_user(request.get_json(force=True).get("username"))
     me = uid()
     if other is None:
@@ -875,6 +900,7 @@ def friend_request():
 @app.post("/api/friends/respond")
 @login_required
 def friend_respond():
+    lock_me()
     body = request.get_json(force=True)
     other = find_user(body.get("username"))
     if other is None or relation(uid(), other["id"]) != "incoming":
@@ -906,7 +932,7 @@ def user_search():
     q = (request.args.get("q") or "").strip()
     if len(q) < 1:
         return jsonify({"users": []})
-    rows = db().execute("SELECT * FROM users WHERE banned = 0 AND username LIKE ? ESCAPE '\\' ORDER BY username LIMIT 10",
+    rows = db().execute("SELECT * FROM users WHERE banned = 0 AND LOWER(username) LIKE LOWER(?) ESCAPE '\\' ORDER BY LOWER(username) LIMIT 10",
                         ("%" + q.replace("%", "").replace("_", "\\_") + "%",)).fetchall()
     return jsonify({"users": [user_json(u) for u in rows]})
 
@@ -916,7 +942,9 @@ def user_search():
 def visible_feed_sql():
     return """FROM feed f JOIN users u ON u.id = f.author_id
               WHERE (f.author_id = :me OR f.to_user_id = :me
-                 OR (f.to_user_id IS NULL AND f.author_id IN (SELECT value FROM json_each(:friends))))"""
+                 OR (f.to_user_id IS NULL AND f.author_id IN (
+                     SELECT addressee_id FROM friendships WHERE requester_id = :me AND status = 'accepted'
+                     UNION SELECT requester_id FROM friendships WHERE addressee_id = :me AND status = 'accepted')))"""
 
 
 def friend_owns(owner_name, person_id):
@@ -935,7 +963,7 @@ def feed_entry_visible(feed_id, person_id):
         return False
     me = uid()
     row = db().execute(f"SELECT f.id {visible_feed_sql()} AND f.id = :fid AND f.person_id = :pid",
-                       {"me": me, "friends": json.dumps(sorted(friend_ids(me))), "fid": feed_id, "pid": person_id}).fetchone()
+                       {"me": me, "fid": feed_id, "pid": person_id}).fetchone()
     return row is not None
 
 
@@ -943,7 +971,7 @@ def feed_entry_visible(feed_id, person_id):
 @login_required
 def feed():
     me = uid()
-    params = {"me": me, "friends": json.dumps(sorted(friend_ids(me)))}
+    params = {"me": me}
     rows = db().execute(f"SELECT f.*, u.username, u.avatar, u.avatar_card, u.avatar_variant, (SELECT username FROM users WHERE id = f.to_user_id) AS to_name "
                         f"{visible_feed_sql()} ORDER BY f.id DESC LIMIT 60", params).fetchall()
     out = []
@@ -1068,6 +1096,7 @@ def trades_list():
 @app.post("/api/trades")
 @login_required
 def trade_create():
+    lock_me()
     body = request.get_json(force=True)
     me = uid()
     other = find_user(body.get("to"))
@@ -1099,10 +1128,10 @@ def trade_create():
         if pick_want_items(other["id"], w["person"], w["variant"], w["count"]) is None:
             return jsonify({"error": f"{other['username']} nie ma tylu kart: {catalog.PEOPLE[w['person']]['name']}"}), 400
     now = time.time()
-    cur = db().execute("INSERT INTO trades (from_id, to_id, message, money_give, money_want, created_at, updated_at) "
-                       "VALUES (?, ?, ?, ?, ?, ?, ?)", (me, other["id"], (body.get("message") or "").strip()[:140],
-                                                         money_give, money_want, now, now))
-    tid = cur.lastrowid
+    tid = db().execute("INSERT INTO trades (from_id, to_id, message, money_give, money_want, created_at, updated_at) "
+                       "VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id",
+                       (me, other["id"], (body.get("message") or "").strip()[:140], money_give, money_want, now, now)
+                       ).fetchone()[0]
     for r in rows:
         db().execute("INSERT INTO trade_lines (trade_id, side, item_id, person_id, variant, count) VALUES (?, 'give', ?, ?, ?, 1)",
                      (tid, r["id"], r["person_id"], r["variant"]))
@@ -1122,6 +1151,9 @@ def get_trade(tid):
 def trade_accept(tid):
     t = get_trade(tid)
     me = uid()
+    if t is not None:  # blokujemy obie strony wymiany, potem czytamy świeży stan oferty
+        db().lock_users(t["from_id"], t["to_id"])
+        t = get_trade(tid)
     if t is None or t["to_id"] != me or t["status"] != "pending":
         return jsonify({"error": "Tej oferty nie można już przyjąć"}), 400
     problem = trade_problem(t)
@@ -1149,7 +1181,7 @@ def trade_accept(tid):
         for item_id in item_ids:
             pid = conn.execute("SELECT person_id FROM items WHERE id = ?", (item_id,)).fetchone()[0]
             if catalog.PEOPLE.get(pid, {}).get("rarity") == "secret":
-                conn.execute("INSERT OR IGNORE INTO user_discovered (user_id, person_id) VALUES (?, ?)", (user_id, pid))
+                conn.execute("INSERT INTO user_discovered (user_id, person_id) VALUES (?, ?) ON CONFLICT DO NOTHING", (user_id, pid))
     conn.execute("UPDATE trades SET status = 'accepted', updated_at = ? WHERE id = ?", (time.time(), tid))
     conn.commit()
     return jsonify({"ok": True, "state": get_state(), "items": my_items(), "showcase": showcase_ids(me)})
@@ -1158,6 +1190,7 @@ def trade_accept(tid):
 @app.post("/api/trades/<int:tid>/<action>")
 @login_required
 def trade_close(tid, action):
+    lock_me()
     t = get_trade(tid)
     me = uid()
     if t is None or t["status"] != "pending" or action not in ("decline", "cancel"):
@@ -1181,6 +1214,7 @@ def showcase_ids(user_id):
 @app.post("/api/showcase")
 @login_required
 def set_showcase():
+    lock_me()
     ids = [int(i) for i in request.get_json(force=True).get("ids", [])][:SHOWCASE_SIZE]
     if ids and owned_rows(ids) is None:
         return jsonify({"error": "Nie masz tych kart"}), 400
@@ -1194,6 +1228,7 @@ def set_showcase():
 @app.post("/api/profile")
 @login_required
 def set_profile():
+    lock_me()
     body = request.get_json(force=True)
     if "avatarCard" in body:  # ikona ze zdjęcia karty - tylko z kart, które gracz ma (żadnych własnych plików)
         pid = body.get("avatarCard") or ""
@@ -1294,7 +1329,7 @@ def me():
     me_id = u["id"]
     incoming = db().execute("SELECT COUNT(*) FROM friendships WHERE addressee_id = ? AND status = 'pending'",
                             (me_id,)).fetchone()[0]
-    params = {"me": me_id, "friends": json.dumps(sorted(friend_ids(me_id)))}
+    params = {"me": me_id}
     unread = db().execute(f"SELECT COUNT(*) {visible_feed_sql()} AND f.author_id != :me AND f.id > :seen",
                           dict(params, seen=get_state()["feed_seen"])).fetchone()[0]
     trades_in = db().execute("SELECT COUNT(*) FROM trades WHERE to_id = ? AND status = 'pending'", (me_id,)).fetchone()[0]
@@ -1346,7 +1381,7 @@ def admin_catalog():
     cards = [dict(admin_card_json(p), owned=counts.get(p["id"], 0), hidden=False) for p in catalog.PEOPLE.values()]
     cards += [dict(admin_card_json(dict(p, number=0)), owned=counts.get(p["id"], 0), hidden=True)
               for p in catalog.HIDDEN_CARDS.values() if p.get("crate") in catalog.CRATES]
-    users = [user_json(u) for u in db().execute("SELECT * FROM users ORDER BY username COLLATE NOCASE")]
+    users = [user_json(u) for u in db().execute("SELECT * FROM users ORDER BY LOWER(username)")]
     return jsonify({"crates": crates, "cards": cards, "rarities": RARITIES, "rarityOrder": RARITY_ORDER,
                     "types": TYPES, "defaultPrice": CRATE_PRICE, "users": users})
 
@@ -1389,7 +1424,7 @@ def admin_save_crate():
     if "allowed" in body:  # lista graczy z dostępem do skrzynki
         db().execute("DELETE FROM crate_access WHERE crate_id = ?", (cid,))
         for user_id in {int(x) for x in body.get("allowed") or []}:
-            db().execute("INSERT OR IGNORE INTO crate_access (user_id, crate_id) VALUES (?, ?)", (user_id, cid))
+            db().execute("INSERT INTO crate_access (user_id, crate_id) VALUES (?, ?) ON CONFLICT DO NOTHING", (user_id, cid))
     db().commit()
     refresh_catalog()
     return jsonify({"ok": True, "id": cid})
@@ -1592,7 +1627,7 @@ def admin_set_access(user_id):
     crates = [c for c in request.get_json(force=True).get("crates", []) if c in catalog.CRATES]
     db().execute("DELETE FROM crate_access WHERE user_id = ?", (user_id,))
     for cid in crates:
-        db().execute("INSERT OR IGNORE INTO crate_access (user_id, crate_id) VALUES (?, ?)", (user_id, cid))
+        db().execute("INSERT INTO crate_access (user_id, crate_id) VALUES (?, ?) ON CONFLICT DO NOTHING", (user_id, cid))
     db().commit()
     return jsonify({"ok": True})
 
@@ -1705,5 +1740,5 @@ if __name__ == "__main__":
         if LAN_MODE:
             print(f"\n  Znajomi w tej samej sieci wchodzą na:  http://{lan_address()}:{port}\n")
     if not DEV_MODE or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
-        print(f"\n  Gra działa na:  http://127.0.0.1:{port}\n")
+        print(f"\n  Gra działa na:  http://127.0.0.1:{port}   (baza: {database.describe(DB_PATH)})\n")
     app.run(host="0.0.0.0" if LAN_MODE else "127.0.0.1", port=port, debug=DEV_MODE and not LAN_MODE, threaded=True)

@@ -10,8 +10,8 @@ Nowa instalacja gry (pusta baza) wczyta je automatycznie przy pierwszym uruchomi
 import json
 import os
 import shutil
-import sqlite3
 
+import database
 import images
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -20,7 +20,7 @@ IMAGES_DIR = os.path.join(BASE_DIR, "custom_images")
 
 
 def export(db_path=os.path.join(BASE_DIR, "game.db")):
-    conn = sqlite3.connect(db_path)
+    conn = database.connect(db_path)  # z DATABASE_URL: baza PostgreSQL
     out = {"crates": [], "cards": []}
     for table, key in (("catalog_crates", "crates"), ("catalog_cards", "cards")):
         for cid, data, deleted in conn.execute(f"SELECT id, data, deleted FROM {table} ORDER BY id"):
@@ -54,7 +54,7 @@ def import_if_empty(conn):
         data = json.load(f)
     for table, key in (("catalog_crates", "crates"), ("catalog_cards", "cards")):
         for row in data.get(key, []):
-            conn.execute(f"INSERT OR IGNORE INTO {table} (id, data, deleted) VALUES (?, ?, ?)",
+            conn.execute(f"INSERT INTO {table} (id, data, deleted) VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
                          (row["id"], json.dumps(row["data"], ensure_ascii=False), int(row["deleted"])))
     if os.path.isdir(IMAGES_DIR):
         os.makedirs(images.CACHE_DIR, exist_ok=True)
