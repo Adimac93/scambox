@@ -761,8 +761,8 @@ function openPasswordDialog() {
     <h3>🔑 Zmień hasło</h3>
     <form class="show-form" id="pwForm">
       <label>Obecne hasło<input type="password" name="old" required autocomplete="current-password"></label>
-      <label>Nowe hasło<input type="password" name="new" required minlength="4" autocomplete="new-password"></label>
-      <label>Powtórz nowe hasło<input type="password" name="new2" required minlength="4" autocomplete="new-password"></label>
+      <label>Nowe hasło<input type="password" name="new" required minlength="8" autocomplete="new-password"></label>
+      <label>Powtórz nowe hasło<input type="password" name="new2" required minlength="8" autocomplete="new-password"></label>
       <div class="daily-actions"><button class="btn primary" type="submit">Zapisz</button><button class="btn" type="button" data-close>Anuluj</button></div>
     </form>`);
   dlg.querySelector("#pwForm").addEventListener("submit", async e => {

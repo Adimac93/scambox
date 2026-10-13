@@ -6,6 +6,7 @@ import re
 import secrets
 import socket
 import sys
+import threading
 import time
 import unicodedata
 
@@ -33,6 +34,10 @@ STATE_KEYS = (("balance", STARTING_BALANCE), ("opened", 0), ("spent", 0), ("earn
               ("contracts", 0), ("upgrades_won", 0), ("upgrades_lost", 0), ("feed_seen", 0), ("daily_total", 0))
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_.\-ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]{3,20}$")
 FEED_RARITY = 4  # od legendarnych w górę dropy trafiają automatycznie do aktywności znajomych
+MIN_PASSWORD = 8  # nowe hasła (stare, krótsze nadal działają przy logowaniu)
+PASSWORD_ERROR = f"Hasło musi mieć co najmniej {MIN_PASSWORD} znaków"
+LOGIN_WINDOW = 5 * 60                      # okno liczenia nieudanych logowań (sekundy)
+LOGIN_MAX_PER_USER, LOGIN_MAX_PER_IP = 5, 20
 
 
 def load_secret_key():
@@ -199,6 +204,46 @@ def adopt_legacy_save(conn, uid):
 
 # ---------------------------------------------------------------- konta
 
+# Nieudane logowania (w pamięci procesu - na serwerze działa jeden worker): po LOGIN_MAX_PER_USER błędnych
+# hasłach na to samo konto albo LOGIN_MAX_PER_IP z jednego adresu trzeba odczekać, aż minie LOGIN_WINDOW.
+_failed_logins = {}
+_failed_lock = threading.Lock()
+
+
+def _recent_failures(key, now):
+    times = [t for t in _failed_logins.get(key, ()) if now - t < LOGIN_WINDOW]
+    if times:
+        _failed_logins[key] = times
+    else:
+        _failed_logins.pop(key, None)
+    return times
+
+
+def login_blocked(name):
+    """Ile sekund trzeba jeszcze czekać (0 = można próbować)."""
+    now = time.time()
+    with _failed_lock:
+        waits = []
+        for key, limit in ((("user", name.lower()), LOGIN_MAX_PER_USER), (("ip", request.remote_addr), LOGIN_MAX_PER_IP)):
+            times = _recent_failures(key, now)
+            if len(times) >= limit:
+                waits.append(LOGIN_WINDOW - (now - times[-limit]))
+        return int(max(waits)) + 1 if waits else 0
+
+
+def note_login(name, ok):
+    now = time.time()
+    with _failed_lock:
+        if ok:
+            _failed_logins.pop(("user", name.lower()), None)
+            return
+        for key in (("user", name.lower()), ("ip", request.remote_addr)):
+            _failed_logins.setdefault(key, []).append(now)
+        if len(_failed_logins) > 10000:  # zabezpieczenie przed zapchaniem pamięci
+            for key in list(_failed_logins):
+                _recent_failures(key, now)
+
+
 def current_user():
     if "user" not in g:
         uid = session.get("uid")
@@ -280,8 +325,8 @@ def register():
     pw = body.get("password") or ""
     if not USERNAME_RE.match(name):
         return jsonify({"error": "Nazwa: 3–20 znaków (litery, cyfry, _ . -)"}), 400
-    if len(pw) < 4:
-        return jsonify({"error": "Hasło musi mieć co najmniej 4 znaki"}), 400
+    if len(pw) < MIN_PASSWORD:
+        return jsonify({"error": PASSWORD_ERROR}), 400
     conn = db()
     if find_user(name):
         return jsonify({"error": "Ta nazwa jest już zajęta"}), 400
@@ -301,10 +346,16 @@ def register():
 @app.post("/api/login")
 def login():
     body = request.get_json(force=True)
-    u = find_user(body.get("username"))
+    name = (body.get("username") or "").strip()
+    wait = login_blocked(name)
+    if wait:
+        return jsonify({"error": f"Za dużo nieudanych prób logowania. Spróbuj ponownie za {wait // 60 + 1} min."}), 429
+    u = find_user(name)
     if u is None or not check_password_hash(u["password_hash"], body.get("password") or ""):
+        note_login(name, False)
         time.sleep(0.4)
         return jsonify({"error": "Zła nazwa użytkownika lub hasło"}), 400
+    note_login(name, True)
     if u["banned"]:
         reason = f" Powód: {u['ban_reason']}" if u["ban_reason"] else ""
         return jsonify({"error": f"To konto zostało zablokowane przez admina.{reason}"}), 403
@@ -327,10 +378,14 @@ def logout():
 def change_password():
     lock_me()
     body = request.get_json(force=True)
+    name = current_user()["username"]
+    if login_blocked(name):
+        return jsonify({"error": "Za dużo nieudanych prób. Spróbuj ponownie za kilka minut."}), 429
     if not check_password_hash(current_user()["password_hash"], body.get("old") or ""):
+        note_login(name, False)
         return jsonify({"error": "Obecne hasło jest nieprawidłowe"}), 400
-    if len(body.get("new") or "") < 4:
-        return jsonify({"error": "Nowe hasło musi mieć co najmniej 4 znaki"}), 400
+    if len(body.get("new") or "") < MIN_PASSWORD:
+        return jsonify({"error": "Nowe " + PASSWORD_ERROR[0].lower() + PASSWORD_ERROR[1:]}), 400
     db().execute("UPDATE users SET password_hash = ? WHERE id = ?", (generate_password_hash(body["new"]), uid()))
     db().commit()
     return jsonify({"ok": True})
@@ -1693,8 +1748,8 @@ def admin_toggle(user_id):
 @admin_required
 def admin_password(user_id):
     pw = request.get_json(force=True).get("password") or ""
-    if len(pw) < 4:
-        return jsonify({"error": "Hasło musi mieć co najmniej 4 znaki"}), 400
+    if len(pw) < MIN_PASSWORD:
+        return jsonify({"error": PASSWORD_ERROR}), 400
     db().execute("UPDATE users SET password_hash = ? WHERE id = ?", (generate_password_hash(pw), user_id))
     db().commit()
     return jsonify({"ok": True})

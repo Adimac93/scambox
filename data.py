@@ -19,14 +19,14 @@ MAX_OPEN = 20
 # Warianty kart: szansa na wariant przy każdym dropie i mnożnik wartości
 VARIANTS = {
     "normal":  {"name": "Zwykła",       "chance": 0.0,   "mult": 1.0},
-    "bw":      {"name": "Czarno-biała", "chance": 0.05,  "mult": 1.3},
-    "reverse": {"name": "Reverse Holo", "chance": 0.05,  "mult": 1.5},
-    "silver":  {"name": "Srebrna",      "chance": 0.03,  "mult": 2.0},
-    "holo":    {"name": "Holo",         "chance": 0.025, "mult": 2.5},
-    "gold":    {"name": "Złota",        "chance": 0.01,  "mult": 6.0},
-    "emerald": {"name": "Szmaragdowa",  "chance": 0.005, "mult": 9.0},
-    "ruby":    {"name": "Rubinowa",     "chance": 0.004, "mult": 12.0},
-    "diamond": {"name": "Diamentowa",   "chance": 0.003, "mult": 15.0},
+    "bw":      {"name": "Czarno-biała", "chance": 0.05,  "mult": 1.5},
+    "reverse": {"name": "Reverse Holo", "chance": 0.05,  "mult": 1.8},
+    "silver":  {"name": "Srebrna",      "chance": 0.03,  "mult": 2.5},
+    "holo":    {"name": "Holo",         "chance": 0.025, "mult": 3.0},
+    "gold":    {"name": "Złota",        "chance": 0.01,  "mult": 7.5},
+    "emerald": {"name": "Szmaragdowa",  "chance": 0.005, "mult": 11.0},
+    "ruby":    {"name": "Rubinowa",     "chance": 0.004, "mult": 14.0},
+    "diamond": {"name": "Diamentowa",   "chance": 0.003, "mult": 18.0},
 }
 VARIANT_ORDER = list(VARIANTS)   # od najpospolitszego do najrzadszego
 

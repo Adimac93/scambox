@@ -267,7 +267,7 @@ async function userAction(row, act) {
       toast(`Zmieniono saldo gracza ${name}`);
     }
     if (act === "password") {
-      const v = prompt(`Nowe hasło dla ${name} (min. 4 znaki):`);
+      const v = prompt(`Nowe hasło dla ${name} (min. 8 znaków):`);
       if (!v) return;
       await api(`/api/admin/users/${id}/password`, { method: "POST", json: { password: v } });
       toast(`Zmieniono hasło gracza ${name}`);

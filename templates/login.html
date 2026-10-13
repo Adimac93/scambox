@@ -54,7 +54,7 @@
     {% endif %}
     <form id="form" autocomplete="on">
       <label>Nazwa gracza<input type="text" name="username" required minlength="3" maxlength="20" autocomplete="username" autofocus></label>
-      <label>Hasło<input type="password" name="password" required minlength="4" autocomplete="current-password"></label>
+      <label>Hasło<input type="password" name="password" required autocomplete="current-password"></label>
       <label id="pw2wrap" hidden>Powtórz hasło<input type="password" name="password2" autocomplete="new-password"></label>
       <div class="err" id="err"></div>
       <button class="big-btn" type="submit" id="submit">ZALOGUJ</button>
@@ -69,6 +69,7 @@
       $("#pw2wrap").hidden = m !== "register";
       $("#submit").textContent = m === "register" ? "ZAŁÓŻ KONTO" : "ZALOGUJ";
       $("[name=password]").autocomplete = m === "register" ? "new-password" : "current-password";
+      $("[name=password]").minLength = m === "register" ? 8 : 1;  // stare, krótsze hasła nadal działają przy logowaniu
       $("#err").textContent = "";
     }
     setMode(mode);
