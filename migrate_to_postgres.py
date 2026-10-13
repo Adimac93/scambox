@@ -43,7 +43,8 @@ def main():
             print(f"  {table:16} brak w starym zapisie - pomijam")
             continue
         dst_cols = [r[0] for r in dst.execute(
-            "SELECT column_name FROM information_schema.columns WHERE table_name = ? ORDER BY ordinal_position",
+            "SELECT column_name FROM information_schema.columns WHERE table_name = ? AND table_schema = current_schema() "
+            "ORDER BY ordinal_position",
             (table,))]
         cols = [c for c in dst_cols if c in src_cols]
         rows = src.execute(f"SELECT {', '.join(cols)} FROM {table}").fetchall()

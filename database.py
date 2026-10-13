@@ -3,6 +3,8 @@
 PostgreSQL włącza zmienna środowiskowa DATABASE_URL, np.
     postgresql://uzytkownik:haslo@serwer.postgres.database.azure.com:5432/famechests?sslmode=require
 Bez niej gra działa jak dawniej na pliku game.db / test.db.
+DB_SCHEMA (opcjonalnie, np. famechests) - tabele gry w osobnym schemacie zamiast "public": baza dzielona
+z innymi aplikacjami (Supabase: schemat "public" jest dostępny przez jego REST API).
 
 Zapytania w kodzie gry piszemy raz, w stylu SQLite (parametry ? i :nazwa) - dla PostgreSQL są tłumaczone.
 Składnia musi działać w obu bazach:
@@ -18,6 +20,9 @@ import sqlite3
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 USE_POSTGRES = bool(DATABASE_URL)
+DB_SCHEMA = os.environ.get("DB_SCHEMA", "").strip()
+if DB_SCHEMA and not re.fullmatch(r"[a-z_][a-z0-9_]*", DB_SCHEMA):
+    raise SystemExit("DB_SCHEMA: tylko małe litery, cyfry i _ (np. famechests)")
 
 # Schemat dla PostgreSQL - pełny, od razu w najnowszej wersji (SQLite ma swój w app.init_db razem z migracjami
 # starych zapisów). Liczby: BIGINT (pieniądze), DOUBLE PRECISION dla czasu (REAL w PostgreSQL jest za mało dokładny).
@@ -122,6 +127,14 @@ def _to_postgres(sql, named):
     return sql.replace("?", "%s")
 
 
+def _configure(conn):
+    """Każde nowe połączenie z puli: tabele gry w schemacie DB_SCHEMA (jeśli ustawiony)."""
+    if DB_SCHEMA:
+        conn.execute(f"CREATE SCHEMA IF NOT EXISTS {DB_SCHEMA}")
+        conn.execute(f"SET search_path TO {DB_SCHEMA}")
+    conn.commit()
+
+
 class Connection:
     def __init__(self, raw, pg):
         self.raw, self.pg = raw, pg
@@ -173,7 +186,7 @@ def connect(sqlite_path):
         if _pool is None:
             from psycopg_pool import ConnectionPool
             _pool = ConnectionPool(DATABASE_URL, min_size=1, max_size=int(os.environ.get("DB_POOL_SIZE", "10")),
-                                   kwargs={"row_factory": _row_factory}, open=True,
+                                   kwargs={"row_factory": _row_factory}, configure=_configure, open=True,
                                    check=ConnectionPool.check_connection)  # zerwane połączenia (restart serwera bazy)
         return Connection(_pool.getconn(), True)
     raw = sqlite3.connect(sqlite_path, timeout=10)
@@ -184,5 +197,5 @@ def connect(sqlite_path):
 def describe(sqlite_path):
     """Opis bazy do wypisania przy starcie (bez hasła)."""
     if USE_POSTGRES:
-        return "PostgreSQL " + re.sub(r"//[^@/]*@", "//", DATABASE_URL).split("?")[0]
+        return "PostgreSQL " + re.sub(r"//[^@/]*@", "//", DATABASE_URL).split("?")[0] +             (f" (schemat {DB_SCHEMA})" if DB_SCHEMA else "")
     return "SQLite " + os.path.basename(sqlite_path)
