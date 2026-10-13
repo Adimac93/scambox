@@ -4,12 +4,17 @@
 .pf-av.av-card::after { border-radius: 22px; }
 
 .avv-bw img { filter: grayscale(1) contrast(1.25); box-shadow: 0 0 0 2px #fff, 0 0 0 4px #000 !important; }
+/* tęczowa obwódka dookoła ikony - maska "ramka" (środek wycięty), dzięki czemu idzie dokładnie po krawędzi:
+   koło przy małych ikonach, zaokrąglony kwadrat na profilu (wcześniej koło przykrywało i zniekształcało zdjęcie) */
 .avv-reverse::after {
-  inset: -3px; background: conic-gradient(from var(--ang, 0deg), #ff3b3b, #ffe53b, #3bff6b, #3bd5ff, #6b5bff, #ff3bd8, #ff3b3b);
-  -webkit-mask: radial-gradient(circle, transparent calc(50% - 3px), #000 calc(50% - 2px));
-  mask: radial-gradient(circle, transparent calc(50% - 3px), #000 calc(50% - 2px));
+  inset: -3px; padding: 3px; border-radius: 50%;
+  background: conic-gradient(from var(--ang, 0deg), #ff3b3b, #ffe53b, #3bff6b, #3bd5ff, #6b5bff, #ff3bd8, #ff3b3b);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
   animation: ultraSpin 3s linear infinite;
 }
+.pf-av.avv-reverse::after { inset: 0; padding: 4px; border-radius: 22px; } /* profil przycina wszystko poza ramką - obwódka w środku */
 .avv-silver img { filter: grayscale(1) brightness(1.1) contrast(1.15) sepia(.15) hue-rotate(180deg); box-shadow: 0 0 0 2px #e6ebf2, 0 0 10px #dfe6f0 !important; }
 .avv-holo::after {
   background: linear-gradient(115deg, #ff000066, #ffff0066, #00ff0066, #00ffff66, #0000ff66, #ff00ff66, #ff000066);
