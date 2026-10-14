@@ -1,6 +1,6 @@
-# FameChests (Skrzynki)
+# ScamBox (repo: FameChests, folder: Skrzynki)
 
-Gra webowa w otwieranie skrzynek (jak w CS) z kartami znanych osób. UI po polsku, bez monetyzacji.
+ScamBox – gra webowa w otwieranie skrzynek (jak w CS) z kartami znanych osób. UI po polsku, bez monetyzacji.
 Flask + SQLite + vanilla JS. Repo: https://github.com/CebularzPawel/FameChests
 
 ## Struktura

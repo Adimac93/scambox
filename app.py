@@ -558,7 +558,7 @@ def index(view=None, name=None):
 @app.route("/manifest.webmanifest")
 def manifest():
     data = {
-        "name": "Skrzynki Sław", "short_name": "Skrzynki", "lang": "pl",
+        "name": "ScamBox", "short_name": "ScamBox", "lang": "pl",
         "description": "Otwieraj skrzynki z kartami znanych osób, zbieraj kolekcję i wymieniaj się ze znajomymi.",
         "start_url": "/crates", "scope": "/", "display": "standalone", "orientation": "portrait",
         "background_color": "#0b0e1a", "theme_color": "#0c0f17",

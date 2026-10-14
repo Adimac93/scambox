@@ -1,4 +1,4 @@
-# Skrzynki Sław
+# ScamBox
 
 A Flask app for opening crates with cards of famous people (Polish crate and World crate).
 

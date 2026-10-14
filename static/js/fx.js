@@ -88,7 +88,7 @@ function cardBackHTML() {
   return `<div class="cback"><div class="cback-inner">
     <div class="cback-swirl"></div>
     <div class="cback-logo">🎴</div>
-    <div class="cback-title">SKRZYNKI<br>SŁAW</div>
+    <div class="cback-title">SCAM<br>BOX</div>
   </div></div>`;
 }
 

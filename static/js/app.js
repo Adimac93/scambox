@@ -375,7 +375,7 @@ function switchView(view, how = "push") {
   if (how !== "none" && location.pathname !== path) history[how === "replace" ? "replaceState" : "pushState"](null, "", path);
   const tab = $(`.tab[data-view="${view}"]`);
   const label = view === "profile" ? (PROF.username || S.me.username) : tab && `${tab.querySelector(".ti").textContent} ${tab.querySelector(".tl").textContent}`;
-  document.title = label ? `${label} — Skrzynki Sław` : "Skrzynki Sław";
+  document.title = label ? `${label} — ScamBox` : "ScamBox";
   $$(".tab").forEach(t => t.classList.toggle("active", t.dataset.view === view));
   $$(".view").forEach(v => v.classList.toggle("active", v.id === "view-" + view));
   if (view === "binder") renderBinder();
