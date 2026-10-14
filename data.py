@@ -31,7 +31,7 @@ VARIANTS = {
     "emerald": {"name": "Szmaragdowa",  "chance": 0.005, "mult": 11.0},
     "ruby":    {"name": "Rubinowa",     "chance": 0.004, "mult": 14.0},
     "royal":   {"name": "Królewska",    "chance": 0.004, "mult": 15.0, "exclusive": True,   # wyjątkowy (Skrzynia Królów)
-                "desc": "Złota rama z klejnotami na krawędziach i korona na górze."},
+                "desc": "Ozdobna złota rama z ornamentami i złota korona na górze."},
     "diamond": {"name": "Diamentowa",   "chance": 0.003, "mult": 18.0},
     "negative": {"name": "Negatyw",     "chance": 0.001, "mult": 30.0},   # najrzadszy
 }
@@ -405,7 +405,7 @@ PATCH_NOTES = [
     {"v": 1, "date": "2026-10-14", "title": "Witaj w ScamBox!",
      "items": [
          "🏷️ Nowa nazwa: Skrzynki Sław to teraz <b>ScamBox</b>.",
-         "👑 Nowy wariant <b>Królewski</b> — złota rama, klejnoty na krawędziach i korona. Wypada tylko ze <b>Skrzyni Królów</b>.",
+         "👑 Nowy wariant <b>Królewski</b> — ozdobna złota rama i korona. Wypada tylko ze <b>Skrzyni Królów</b>.",
          "🏳️ Nowy wariant <b>Flagowy</b> — karta w barwach flagi swojego kraju. Tylko w wybranych skrzynkach.",
          "💎 Wyjątkowe warianty wypadają wyłącznie ze skrzynek, które je mają — nie zrobisz ich w kontrakcie ani ulepszaczu.",
          "📰 Po każdej aktualizacji zobaczysz tu, co się zmieniło. Listę zmian znajdziesz też na swoim profilu.",

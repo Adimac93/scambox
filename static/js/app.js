@@ -86,7 +86,7 @@ function crateStyle(c) {
 
 function variantLayers(v, p = null) {
   let html = "";
-  if (v === "royal") html += '<div class="gold-sheen"></div><div class="royal-gems"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="royal-crown"></div>';
+  if (v === "royal") html += '<div class="gold-sheen"></div><div class="royal-border"></div><div class="royal-crown"></div>';
   if (v === "flag") html += '<div class="flag-tint"></div><div class="flag-wave"></div>';
   if (v === "flag" && p?.country) return html + `<div class="var-tag vt-flag"><img src="${flagUrl(p.country)}" alt="">${esc(p.country.toUpperCase())}</div>`;
   if (v === "holo") html += '<div class="holo-layer"></div>';
