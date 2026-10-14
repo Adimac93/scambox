@@ -245,8 +245,11 @@ function openViewer(pid, variant = "normal") {
     const R = S.cfg.rarities[p.rarity];
     const type = S.cfg.types[p.type];
     const crate = crateOf(p.crate);
-    const specialsTotal = S.cfg.variantOrder.filter(isSpecial).reduce((a, v) => a + S.cfg.variants[v].chance, 0);
-    const chance = rarityShare(p.crate, p.rarity) * (isSpecial(variant) ? S.cfg.variants[variant].chance : 1 - specialsTotal);
+    const avail = crateVariants(crate, p);  // warianty możliwe w skrzynce głównej (wyjątkowe tylko, gdy są w niej włączone)
+    const specialsTotal = avail.reduce((a, v) => a + S.cfg.variants[v].chance, 0);
+    const chance = rarityShare(p.crate, p.rarity) * (isSpecial(variant) ? (avail.includes(variant) ? S.cfg.variants[variant].chance : 0) : 1 - specialsTotal);
+    // wyjątkowe warianty pokazujemy tylko tam, gdzie da się je zdobyć (albo gdy już je masz)
+    const possible = new Set((p.crates || [p.crate]).flatMap(c => crateVariants(crateOf(c), p)));
     const mine = S.items.filter(i => i.person === pid);
     const owned = S.cfg.variantOrder.filter(v => mine.some(i => i.variant === v))
       .map(v => `${variantName(v)} ×${mine.filter(i => i.variant === v).length}`).join(", ");
@@ -264,7 +267,7 @@ function openViewer(pid, variant = "normal") {
           ${cratesRow}
           <tr><td>Posiadasz</td><td>${owned || '<span class="muted">brak</span>'}</td></tr>
         </table>
-        <div class="vi-variants">${S.cfg.variantOrder.map(v =>
+        <div class="vi-variants">${S.cfg.variantOrder.filter(v => !isExclusive(v) || v === variant || possible.has(v) || mine.some(i => i.variant === v)).map(v =>
           `<button class="vchip vt-${v}${v === variant ? " active" : ""}" data-var="${v}">${variantName(v)}</button>`).join("")}</div>
         <div class="vi-actions">
           <button class="btn" data-act="flip">🔄 Obróć</button>

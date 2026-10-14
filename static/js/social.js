@@ -80,6 +80,30 @@ function startPolling() {
   }, 30000);
 }
 
+// ================================================================ LISTA ZMIAN (raz po aktualizacji)
+
+function openPatchNotes(notes, fresh = false) {
+  return openDialog(`<div class="pn">
+      <h3>📰 ${fresh ? "Co nowego w ScamBox?" : "Lista zmian"}</h3>
+      ${notes.map(n => `<div class="pn-note">
+        <div class="pn-head"><b>${esc(n.title)}</b><span class="muted small">${new Date(n.date).toLocaleDateString("pl-PL")}</span></div>
+        <ul>${n.items.map(i => `<li>${i}</li>`).join("")}</ul></div>`).join("")}
+      <div class="daily-actions"><button class="btn primary" data-close>${fresh ? "Super, gramy! 🎉" : "Zamknij"}</button></div>
+    </div>`, "pn-box");
+}
+
+// po wejściu do gry po aktualizacji: lista zmian (zapamiętana jako obejrzana), potem codzienna skrzynka
+function showPatchNotes(notes) {
+  if (dialogOpen() || epicOpen()) return;
+  const dlg = openPatchNotes(notes, true);
+  api("/api/patchnotes/seen", {}).catch(() => {});
+  const wait = setInterval(() => {
+    if (document.body.contains(dlg)) return;
+    clearInterval(wait);
+    if (S.dailyClaimable) setTimeout(openDaily, 300);
+  }, 400);
+}
+
 // ================================================================ CODZIENNA SKRZYNKA
 
 async function openDaily() {
@@ -650,7 +674,7 @@ async function renderProfile() {
   const u = d.user, mine = d.relation === "me";
   if (!PROF.crate || !crateOf(PROF.crate)) PROF.crate = S.cfg.crateOrder[0];
   const rel = {
-    me: `<button class="btn" data-act="avatar">🎭 Zmień ikonę</button><button class="btn" data-act="password">🔑 Zmień hasło</button><button class="btn danger" data-act="logout">🚪 Wyloguj</button>`,
+    me: `<button class="btn" data-act="news">📰 Co nowego</button><button class="btn" data-act="avatar">🎭 Zmień ikonę</button><button class="btn" data-act="password">🔑 Zmień hasło</button><button class="btn danger" data-act="logout">🚪 Wyloguj</button>`,
     none: `<button class="btn primary" data-act="invite">➕ Zaproś do znajomych</button>`,
     outgoing: `<button class="btn" disabled>⏳ Zaproszenie wysłane</button><button class="btn tiny" data-act="cancel">Anuluj</button>`,
     incoming: `<button class="btn sell" data-act="accept">✔ Przyjmij zaproszenie</button>`,
@@ -870,6 +894,7 @@ function bindSocial() {
     if (act === "avatar") return openAvatarPicker();
     if (act === "trade") return openTradeBuilder(name);
     if (act === "duel") return arChallenge(name);
+    if (act === "news") return api("/api/patchnotes").then(r => openPatchNotes(r.notes)).catch(err => toast(err.message, true));
     if (act === "password") return openPasswordDialog();
     if (act === "logout") return logout();
     if (act === "invite") return friendAction(() => api("/api/friends/request", { username: name }), "Wysłano zaproszenie 📨");

@@ -30,3 +30,7 @@
 .av-vname.vt-gold { color: #ffcf3f; } .av-vname:is(.vt-diamond, .vt-emerald, .vt-ruby) { color: var(--gem-3); } .av-vname.vt-silver { color: #dfe6f0; }
 .av-vname.vt-clear { color: #e0f7ff; } .av-vname.vt-negative { color: #000; background: #fff; }
 .av-vname.vt-holo { color: #ff9ff3; } .av-vname.vt-reverse { color: #c9d6ff; } .av-vname.vt-bw { color: #fff; }
+
+.avv-royal img { filter: saturate(1.15) sepia(.12); box-shadow: 0 0 0 2px #ffd75e, 0 0 0 4px #6a1b9a, 0 0 14px #ffd75e !important; }
+.avv-flag img { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #dc143c, 0 0 10px #ffffff88 !important; }
+.av-vname.vt-royal { color: #ffd75e; } .av-vname.vt-flag { color: #fff; }

@@ -15,7 +15,7 @@ import threading
 import time
 
 import catalog
-from data import ARENA, ARENA_EFFECTS, TYPES, VARIANT_ORDER
+from data import ARENA, ARENA_EFFECTS, TYPES, VARIANT_ORDER, VARIANTS
 
 TURN_LIMIT = 80            # po tylu turach (obu graczy razem) remis
 PVP_TURN_SECONDS = 90      # czas na turę w pojedynku z graczem - potem tura kończy się sama
@@ -150,7 +150,8 @@ def ai_deck(deck, allowed_secret=()):
         opts = [p for p in pool if p["rarity"] == r and p["id"] not in used] or [p for p in pool if p["id"] not in used]
         p = random.choice(opts) if opts else pool[0]
         used.add(p["id"])
-        variant = "normal" if random.random() < 0.7 else random.choice(VARIANT_ORDER[1:])
+        variant = "normal" if random.random() < 0.7 else random.choice(
+            [v for v in VARIANT_ORDER[1:] if not VARIANTS[v].get("exclusive")])  # bez wariantów wyjątkowych
         out.append({"pid": p["id"], "variant": variant})
     return out
 

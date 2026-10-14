@@ -24,13 +24,23 @@ VARIANTS = {
     "silver":  {"name": "Srebrna",      "chance": 0.03,  "mult": 2.5},
     "holo":    {"name": "Holo",         "chance": 0.025, "mult": 3.0},
     "gold":    {"name": "Złota",        "chance": 0.01,  "mult": 7.5},
+    # wyjątkowy: tylko ze skrzynek z tym wariantem, karta musi mieć ustawiony kraj (pole "country")
+    "flag":    {"name": "Flagowa",      "chance": 0.008, "mult": 8.0, "exclusive": True,
+                "desc": "Karta w barwach flagi swojego kraju. Każda karta w skrzynce potrzebuje ustawionego kraju (np. PL)."},
     "clear":   {"name": "Przezroczysta", "chance": 0.006, "mult": 9.0},
     "emerald": {"name": "Szmaragdowa",  "chance": 0.005, "mult": 11.0},
     "ruby":    {"name": "Rubinowa",     "chance": 0.004, "mult": 14.0},
+    "royal":   {"name": "Królewska",    "chance": 0.004, "mult": 15.0, "exclusive": True,   # wyjątkowy (Skrzynia Królów)
+                "desc": "Złota rama z klejnotami na krawędziach i korona na górze."},
     "diamond": {"name": "Diamentowa",   "chance": 0.003, "mult": 18.0},
     "negative": {"name": "Negatyw",     "chance": 0.001, "mult": 30.0},   # najrzadszy
 }
 VARIANT_ORDER = list(VARIANTS)   # od najpospolitszego do najrzadszego
+# Warianty wyjątkowe ("exclusive"): wypadają TYLKO ze skrzynek, w których admin je włączył (pole skrzynki "variants"),
+# nie da się ich dostać z kontraktu ani z ulepszacza.
+EXCLUSIVE_VARIANTS = [v for v, x in VARIANTS.items() if x.get("exclusive")]
+# domyślne warianty wyjątkowe skrzynek - dopóki admin nie zapisze w panelu własnego wyboru
+DEFAULT_CRATE_VARIANTS = {"skrzynia_krolow": ["royal"]}
 
 # Kuźnia - kontrakt: ile kart danej rzadkości daje 1 kartę rzadkości wyższej
 # Liczby dobrane tak, żeby kontrakt NIE dawał zysku: średnio zwraca 81-87% wartości włożonych kart (jak ulepszacz <= 90%).
@@ -388,3 +398,16 @@ ARENA_VISUALS = {
     "bubble":    {"name": "Bańka ochronna", "icon": "🫧"},
 }
 MAX_ABILITY_EFFECTS = 3
+
+# ============================================================ LISTA ZMIAN (pokazywana raz po aktualizacji)
+# Najnowsza na górze. "v" musi rosnąć z każdą nową wersją - gracz zobaczy wpisy nowsze niż ostatnio obejrzany.
+PATCH_NOTES = [
+    {"v": 1, "date": "2026-10-14", "title": "Witaj w ScamBox!",
+     "items": [
+         "🏷️ Nowa nazwa: Skrzynki Sław to teraz <b>ScamBox</b>.",
+         "👑 Nowy wariant <b>Królewski</b> — złota rama, klejnoty na krawędziach i korona. Wypada tylko ze <b>Skrzyni Królów</b>.",
+         "🏳️ Nowy wariant <b>Flagowy</b> — karta w barwach flagi swojego kraju. Tylko w wybranych skrzynkach.",
+         "💎 Wyjątkowe warianty wypadają wyłącznie ze skrzynek, które je mają — nie zrobisz ich w kontrakcie ani ulepszaczu.",
+         "📰 Po każdej aktualizacji zobaczysz tu, co się zmieniło. Listę zmian znajdziesz też na swoim profilu.",
+     ]},
+]

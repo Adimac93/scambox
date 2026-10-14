@@ -11,7 +11,7 @@ const FORGE = {
 const PICK_LIMIT = 300;
 // ulubione karty (⭐) nie trafiają do kuźni
 const forgeItems = () => S.items.filter(i => !i.fav);
-const PICK_TAGS = { bw: "B&W", reverse: "REV", silver: "SILV", holo: "HOLO", gold: "GOLD", clear: "🫧", emerald: "💚", ruby: "❤️", diamond: "💎", negative: "◐" };
+const PICK_TAGS = { bw: "B&W", reverse: "REV", silver: "SILV", holo: "HOLO", gold: "GOLD", flag: "🏳️", clear: "🫧", emerald: "💚", ruby: "❤️", royal: "👑", diamond: "💎", negative: "◐" };
 
 function pickHTML(item, { sel = false, extra = "" } = {}) {
   const p = person(item.person);
@@ -39,7 +39,8 @@ function renderForge() {
 // ================================================================ KONTRAKT
 
 function contractVariantChance(specials) {
-  const base = S.cfg.variantOrder.filter(isSpecial).reduce((a, v) => a + S.cfg.variants[v].chance, 0);
+  // kontrakt nie daje wariantów wyjątkowych (Królewski, Flagowy) - te wypadają tylko ze skrzynek
+  const base = S.cfg.variantOrder.filter(v => isSpecial(v) && !isExclusive(v)).reduce((a, v) => a + S.cfg.variants[v].chance, 0);
   return Math.min(0.9, base * (1 + S.cfg.contractVariantBonus * specials));
 }
 
@@ -291,7 +292,8 @@ function upgChance(stake, goal) {
 function allTargets() {
   const out = [];
   Object.values(S.cfg.people).filter(p => p.rarity !== "secret").forEach(p => {
-    S.cfg.variantOrder.forEach(v => out.push({ key: `${p.id}|${v}`, person: p.id, variant: v, value: cardValue(p.id, v) }));
+    S.cfg.variantOrder.filter(v => !isExclusive(v))  // wariantów wyjątkowych nie da się ulepszyć - tylko ze skrzynek
+      .forEach(v => out.push({ key: `${p.id}|${v}`, person: p.id, variant: v, value: cardValue(p.id, v) }));
   });
   return out.sort((a, b) => a.value - b.value || person(a.person).name.localeCompare(person(b.person).name, "pl"));
 }
@@ -350,7 +352,7 @@ function renderUpgrader() {
       <h3>Cel</h3>
       <div class="upg-filters">
         <input type="text" id="uSearch" placeholder="Szukaj…" value="${esc(u.search)}">
-        <select id="uVariant">${[["all", "Wszystkie"], ...S.cfg.variantOrder.map(v => [v, variantName(v)])].map(([v, n]) =>
+        <select id="uVariant">${[["all", "Wszystkie"], ...S.cfg.variantOrder.filter(v => !isExclusive(v)).map(v => [v, variantName(v)])].map(([v, n]) =>
           `<option value="${v}"${u.variant === v ? " selected" : ""}>${n}</option>`).join("")}</select>
       </div>
       <div class="pick-grid">${targets.length ? targets.slice(0, PICK_LIMIT).map(t => pickHTML({ id: t.key, person: t.person, variant: t.variant, value: t.value },

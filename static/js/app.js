@@ -9,7 +9,7 @@ const fmt = n => Math.round(n).toLocaleString("pl-PL") + " $";
 
 const COUNT_CHIPS = [1, 2, 3, 5, 10, 15, 20];
 const INV_PAGE = 120;
-const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", silver: "SILVER", holo: "HOLO", gold: "GOLDEN", clear: "🫧 CLEAR", emerald: "💚 EMERALD", ruby: "❤️ RUBY", diamond: "💎 DIAMOND", negative: "◐ NEGATIVE" };
+const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", silver: "SILVER", holo: "HOLO", gold: "GOLDEN", flag: "FLAG", clear: "🫧 CLEAR", emerald: "💚 EMERALD", ruby: "❤️ RUBY", royal: "👑 ROYAL", diamond: "💎 DIAMOND", negative: "◐ NEGATIVE" };
 const GEMS = ["emerald", "ruby", "diamond"];  // warianty z kamieniami szlachetnymi - wspólny wygląd, inne kolory
 
 const S = {
@@ -47,6 +47,15 @@ async function refreshConfig() {
 
 function rarityIdx(r) { return S.cfg.rarityOrder.indexOf(r); }
 function varRank(v) { return S.cfg.variantOrder.indexOf(v || "normal"); }
+// warianty wyjątkowe (Królewski, Flagowy...) wypadają tylko ze skrzynek, w których admin je włączył
+function isExclusive(v) { return !!S.cfg.variants[v]?.exclusive; }
+// warianty specjalne, które mogą wypaść z tej skrzynki: zwykłe zawsze, wyjątkowe tylko włączone w skrzynce
+// (flagowy - tylko dla kart z ustawionym krajem)
+function crateVariants(crate, p = null) {
+  return S.cfg.variantOrder.filter(v => isSpecial(v) && (!isExclusive(v) ||
+    ((crate?.variants || []).includes(v) && (v !== "flag" || !p || p.country))));
+}
+function flagUrl(country) { return `/flag/${encodeURIComponent(country)}.svg`; }
 function person(id) { return S.cfg.people[id]; }
 function crateOf(id) { return S.cfg.crates[id]; }
 function crateList() { return S.cfg.crateOrder.map(id => S.cfg.crates[id]); }
@@ -75,8 +84,11 @@ function crateStyle(c) {
 
 // ================================================================ KARTA
 
-function variantLayers(v) {
+function variantLayers(v, p = null) {
   let html = "";
+  if (v === "royal") html += '<div class="gold-sheen"></div><div class="royal-gems"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="royal-crown"></div>';
+  if (v === "flag") html += '<div class="flag-tint"></div><div class="flag-wave"></div>';
+  if (v === "flag" && p?.country) return html + `<div class="var-tag vt-flag"><img src="${flagUrl(p.country)}" alt="">${esc(p.country.toUpperCase())}</div>`;
   if (v === "holo") html += '<div class="holo-layer"></div>';
   if (v === "gold" || v === "silver") html += '<div class="gold-sheen"></div>';
   if (v === "clear") html += '<div class="clear-sheen"></div>';
@@ -93,6 +105,9 @@ function abilitiesOf(p) {
   return list.concat(p.abilities || []);
 }
 
+// wariant flagowy: flaga kraju karty jako tło ramki (zmienna CSS --flag)
+function flagStyle(p, variant) { return variant === "flag" && p.country ? ` style="--flag:url('${flagUrl(p.country)}')"` : ""; }
+
 function cardHTML(pid, variant = "normal") {
   const p = person(pid);
   if (p.masked) return mysteryCardHTML(p);
@@ -104,7 +119,7 @@ function cardHTML(pid, variant = "normal") {
   const cost = type.icon.repeat(Math.min(3, 1 + Math.floor(rarityIdx(p.rarity) / 2)));
   const abils = abilitiesOf(p);
   return `
-  <div class="card r-${p.rarity} v-${variant}${abils.length > 1 ? " two-atk" : ""}${abils.length > 2 ? ` atk-${abils.length}` : ""}" data-pid="${p.id}" data-variant="${variant}">
+  <div class="card r-${p.rarity} v-${variant}${abils.length > 1 ? " two-atk" : ""}${abils.length > 2 ? ` atk-${abils.length}` : ""}" data-pid="${p.id}" data-variant="${variant}"${flagStyle(p, variant)}>
     <div class="card-inner">
       ${variant === "reverse" ? '<div class="rev-foil"></div>' : ""}
       <div class="card-head">
@@ -130,7 +145,7 @@ function cardHTML(pid, variant = "normal") {
         <span class="card-value">${fmt(cardValue(pid, variant))}</span>
       </div>
     </div>
-    ${variantLayers(variant)}
+    ${variantLayers(variant, p)}
     <div class="shine"></div>
   </div>`;
 }
@@ -140,7 +155,7 @@ function secretCardHTML(p, variant) {
   const type = S.cfg.types[p.type];
   const crate = crateOf(p.crate);
   return `
-  <div class="card r-secret v-${variant}" data-pid="${p.id}" data-variant="${variant}">
+  <div class="card r-secret v-${variant}" data-pid="${p.id}" data-variant="${variant}"${flagStyle(p, variant)}>
     <div class="sc">
       <div class="sc-art"><img src="${imgUrl(p.id)}" alt="${esc(p.name)}" loading="lazy" draggable="false"></div>
       <div class="sc-halo"></div>
@@ -158,7 +173,7 @@ function secretCardHTML(p, variant) {
       <div class="sc-frame"></div>
       <div class="sc-border"></div>
     </div>
-    ${variantLayers(variant)}
+    ${variantLayers(variant, p)}
     <div class="shine"></div>
   </div>`;
 }
@@ -481,9 +496,11 @@ function renderCrates() {
     const R = S.cfg.rarities[r];
     const n = crate.people.filter(id => person(id).rarity === r).length;
     return `<span class="odd odd-${r}" style="--rc:${R.color}"><b>${R.name}</b> ${pctTxt(crate.weights[r] / totalW)} · ${n} ${plural(n, "karta", "karty", "kart")} · ${fmt(R.value)}</span>`;
-  }).join("") + `<div class="odds-variants">${S.cfg.variantOrder.filter(isSpecial).map(v => {
+  }).join("") + `<div class="odds-variants">${crateVariants(crate).map(v => {
     const V = S.cfg.variants[v];
-    return `<span class="odd odd-v vt-${v}"><b>${V.name}</b> ${pctTxt(V.chance)} · wartość ×${String(V.mult).replace(".", ",")}</span>`;
+    const flags = v === "flag" ? crate.people.filter(id => person(id).country).length : null;
+    return `<span class="odd odd-v vt-${v}"><b>${isExclusive(v) ? "✨ " : ""}${V.name}</b> ${pctTxt(V.chance)} · wartość ×${String(V.mult).replace(".", ",")}${
+      flags !== null ? ` · ${flags} ${plural(flags, "karta", "karty", "kart")} z flagą` : ""}${isExclusive(v) ? " · tylko w tej skrzynce" : ""}</span>`;
   }).join("")}</div>`;
   $("#contentsGrid").innerHTML = crate.people.map(id => cardHTML(id)).join("");
 }
@@ -1340,5 +1357,6 @@ function bind() {
   updateSellbar();
   applyBadges(me);
   startPolling();
-  if (me.dailyClaimable) setTimeout(openDaily, 600);
+  if (me.patchNotes?.length) setTimeout(() => showPatchNotes(me.patchNotes), 500);  // nowa aktualizacja: co się zmieniło
+  else if (me.dailyClaimable) setTimeout(openDaily, 600);
 })();

@@ -581,3 +581,12 @@ select { background: var(--panel); color: var(--text); border: 1px solid var(--l
 
 /* ukryta zakładka (np. Arena dla graczy bez dostępu) - a.tab ma własne display */
 .tab[hidden] { display: none !important; }
+
+/* lista zmian po aktualizacji */
+.pn-box { max-width: 540px; }
+.pn h3 { margin: 0 0 12px; font-family: Bungee, Rubik, sans-serif; font-weight: 400; text-align: center; }
+.pn-note { background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; margin-bottom: 10px; text-align: left; }
+.pn-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.pn-note ul { margin: 8px 0 2px; padding: 0; list-style: none; display: grid; gap: 7px; line-height: 1.45; }
+.pn-note li b { color: var(--accent); }
+.pn .daily-actions { justify-content: center; }

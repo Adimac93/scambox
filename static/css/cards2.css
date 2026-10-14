@@ -521,3 +521,82 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 .pick.v-negative { box-shadow: inset 0 0 0 2px #fff, 0 0 10px #00e5ff99, inset 0 -26px 26px -18px var(--rc); }
 .vdot.vt-negative { background: linear-gradient(90deg, #000 50%, #fff 50%); box-shadow: 0 0 0 1px #fff, 0 0 6px #00e5ff; }
 .odd.odd-v.vt-negative { border-left-color: #00e5ff; }
+
+/* ============================================================ KRÓLEWSKA (wariant wyjątkowy - np. Skrzynia Królów)
+   złota rama z klejnotami na krawędziach, korona na górze, królewska purpura w napisach */
+.card.v-royal {
+  --frame: linear-gradient(115deg, #6b4500, #ffe08a 14%, #b8860b 28%, #fff3c4 42%, #9c6b00 58%, #ffd75e 76%, #6b4500);
+  background-size: 250% 250%; animation: goldShift 3s ease-in-out infinite;
+  box-shadow: 0 6px 18px #000a, 0 0 22px #ffcf3fbb, 0 0 46px #9b30ff55;
+}
+.card.v-royal .card-inner {
+  background:
+    radial-gradient(ellipse at 50% -10%, #ffffffaa, transparent 55%),
+    repeating-linear-gradient(45deg, #7b1fa212 0 7px, transparent 7px 14px),
+    repeating-linear-gradient(-45deg, #b8860b14 0 7px, transparent 7px 14px),
+    linear-gradient(170deg, #fdf3d7, #f1d58f 45%, #fbefc9 70%, #e5bf62);
+  color: #2b1640;
+}
+.card.v-royal .card-name { background: linear-gradient(180deg, #6a1b9a, #2a0845); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.card.v-royal :is(.card-sub, .card-stats, .card-foot) { color: #4a2a00; }
+.card.v-royal .card-photo { border-image: linear-gradient(135deg, #fff3c4, #b8860b, #ffe08a, #6b4500) 1; }
+:is(.card, .r-secret).v-royal :is(.card-photo, .sc-art) img { filter: saturate(1.15) contrast(1.06) sepia(.12); }
+.r-secret.v-royal { box-shadow: 0 6px 18px #000c, 0 0 26px #ffd75ecc, 0 0 50px #9b30ff66; }
+.royal-gems { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
+.royal-gems i {
+  position: absolute; width: 6.5%; aspect-ratio: 1; translate: -50% -50%; rotate: 45deg; border-radius: 18%;
+  background: radial-gradient(circle at 32% 30%, #fff 0 10%, var(--g) 40%, color-mix(in srgb, var(--g) 50%, #000) 100%);
+  box-shadow: 0 0 0 .4cqw #ffe08a, 0 0 0 .8cqw #8a5a00, 0 0 2.6cqw var(--g);
+  animation: gemTwinkle 2.8s ease-in-out infinite;
+}
+.royal-gems i:nth-child(1) { left: 1.8%; top: 1.3%; --g: #e0115f; }
+.royal-gems i:nth-child(2) { left: 98.2%; top: 1.3%; --g: #1e5bff; animation-delay: .3s; }
+.royal-gems i:nth-child(3) { left: 1.8%; top: 98.7%; --g: #12b85c; animation-delay: .6s; }
+.royal-gems i:nth-child(4) { left: 98.2%; top: 98.7%; --g: #9b30ff; animation-delay: .9s; }
+.royal-gems i:nth-child(5) { left: 1.8%; top: 34%; --g: #1e5bff; animation-delay: 1.2s; }
+.royal-gems i:nth-child(6) { left: 98.2%; top: 34%; --g: #e0115f; animation-delay: 1.5s; }
+.royal-gems i:nth-child(7) { left: 1.8%; top: 67%; --g: #9b30ff; animation-delay: 1.8s; }
+.royal-gems i:nth-child(8) { left: 98.2%; top: 67%; --g: #12b85c; animation-delay: 2.1s; }
+.royal-gems i:nth-child(9) { left: 50%; top: 98.7%; --g: #e0115f; width: 8%; animation-delay: 2.4s; }
+@keyframes gemTwinkle { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.55) saturate(1.2); } }
+.royal-crown {
+  position: absolute; left: 50%; top: -6%; width: 30%; aspect-ratio: 100 / 64; translate: -50% 0; z-index: 6; pointer-events: none;
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 64'><defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%23fff6c8'/><stop offset='.5' stop-color='%23f5c542'/><stop offset='1' stop-color='%239a6400'/></linearGradient></defs><path d='M10 54 L5 16 L29 36 L50 8 L71 36 L95 16 L90 54 Z' fill='url(%23g)' stroke='%235a3a00' stroke-width='3' stroke-linejoin='round'/><rect x='9' y='48' width='82' height='12' rx='3' fill='url(%23g)' stroke='%235a3a00' stroke-width='3'/><circle cx='5' cy='14' r='5' fill='%23fff6c8' stroke='%235a3a00' stroke-width='2.5'/><circle cx='50' cy='7' r='6' fill='%23e0115f' stroke='%235a3a00' stroke-width='2.5'/><circle cx='95' cy='14' r='5' fill='%23fff6c8' stroke='%235a3a00' stroke-width='2.5'/><path d='M50 24 l5 9 -5 9 -5 -9z' fill='%239b30ff' stroke='%235a3a00' stroke-width='1.8'/><circle cx='30' cy='54' r='4' fill='%231e5bff' stroke='%235a3a00' stroke-width='1.5'/><circle cx='50' cy='54' r='4.6' fill='%23e0115f' stroke='%235a3a00' stroke-width='1.5'/><circle cx='70' cy='54' r='4' fill='%2312b85c' stroke='%235a3a00' stroke-width='1.5'/></svg>") center / contain no-repeat;
+  filter: drop-shadow(0 .8cqw 1cqw #0009) drop-shadow(0 0 2cqw #ffd75e88);
+  animation: crownBob 3s ease-in-out infinite;
+}
+@keyframes crownBob { 50% { translate: -50% -5%; } }
+.var-tag.vt-royal, .ph.vt-royal {
+  background: linear-gradient(90deg, #4a148c, #9b30ff, #ffd75e, #9b30ff, #4a148c); background-size: 200% 100%;
+  color: #fff6c8; text-shadow: 0 1px 2px #000; box-shadow: 0 0 .7em #ffd75e; animation: rainbowSlide 3s linear infinite;
+}
+.pick.v-royal { box-shadow: inset 0 0 0 2px #ffd75e, 0 0 10px #9b30ff88, inset 0 -26px 26px -18px var(--rc); }
+.vdot.vt-royal { background: conic-gradient(#ffd75e, #e0115f, #1e5bff, #12b85c, #ffd75e); box-shadow: 0 0 6px #ffd75e; }
+.odd.odd-v.vt-royal { border-left-color: #ffd75e; }
+.vchip.vt-royal.active { background: linear-gradient(90deg, #4a148c, #9b30ff, #ffd75e); color: #fff; }
+
+/* ============================================================ FLAGOWA (wariant wyjątkowy) - barwy flagi kraju karty
+   flaga (--flag, z /flag/<kod>.svg) w ramce i lekko prześwitująca przez środek karty, powiewające światło */
+.card.v-flag {
+  background: var(--flag, linear-gradient(135deg, #8c97b2, #5a6274)) center / cover no-repeat;
+  box-shadow: 0 6px 18px #000a, 0 0 0 1px #0006, 0 0 20px #ffffff44;
+}
+.card.v-flag .card-inner { background: linear-gradient(#ffffffcc, #ffffffb8), var(--flag, linear-gradient(#ccc, #999)) center / cover no-repeat; }
+.card.v-flag .card-photo { box-shadow: inset 0 0 1em #0008, 0 0 0 .6cqw #fff, 0 0 0 1.1cqw #0003; }
+.flag-wave {
+  position: absolute; inset: 0; z-index: 3; border-radius: inherit; pointer-events: none; mix-blend-mode: soft-light;
+  background: repeating-linear-gradient(90deg, #0000 0, #ffffff70 12cqw, #0000 25cqw, #00000060 37cqw, #0000 50cqw);
+  animation: flagWave 3.5s linear infinite;
+}
+@keyframes flagWave { from { background-position-x: 0; } to { background-position-x: 50cqw; } }
+.flag-tint { display: none; }
+.r-secret .flag-tint { display: block; position: absolute; inset: 0; z-index: 1; border-radius: inherit; pointer-events: none;
+  background: var(--flag) center / cover; mix-blend-mode: overlay; opacity: .6; }
+.r-secret.v-flag { box-shadow: 0 6px 18px #000c, 0 0 22px #ffffff77; }
+.var-tag.vt-flag { display: flex; align-items: center; gap: .35em; background: #fffffff0; color: #111; text-shadow: none; box-shadow: 0 0 .5em #0006; }
+.var-tag.vt-flag img { height: 1.15em; aspect-ratio: 4 / 3; object-fit: cover; border-radius: .15em; box-shadow: 0 0 0 1px #0004; }
+.ph.vt-flag { background: #fff; color: #111; text-shadow: none; }
+.pick.v-flag { box-shadow: inset 0 0 0 2px #fff, 0 0 8px #ffffff88, inset 0 -26px 26px -18px var(--rc); }
+.vdot.vt-flag { background: linear-gradient(180deg, #fff 50%, #dc143c 50%); box-shadow: 0 0 0 1px #0006; }
+.odd.odd-v.vt-flag { border-left-color: #fff; }
+.vchip.vt-flag.active { background: linear-gradient(180deg, #fff 50%, #dc143c 50%); color: #111; }

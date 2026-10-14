@@ -24,7 +24,7 @@ from data import (ABILITY_KINDS, ARENA, ARENA_EFFECT_TARGETS, ARENA_EFFECTS, ARE
                   MAX_ABILITY_EFFECTS, MAX_EXTRA_ABILITIES, CONTRACT_SIZE, CONTRACT_VARIANT_BONUS, CRATE_PRICE, JACKPOT_WEEKDAY, MAX_DEPOSIT,
                   MAX_OPEN, MONEY_CHESTS, RARITIES, RARITY_ORDER, SECRET_ODDS, SHOWCASE_SIZE,
                   STARTING_BALANCE, TYPES, UPGRADE_EDGE, UPGRADE_MAX, UPGRADE_MAX_ITEMS, VARIANT_ORDER,
-                  VARIANTS, card_value)
+                  VARIANTS, EXCLUSIVE_VARIANTS, PATCH_NOTES, card_value)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEST_MODE = "--test" in sys.argv  # osobny zapis do testów: python app.py --test
@@ -34,7 +34,8 @@ DB_PATH = os.path.join(BASE_DIR, "test.db" if TEST_MODE else "game.db")
 KEY_PATH = os.path.join(images.DATA_DIR, "secret_key.txt")
 
 STATE_KEYS = (("balance", STARTING_BALANCE), ("opened", 0), ("spent", 0), ("earned", 0), ("deposited", 0),
-              ("contracts", 0), ("upgrades_won", 0), ("upgrades_lost", 0), ("feed_seen", 0), ("daily_total", 0))
+              ("contracts", 0), ("upgrades_won", 0), ("upgrades_lost", 0), ("feed_seen", 0), ("daily_total", 0),
+              ("patch_seen", 0))  # patch_seen: ostatnia obejrzana lista zmian (PATCH_NOTES)
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_.\-ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]{3,20}$")
 FEED_RARITY = 4  # od legendarnych w górę dropy trafiają automatycznie do aktywności znajomych
 MIN_PASSWORD = 8  # nowe hasła (stare, krótsze nadal działają przy logowaniu)
@@ -364,6 +365,8 @@ def register():
     if first:
         adopt_legacy_save(conn, new_id)
     ensure_state(conn, new_id)
+    # nowy gracz nie musi czytać starych list zmian - zobaczy dopiero następną aktualizację
+    conn.execute("UPDATE user_state SET value = ? WHERE user_id = ? AND key = 'patch_seen'", (PATCH_NOTES[0]["v"], new_id))
     conn.commit()
     session.clear()
     session.permanent = True
@@ -542,7 +545,8 @@ def public_person(p, found):
                 "valueMult": p.get("valueMult", 1),
                 "name": "???", "type": "tv", "hp": 0, "attack": "???", "dmg": 0, "imgv": 0}
     base = {k: p.get(k) for k in ("id", "name", "rarity", "type", "hp", "attack", "dmg", "attack2", "dmg2",
-                                  "kind1", "kind2", "abilities", "arena", "crate", "crates", "number", "valueMult")}
+                                  "kind1", "kind2", "abilities", "arena", "crate", "crates", "number", "valueMult",
+                                  "country")}
     base["imgv"] = img_version(p["id"])
     return base
 
@@ -602,6 +606,22 @@ MYSTERY_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">
 </svg>"""
 
 
+@app.route("/flag/<code>.svg")
+def flag_image(code):
+    """Flaga kraju do wariantu flagowego (pobrana raz z flagcdn.com i trzymana w image_cache/flags)."""
+    path = images.flag(code)
+    if path is None:  # zły kod / brak internetu: neutralna flaga z kodem kraju
+        safe = re.sub(r"[^A-Za-z-]", "", code)[:6].upper()
+        resp = svg_response(f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480"><rect width="640" height="480" fill="#5a6274"/>
+          <rect y="160" width="640" height="160" fill="#8c97b2"/><text x="320" y="275" font-family="Arial" font-weight="bold"
+          font-size="110" fill="#fff" text-anchor="middle">{safe}</text></svg>""")
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
+    resp = send_file(path, mimetype="image/svg+xml", max_age=7 * 86400)
+    resp.headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'"  # SVG z zewnątrz: bez skryptów
+    return resp
+
+
 @app.route("/img/<person_id>")
 @app.route("/img/<person_id>/<kind>")
 def image(person_id, kind="main"):
@@ -635,7 +655,7 @@ def image(person_id, kind="main"):
 def crate_json(c):
     return {k: c.get(k) for k in ("id", "name", "short", "code", "emoji", "color1", "color2", "price", "desc",
                                   "shop", "restricted")} | \
-           {"people": [p["id"] for p in c["people"]],
+           {"people": [p["id"] for p in c["people"]], "variants": c.get("variants") or [],
             "weights": {r: catalog.crate_weight(c, r) for r in RARITY_ORDER}}
 
 
@@ -683,8 +703,10 @@ def state():
                     "collected": collected_list(uid())})
 
 
-def roll_variant(factor=1.0):
-    specials = [v for v in reversed(VARIANT_ORDER) if v != "normal"]  # najrzadsze najpierw
+def roll_variant(factor=1.0, extra=()):
+    """Wariant karty. extra = warianty wyjątkowe dostępne w tej skrzynce (bez nich: tylko zwykłe warianty)."""
+    specials = [v for v in reversed(VARIANT_ORDER)  # najrzadsze najpierw
+                if v != "normal" and (not VARIANTS[v].get("exclusive") or v in extra)]
     total = sum(VARIANTS[v]["chance"] for v in specials)
     factor = min(factor, 0.9 / total) if total else factor
     r, acc = rng.random(), 0.0
@@ -700,7 +722,7 @@ def roll(crate):
     weights = [catalog.crate_weight(crate, r) if r in present else 0 for r in RARITY_ORDER]
     rarity = rng.choices(RARITY_ORDER, weights=weights)[0]
     person = rng.choice([p for p in crate["people"] if p["rarity"] == rarity])
-    return person, roll_variant()
+    return person, roll_variant(extra=catalog.crate_variants(crate, person))
 
 
 @app.post("/api/open")
@@ -884,6 +906,8 @@ def upgrade():
         return jsonify({"error": FAV_ERROR}), 400
     if target["rarity"] == "secret":
         return jsonify({"error": "Tajnych kart nie da się wytworzyć w kuźni"}), 400
+    if VARIANTS[variant].get("exclusive"):
+        return jsonify({"error": f"Wariant „{VARIANTS[variant]['name']}” wypada tylko ze skrzynek"}), 400
     stake = sum(row_value(r) for r in rows)
     goal = card_value(target, variant)
     if goal <= stake:
@@ -1468,8 +1492,24 @@ def me():
     unread = db().execute(f"SELECT COUNT(*) {visible_feed_sql()} AND f.author_id != :me AND f.id > :seen",
                           dict(params, seen=get_state()["feed_seen"])).fetchone()[0]
     trades_in = db().execute("SELECT COUNT(*) FROM trades WHERE to_id = ? AND status = 'pending'", (me_id,)).fetchone()[0]
+    seen = get_state()["patch_seen"]
     return jsonify({"user": user_json(u), "dailyClaimable": daily_info(me_id)["claimable"],
-                    "incoming": incoming, "unread": unread, "trades": trades_in})
+                    "incoming": incoming, "unread": unread, "trades": trades_in,
+                    "patchNotes": [n for n in PATCH_NOTES if n["v"] > seen][:3]})  # nowości od ostatniej wizyty
+
+
+@app.get("/api/patchnotes")
+@login_required
+def patch_notes():
+    return jsonify({"notes": PATCH_NOTES})
+
+
+@app.post("/api/patchnotes/seen")
+@login_required
+def patch_notes_seen():
+    set_state("patch_seen", PATCH_NOTES[0]["v"])
+    db().commit()
+    return jsonify({"ok": True})
 
 
 # ---------------------------------------------------------------- arena (wersja testowa - TYLKO DLA ADMINÓW)
@@ -1754,7 +1794,7 @@ def unique_id(base, taken):
 
 def admin_card_json(p):
     return dict({k: p.get(k) for k in ("id", "name", "rarity", "type", "hp", "attack", "dmg", "attack2", "dmg2",
-                                       "kind1", "kind2", "abilities", "arena",
+                                       "kind1", "kind2", "abilities", "arena", "country",
                                        "crate", "crates", "number", "builtin", "modified")},
                 wiki=list(p["wiki"]) if p.get("wiki") else None,
                 hasImage=bool(images.find(p["id"])), hasAlt=bool(images.find(p["id"], True)),
@@ -1820,6 +1860,7 @@ def admin_catalog():
                     "types": TYPES, "abilityKinds": ABILITY_KINDS, "maxExtraAbilities": MAX_EXTRA_ABILITIES,
                     "arena": {"effects": ARENA_EFFECTS, "visuals": ARENA_VISUALS, "targets": ARENA_TARGETS,
                               "effectTargets": ARENA_EFFECT_TARGETS, "maxEffects": MAX_ABILITY_EFFECTS},
+                    "variants": VARIANTS, "exclusiveVariants": EXCLUSIVE_VARIANTS,
                     "defaultPrice": CRATE_PRICE, "users": users})
 
 
@@ -1845,6 +1886,8 @@ def admin_save_crate():
         "desc": (body.get("desc") or "").strip()[:120],
         "shop": bool(body.get("shop", True)),
         "restricted": bool(body.get("restricted", False)),
+        # warianty wyjątkowe (Królewski, Flagowy...) - wypadają tylko ze skrzynek, w których są włączone
+        "variants": [v for v in EXCLUSIVE_VARIANTS if v in (body.get("variants") or [])],
     }
     weights = {}
     for r, w in (body.get("weights") or {}).items():
@@ -1930,6 +1973,7 @@ def admin_save_card():
         "kind2": f.get("kind2") if f.get("kind2") in ABILITY_KINDS else "off",
         "abilities": catalog.clean_abilities([{"name": n, "kind": k, "value": v} for n, k, v in
                                               zip(f.getlist("ab_name"), f.getlist("ab_kind"), f.getlist("ab_value"))]),
+        "country": catalog.clean_country(f.get("country")),   # kod kraju do wariantu flagowego (np. PL)
     }
     try:  # Arena: animacja, koszt, cel i efekty każdej zdolności (z panelu admina jako JSON)
         fields["arena"] = catalog.clean_arena(json.loads(f.get("arena_json") or "[]"))

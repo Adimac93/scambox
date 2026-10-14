@@ -11,10 +11,13 @@ Flask + SQLite + vanilla JS. Repo: https://github.com/CebularzPawel/FameChests
 - Endpointy, które sprawdzają stan gracza i go zmieniają (pieniądze, karty, skrzynki), zaczynają się od `lock_me()` – inaczej podwójne kliknięcie wydaje to samo dwa razy.
 - `wsgi.py` – start na serwerze (gunicorn, 1 worker + wątki, bo katalog jest w pamięci procesu); zmienne: `DATABASE_URL`, `SECRET_KEY`, `DATA_DIR` (zdjęcia i klucz poza folderem gry).
 - `migrate_to_postgres.py` – jednorazowe przeniesienie `game.db` do pustej bazy PostgreSQL.
-- `images.py` – zdjęcia z Wikipedii w `image_cache/` (certifi + Windows SSL fallback).
+- `images.py` – zdjęcia z Wikipedii w `image_cache/` (certifi + Windows SSL fallback); flagi krajów (wariant Flagowy) z flagcdn.com w `image_cache/flags/`, adres `/flag/<kod>.svg`.
+- `arena.py` – Arena (wersja testowa, **tylko dla adminów**: `/api/arena/*` z `admin_required`, zakładka i klucz `arena` w `/api/config` tylko dla adminów). Walkę liczy serwer (zasady, komputer, pojedynki, czas tury), walki i wyzwania w pamięci procesu; przeglądarka (`static/js/arena.js`) odtwarza kroki. Nagrody: tabela `arena_daily`.
+- Warianty wyjątkowe (`"exclusive"` w `VARIANTS`, np. `royal`, `flag`) wypadają tylko ze skrzynek, w których są włączone (pole skrzynki `variants`, panel admina; domyślne w `DEFAULT_CRATE_VARIANTS`), nigdy z kontraktu/ulepszacza. Flagowy wymaga kraju karty (`country`, np. `pl`).
+- `PATCH_NOTES` w `data.py` – lista zmian pokazywana graczowi raz po aktualizacji (`patch_seen` w `user_state`). Przy aktualizacji dla graczy dopisać nowy wpis NA GÓRZE z większym `v`.
 - `export_catalog.py` – eksport zmian z panelu admina do `catalog_export.json` + `custom_images/` (bez danych graczy); nowa pusta baza wczytuje je sama.
-- Adresy stron: `/crates` `/binder` `/inventory` `/forge` `/friends` `/ranking` `/player/<nazwa>` – ta sama strona `index.html`, widok wybiera JS (`VIEW_PATHS`, `switchView`, historia przeglądarki).
-- `templates/` (index, login, admin), `static/js/` (app, fx, forge, social, sound, admin), `static/css/`.
+- Adresy stron: `/crates` `/binder` `/inventory` `/forge` `/friends` `/ranking` `/arena` (admini) `/player/<nazwa>` – ta sama strona `index.html`, widok wybiera JS (`VIEW_PATHS`, `switchView`, historia przeglądarki).
+- `templates/` (index, login, admin), `static/js/` (app, fx, forge, social, sound, admin, arena), `static/css/`.
 - Pliki statyczne wersjonowane przez `asset()`; HTML/API z `Cache-Control: no-store`.
 
 ## Uruchamianie

@@ -9,12 +9,15 @@ Karta może należeć do kilku skrzynek: pole "crates" (lista), "crate" to skrzy
 (jej kod i numer są nadrukowane na karcie).
 """
 import json
+import re
 
 import data
 
-CRATE_FIELDS = ("name", "short", "code", "emoji", "color1", "color2", "price", "desc", "shop", "restricted", "weights")
+CRATE_FIELDS = ("name", "short", "code", "emoji", "color1", "color2", "price", "desc", "shop", "restricted", "weights",
+                "variants")
 CARD_FIELDS = ("name", "wiki", "rarity", "type", "hp", "attack", "dmg", "attack2", "dmg2", "kind1", "kind2", "abilities",
-               "arena", "crate", "crates")
+               "arena", "crate", "crates", "country")
+COUNTRY_RE = re.compile(r"^[a-z]{2}(-[a-z0-9]{1,3})?$")   # kod kraju ISO 3166 (np. pl, de, gb-eng) - do wariantu flagowego
 
 
 def clean_abilities(raw):
@@ -30,6 +33,17 @@ def clean_abilities(raw):
             value = 0
         out.append({"name": name, "kind": a.get("kind") if a.get("kind") in data.ABILITY_KINDS else "off", "value": value})
     return out[:data.MAX_EXTRA_ABILITIES]
+
+
+def clean_country(raw):
+    """Kod kraju karty (do wariantu flagowego): "PL" -> "pl"; nieprawidłowy -> ""."""
+    code = str(raw or "").strip().lower().replace("_", "-")
+    return code if COUNTRY_RE.match(code) else ""
+
+
+def crate_variants(crate, person=None):
+    """Warianty wyjątkowe, które mogą wypaść z tej skrzynki (dla tej karty: flagowy tylko z ustawionym krajem)."""
+    return [v for v in crate.get("variants") or [] if v != "flag" or person is None or person.get("country")]
 
 
 def _int(v, lo, hi, default=None):
@@ -148,6 +162,7 @@ def rebuild(conn):
         p["kind2"] = p.get("kind2") if p["attack2"] and p.get("kind2") in data.ABILITY_KINDS else "off"
         p["abilities"] = clean_abilities(p.get("abilities"))
         p["arena"] = clean_arena(p.get("arena"))
+        p["country"] = clean_country(p.get("country"))
         if p.get("rarity") not in data.RARITIES:
             p["rarity"] = "green"
         if p.get("type") not in data.TYPES:
@@ -168,6 +183,9 @@ def rebuild(conn):
         crate["price"] = max(1, int(crate.get("price") or data.CRATE_PRICE))
         crate["shop"] = bool(crate.get("shop", True))
         crate["restricted"] = bool(crate.get("restricted", False))
+        # warianty wyjątkowe (np. Królewski, Flagowy) - tylko te, które admin włączył (albo domyślne z data.py)
+        chosen = crate["variants"] if "variants" in crate else data.DEFAULT_CRATE_VARIANTS.get(cid, [])
+        crate["variants"] = [v for v in data.EXCLUSIVE_VARIANTS if v in (chosen or [])]
         crate["weights"] = {r: float(w) for r, w in (crate.get("weights") or {}).items() if r in data.RARITIES}
         # tajna karta: zawsze 1 na SECRET_ODDS otwartych skrzynek (chyba że admin ustawi inaczej)
         crate["autoSecret"] = "secret" not in crate["weights"]

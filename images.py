@@ -2,6 +2,7 @@
 import glob
 import json
 import os
+import re
 import sqlite3
 import ssl
 import threading
@@ -355,3 +356,34 @@ if __name__ == "__main__":
     n = fetch_alt(list(catalog.PEOPLE), force=force)
     have = sum(1 for pid in catalog.PEOPLE if find(pid, True))
     print(f"Alternatywne: {have}/{len(catalog.PEOPLE)} (nowe: {n})")
+
+
+# ---------------------------------------------------------------- flagi krajów (wariant flagowy)
+FLAG_DIR = os.path.join(CACHE_DIR, "flags")
+FLAG_RE = re.compile(r"^[a-z]{2}(-[a-z0-9]{1,3})?$")
+_flag_failed = {}
+
+
+def flag(code):
+    """Flaga kraju (kod ISO, np. "pl", "gb-eng") jako plik SVG - pobrana raz z flagcdn.com, potem z image_cache/flags.
+    Zwraca ścieżkę albo None (zły kod, brak internetu - kolejna próba najwcześniej za 10 minut)."""
+    code = (code or "").lower()
+    if not FLAG_RE.match(code):
+        return None
+    path = os.path.join(FLAG_DIR, code + ".svg")
+    if os.path.exists(path):
+        return path
+    if time.time() - _flag_failed.get(code, 0) < 600:
+        return None
+    try:
+        blob = _get(f"https://flagcdn.com/{code}.svg", timeout=10, retries=2)
+    except Exception:
+        _flag_failed[code] = time.time()
+        return None
+    if b"<svg" not in blob[:3000]:
+        _flag_failed[code] = time.time()
+        return None
+    os.makedirs(FLAG_DIR, exist_ok=True)
+    with open(path, "wb") as f:
+        f.write(blob)
+    return path

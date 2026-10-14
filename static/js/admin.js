@@ -102,6 +102,12 @@ function crateFormHTML(c) {
       <p class="muted small">Skrzynki, które gracz ma w ekwipunku, zawsze może otworzyć — nawet gdy skrzynki nie ma w sklepie.</p>
     </fieldset>
     <fieldset>
+      <legend>✨ Wyjątkowe warianty <small class="muted">(wypadają tylko ze skrzynek, w których są włączone)</small></legend>
+      ${A.cat.exclusiveVariants.map(v => { const V = A.cat.variants[v]; return `<label class="chk"><input type="checkbox" name="variants" value="${v}" ${(c.variants || []).includes(v) ? "checked" : ""}>
+        <b>${esc(V.name)}</b> <span class="muted small">· szansa ${+(V.chance * 100).toFixed(2)}% · wartość ×${V.mult} — ${esc(V.desc || "")}</span></label>`; }).join("")}
+      <p class="muted small">Nie da się ich zrobić w kontrakcie ani ulepszaczu. Przy wariancie Flagowym ustaw każdej karcie tej skrzynki kraj (np. PL) w jej edycji.</p>
+    </fieldset>
+    <fieldset>
       <legend>🎲 Szanse rzadkości (puste = domyślne)</legend>
       <div class="a-grid a-weights">${A.cat.rarityOrder.map(r => `<label style="--rc:${A.cat.rarities[r].color}"><span class="a-wname">${A.cat.rarities[r].name}</span>
         <input type="number" name="w_${r}" min="0" max="1000" step="any" value="${(c.customWeights || {})[r] ?? ""}" placeholder="${+A.cat.rarities[r].weight.toFixed(4)}"></label>`).join("")}</div>
@@ -119,7 +125,7 @@ function crateFormHTML(c) {
 function renderCrateForm() {
   const c = A.crate === "__new"
     ? { name: "", short: "", code: "", emoji: "📦", color1: "#ffcf3f", color2: "#7a3b00", price: A.cat.defaultPrice, desc: "",
-        shop: true, restricted: false, customWeights: {}, allowed: [] }
+        shop: true, restricted: false, customWeights: {}, allowed: [], variants: [] }
     : A.cat.crates.find(x => x.id === A.crate);
   $("#crateForm").innerHTML = c ? crateFormHTML(c) : "<p class='muted'>Wybierz albo utwórz skrzynkę.</p>";
   $("#newCard").disabled = !c || A.crate === "__new" || c.hidden;
@@ -160,6 +166,11 @@ function renderCards() {
 
 // ================================================================ FORMULARZ KARTY
 
+// pole "Kraj" jest potrzebne, gdy karta jest w skrzynce z wariantem Flagowym
+function countryNeeded(crateIds) {
+  return crateIds.some(id => (A.cat.crates.find(x => x.id === id)?.variants || []).includes("flag"));
+}
+
 function openCardForm(id) {
   const c = id ? A.cat.cards.find(x => x.id === id)
     : { id: "", name: "", crate: A.crate, crates: [A.crate], rarity: "green", type: "polityka", hp: 60, attack: "", dmg: 40, wiki: null, builtin: false };
@@ -176,7 +187,10 @@ function openCardForm(id) {
       <div class="a-grid">
         <label class="wide">Imię i nazwisko / nazwa<input type="text" name="name" value="${esc(c.name)}" required maxlength="60"></label>
         <div class="wide a-crate-checks"><span class="muted small">Skrzynki (karta może być w kilku; pierwsza zaznaczona to skrzynka główna — jej kod jest na karcie):</span>
-          ${A.cat.crates.filter(x => !x.hidden).map(x => `<label class="chk"><input type="checkbox" name="crates" value="${esc(x.id)}" ${(c.crates || [c.crate]).includes(x.id) ? "checked" : ""}> ${esc(x.emoji)} ${esc(x.name)}</label>`).join("")}</div>
+          ${A.cat.crates.filter(x => !x.hidden).map(x => `<label class="chk"><input type="checkbox" name="crates" value="${esc(x.id)}" ${(c.crates || [c.crate]).includes(x.id) ? "checked" : ""}> ${esc(x.emoji)} ${esc(x.name)}${(x.variants || []).includes("flag") ? ' <small title="Skrzynka z wariantem Flagowym">🏳️</small>' : ""}</label>`).join("")}</div>
+        <label class="wide a-country" ${countryNeeded(c.crates || [c.crate]) || c.country ? "" : "hidden"}>🏳️ Kraj <small class="muted">(kod ISO, np. PL, DE, US, GB-ENG — flaga do wariantu Flagowego)</small>
+          <span class="a-country-row"><input type="text" name="country" value="${esc((c.country || "").toUpperCase())}" maxlength="6" placeholder="PL">
+          <img class="a-flag" src="${c.country ? `/flag/${esc(c.country)}.svg` : ""}" alt="" ${c.country ? "" : "hidden"}></span></label>
         <label>Rzadkość<select name="rarity">${opt(Object.fromEntries(A.cat.rarityOrder.map(r => [r, A.cat.rarities[r].name])), c.rarity)}</select></label>
         <label>Typ<select name="type">${opt(Object.fromEntries(Object.entries(A.cat.types).map(([k, t]) => [k, `${t.icon} ${t.name}`])), c.type)}</select></label>
         <label>HP<input type="number" name="hp" value="${c.hp}" min="0" max="9999"></label>
@@ -569,6 +583,7 @@ function bind() {
     data.shop = fd.has("shop");
     data.restricted = fd.has("restricted");
     data.allowed = fd.getAll("allowed").map(Number);
+    data.variants = fd.getAll("variants");
     data.weights = Object.fromEntries(A.cat.rarityOrder.map(r => [r, fd.get("w_" + r)]).filter(([, v]) => v !== "" && v !== null));
     try {
       const res = await api("/api/admin/crates", { method: "POST", json: data });
@@ -601,9 +616,19 @@ function bind() {
   $("#cardModal").addEventListener("click", e => { if (e.target.id === "cardModal") closeCardForm(); });
   $("#cardForm").addEventListener("input", e => {
     if (e.target.matches("[name=attack], [name=attack2], [name=ab_name]")) arenaRefresh();
+    if (e.target.name === "country") {  // podgląd flagi
+      const code = e.target.value.trim().toLowerCase(), img = $("#cardForm .a-flag");
+      const ok = /^[a-z]{2}(-[a-z0-9]{1,3})?$/.test(code);
+      img.hidden = !ok;
+      if (ok) img.src = `/flag/${code}.svg`;
+    }
   });
   $("#cardForm").addEventListener("change", e => {
     const inp = e.target;
+    if (inp.name === "crates") {
+      const box = $("#cardForm .a-country");
+      box.hidden = !countryNeeded($$("#cardForm [name=crates]:checked").map(x => x.value)) && !$("#cardForm [name=country]").value;
+    }
     if (inp.matches("[name=ae_id]")) arenaRefresh();
     if (inp.type === "file" && inp.files[0]) {
       const img = $("#" + inp.dataset.prev);
