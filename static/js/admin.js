@@ -195,6 +195,12 @@ function openCardForm(id) {
         <p class="muted small">Ofensywna: wartość to obrażenia. Defensywna: wartość to osłona (🛡️).</p>
       </fieldset>
 
+      <fieldset class="a-arena">
+        <legend>⚔️ Arena <small class="muted">(wersja testowa, tylko dla adminów — animacja, koszt i efekty zdolności)</small></legend>
+        <input type="hidden" name="arena_json">
+        ${[0, 1, 2, 3].map(i => arenaSlotHTML(i, (c.arena || [])[i])).join("")}
+      </fieldset>
+
       <fieldset>
         <legend>Zdjęcie główne</legend>
         <div class="a-grid">
@@ -215,6 +221,7 @@ function openCardForm(id) {
       ${c.owned ? `<p class="muted small">Masz ${c.owned} ${c.owned === 1 ? "egzemplarz" : "egzemplarzy"} tej karty. Usunięta karta zniknie z ekwipunku (ukrytą można przywrócić).</p>` : ""}
     </div>`;
   $("#cardModal").hidden = false;
+  arenaRefresh();
 }
 
 function kindOpts(sel) {
@@ -229,6 +236,68 @@ function abilityRowHTML(a = {}) {
     <label>Rodzaj<select name="ab_kind">${kindOpts(a.kind)}</select></label>
     <button class="btn tiny danger" type="button" data-act="del-ability" title="Usuń zdolność">✕</button>
   </div>`;
+}
+
+// ================================================================ ARENA - ustawienia zdolności w walce
+// 4 stałe miejsca: 0 = zdolność 1, 1 = zdolność 2, 2-3 = dodatkowe zdolności (puste miejsca są pomijane w walce)
+const ARENA_SLOT_NAMES = ["Zdolność 1", "Zdolność 2", "Dodatkowa 1", "Dodatkowa 2"];
+
+function arenaSlotName(i) {
+  const form = $("#cardForm");
+  const name = i === 0 ? form?.querySelector("[name=attack]")?.value
+    : i === 1 ? form?.querySelector("[name=attack2]")?.value
+    : form?.querySelectorAll("#abilityRows [name=ab_name]")[i - 2]?.value;
+  return name ? `${ARENA_SLOT_NAMES[i]}: „${esc(name)}”` : `${ARENA_SLOT_NAMES[i]} <span class="muted">(brak zdolności)</span>`;
+}
+
+function arenaEffectRowHTML(e = {}) {
+  const A_ = A.cat.arena;
+  return `<div class="a-arena-effect">
+    <select name="ae_id">${Object.entries(A_.effects).map(([k, v]) =>
+      `<option value="${k}"${k === e.id ? " selected" : ""} title="${esc(v.desc)}">${v.icon} ${esc(v.name)}${v.unique ? " ★ unikalny" : ""}</option>`).join("")}</select>
+    <label>Siła<input type="number" name="ae_value" value="${e.value ?? 20}" min="0" max="9999"></label>
+    <label>Tury<input type="number" name="ae_turns" value="${e.turns ?? 2}" min="1" max="9"></label>
+    <select name="ae_target">${Object.entries(A_.effectTargets).map(([k, v]) => `<option value="${k}"${k === (e.target || "target") ? " selected" : ""}>${esc(v)}</option>`).join("")}</select>
+    <button class="btn tiny danger" type="button" data-act="del-arena-effect" title="Usuń efekt">✕</button>
+  </div>`;
+}
+
+function arenaSlotHTML(i, cfg = {}) {
+  const A_ = A.cat.arena;
+  cfg = cfg || {};
+  return `<div class="a-arena-slot" data-slot="${i}">
+    <div class="a-arena-name">${arenaSlotName(i)}</div>
+    <div class="a-grid">
+      <label>Animacja<select name="ar_visual">${Object.entries(A_.visuals).map(([k, v]) => `<option value="${k}"${k === (cfg.visual || "hit") ? " selected" : ""}>${v.icon} ${esc(v.name)}</option>`).join("")}</select></label>
+      <label>Koszt (monety)<select name="ar_cost"><option value="auto">auto (z wartości)</option>${[0, 1, 2, 3, 4, 5].map(n => `<option value="${n}"${cfg.cost === n ? " selected" : ""}>${n === 0 ? "za darmo" : "🪙 " + n}</option>`).join("")}</select></label>
+      <label>Cel<select name="ar_target"><option value="">auto (⚔️ wróg / 🛡️ ta karta)</option>${Object.entries(A_.targets).map(([k, v]) => `<option value="${k}"${k === cfg.target ? " selected" : ""}>${esc(v)}</option>`).join("")}</select></label>
+    </div>
+    <div class="a-arena-effects">${(cfg.effects || []).map(arenaEffectRowHTML).join("")}</div>
+    <button class="btn tiny" type="button" data-act="add-arena-effect">➕ Efekt</button>
+  </div>`;
+}
+
+// nazwy zdolności w nagłówkach + pole "Siła" tylko tam, gdzie efekt jej używa (z opisem, co znaczy liczba)
+function arenaRefresh() {
+  $$("#cardForm .a-arena-slot").forEach(s => { s.querySelector(".a-arena-name").innerHTML = arenaSlotName(+s.dataset.slot); });
+  $$("#cardForm .a-arena-effect").forEach(r => {
+    const ef = A.cat.arena.effects[r.querySelector("[name=ae_id]").value] || {};
+    const v = r.querySelector("[name=ae_value]"), t = r.querySelector("[name=ae_turns]");
+    v.disabled = !ef.value; v.title = ef.value || "ten efekt nie używa siły";
+    v.closest("label").firstChild.textContent = ef.value ? `Siła (${ef.value})` : "Siła —";
+    t.disabled = !ef.turns; t.title = ef.turns ? "liczba tur" : "działa od razu";
+  });
+}
+
+function arenaCollect() {
+  return [...document.querySelectorAll("#cardForm .a-arena-slot")].map(s => ({
+    visual: s.querySelector("[name=ar_visual]").value,
+    cost: s.querySelector("[name=ar_cost]").value === "auto" ? null : +s.querySelector("[name=ar_cost]").value,
+    target: s.querySelector("[name=ar_target]").value || null,
+    effects: [...s.querySelectorAll(".a-arena-effect")].map(r => ({
+      id: r.querySelector("[name=ae_id]").value, value: +r.querySelector("[name=ae_value]").value,
+      turns: +r.querySelector("[name=ae_turns]").value, target: r.querySelector("[name=ae_target]").value })),
+  }));
 }
 
 function closeCardForm() { $("#cardModal").hidden = true; }
@@ -530,8 +599,12 @@ function bind() {
 
   // formularz karty
   $("#cardModal").addEventListener("click", e => { if (e.target.id === "cardModal") closeCardForm(); });
+  $("#cardForm").addEventListener("input", e => {
+    if (e.target.matches("[name=attack], [name=attack2], [name=ab_name]")) arenaRefresh();
+  });
   $("#cardForm").addEventListener("change", e => {
     const inp = e.target;
+    if (inp.matches("[name=ae_id]")) arenaRefresh();
     if (inp.type === "file" && inp.files[0]) {
       const img = $("#" + inp.dataset.prev);
       img.src = URL.createObjectURL(inp.files[0]); img.hidden = false;
@@ -541,6 +614,7 @@ function bind() {
     e.preventDefault();
     if (!new FormData(e.target).getAll("crates").length) return toast("Zaznacz co najmniej jedną skrzynkę", true);
     const btn = $("button[type=submit]", e.target);
+    $("#cardForm [name=arena_json]").value = JSON.stringify(arenaCollect());
     btn.disabled = true; btn.textContent = "Zapisuję…";
     try {
       const res = await api("/api/admin/cards", { method: "POST", form: new FormData(e.target) });
@@ -561,6 +635,13 @@ function bind() {
         return $("#abilityRows").insertAdjacentHTML("beforeend", abilityRowHTML());
       }
       if (act === "del-ability") return e.target.closest(".a-ability").remove();
+      if (act === "add-arena-effect") {
+        const box = e.target.closest(".a-arena-slot").querySelector(".a-arena-effects");
+        if (box.children.length >= A.cat.arena.maxEffects) return toast(`Maksymalnie ${A.cat.arena.maxEffects} efekty na zdolność`, true);
+        box.insertAdjacentHTML("beforeend", arenaEffectRowHTML());
+        return arenaRefresh();
+      }
+      if (act === "del-arena-effect") return e.target.closest(".a-arena-effect").remove();
       if (act === "refetch") {
         e.target.disabled = true; e.target.textContent = "Pobieram…";
         const r = await api(`/api/admin/cards/${encodeURIComponent(id)}/refetch`, { method: "POST" });

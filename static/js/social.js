@@ -672,7 +672,7 @@ async function renderProfile() {
           <span><b>${d.stats.upgradesWon}/${d.stats.upgradesLost}</b>ulepszenia W/P</span>
         </div>
       </div>
-      <div class="pf-actions">${rel}</div>
+      <div class="pf-actions">${rel}${!mine && S.cfg.arena && u.isAdmin ? '<button class="btn" data-act="duel" title="Arena jest na razie tylko dla adminów">⚔️ Wyzwij na pojedynek</button>' : ""}</div>
     </div>
 
     <div class="panel">
@@ -869,6 +869,7 @@ function bindSocial() {
     const name = PROF.data?.user.username;
     if (act === "avatar") return openAvatarPicker();
     if (act === "trade") return openTradeBuilder(name);
+    if (act === "duel") return arChallenge(name);
     if (act === "password") return openPasswordDialog();
     if (act === "logout") return logout();
     if (act === "invite") return friendAction(() => api("/api/friends/request", { username: name }), "Wysłano zaproszenie 📨");

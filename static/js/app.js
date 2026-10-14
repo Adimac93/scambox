@@ -249,6 +249,9 @@ function renderHeader() {
   const broke = target < Math.min(...crateList().map(c => c.price));
   el.classList.toggle("neg", broke);
   $("#adminLink").hidden = !S.me?.isAdmin;
+  // Arena (wersja testowa) - zakładka tylko dla adminów
+  $(".tab[data-view=arena]").hidden = !S.cfg?.arena;
+  $(".tabs").classList.toggle("no-arena", !S.cfg?.arena);
   if (S.me) {
     $("#userAvatar").outerHTML = avatarHTML(S.me, "").replace('<span class="', '<span id="userAvatar" class="');
     $("#userName").textContent = S.me.username;
@@ -350,7 +353,7 @@ function setupInstall() {
 
 // ================================================================ ADRESY STRON
 // każda zakładka ma swój adres (/inventory...), profil gracza: /player/<nazwa>; "/" = skrzynki
-const VIEW_PATHS = { crates: "/crates", binder: "/binder", inventory: "/inventory", forge: "/forge", friends: "/friends", ranking: "/ranking" };
+const VIEW_PATHS = { crates: "/crates", binder: "/binder", inventory: "/inventory", forge: "/forge", friends: "/friends", ranking: "/ranking", arena: "/arena" };
 
 function viewPath(view) {
   return view === "profile" ? "/player/" + encodeURIComponent(PROF.username || S.me.username) : VIEW_PATHS[view] || "/";
@@ -371,6 +374,7 @@ function showRoute(how = "none") {
 
 // how: "push" - nowy wpis w historii (kliknięcie), "replace" - podmiana (start), "none" - bez zmian (wstecz/dalej)
 function switchView(view, how = "push") {
+  if (view === "arena" && !S.cfg.arena) view = "crates";  // Arena: na razie tylko dla adminów
   const path = viewPath(view);
   if (how !== "none" && location.pathname !== path) history[how === "replace" ? "replaceState" : "pushState"](null, "", path);
   const tab = $(`.tab[data-view="${view}"]`);
@@ -385,6 +389,8 @@ function switchView(view, how = "push") {
   if (view === "friends") renderFriends();
   if (view === "ranking") renderRanking();
   if (view === "profile") renderProfile();
+  if (view === "arena") renderArena();
+  else document.body.classList.remove("hs-open");  // walka w Arenie zajmuje cały ekran tylko w jej zakładce
   updateSellbar();
 }
 
@@ -1274,6 +1280,7 @@ function bind() {
 
   bindForge();
   bindSocial();
+  bindArena();
 
   // nagłówek
   $("#soundBtn").addEventListener("click", () => { Sound.toggle(); renderHeader(); });

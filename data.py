@@ -323,3 +323,68 @@ def card_value(person, variant="normal"):
     # valueMult: karty dostępne tylko w droższych skrzynkach są warte proporcjonalnie więcej (catalog.rebuild)
     v = RARITIES[person["rarity"]]["value"] * person.get("valueMult", 1)
     return int(round(v * VARIANTS.get(variant, VARIANTS["normal"])["mult"]))
+
+
+# ============================================================ ARENA (wersja testowa - tylko dla adminów; turowa walka kartami)
+# Talia 8 kart z kolekcji, 4 miejsca na planszy, reszta na ławce. Wygrywa ten, kto pokona wszystkie karty rywala.
+ARENA = {
+    "deckSize": 8, "boardSlots": 4, "actions": 2, "maxCoins": 10,
+    # koszt wystawienia karty z ławki na planszę (złote monety) - z rzadkości
+    "cardCost": {"green": 1, "blue": 2, "purple": 3, "red": 4, "gold": 5, "ultra": 6, "secret": 7},
+    # domyślny koszt zdolności (monety) z jej wartości: [(od wartości, koszt)] - słabe za darmo
+    "abilityCost": [[0, 0], [150, 1], [250, 2]],
+    # nagrody: skrzynka z pieniędzmi (MONEY_CHESTS) za 1., 3. i 9. wygraną dnia
+    "rewardWins": [1, 3, 9], "rewardChest": "daily",
+}
+
+# Wspólne efekty zdolności (admin przypisuje je w panelu). value / turns - co znaczą liczby przy danym efekcie.
+# unique: efekt może mieć tylko JEDNA karta w grze (unikalne ataki).
+ARENA_EFFECTS = {
+    "burn":    {"name": "Podpalenie", "icon": "🔥", "value": "obrażenia na turę", "turns": True,
+                "desc": "Zadaje obrażenia na początku każdej tury właściciela karty."},
+    "poison":  {"name": "Trucizna", "icon": "☠️", "value": "obrażenia na turę", "turns": True,
+                "desc": "Obrażenia co turę; zatrutej karty nie da się leczyć."},
+    "stun":    {"name": "Ogłuszenie", "icon": "💫", "value": None, "turns": True,
+                "desc": "Karta nie może nic robić przez podaną liczbę tur."},
+    "shield":  {"name": "Tarcza", "icon": "🛡️", "value": "punkty osłony", "turns": True,
+                "desc": "Pochłania obrażenia, zanim trafią w HP."},
+    "heal":    {"name": "Leczenie", "icon": "💚", "value": "leczone HP", "turns": False,
+                "desc": "Od razu przywraca HP (nie więcej niż na starcie)."},
+    "taunt":   {"name": "Prowokacja", "icon": "📢", "value": None, "turns": True,
+                "desc": "Rywal musi atakować tę kartę, dopóki prowokacja trwa."},
+    "boost":   {"name": "Wzmocnienie", "icon": "💪", "value": "+obrażenia", "turns": True,
+                "desc": "Zdolności tej karty zadają więcej obrażeń."},
+    "weaken":  {"name": "Osłabienie", "icon": "🩸", "value": "-obrażenia", "turns": True,
+                "desc": "Zdolności tej karty zadają mniej obrażeń."},
+    "lifesteal": {"name": "Wampiryzm", "icon": "🧛", "value": "% zadanych obrażeń", "turns": False,
+                  "desc": "Atakujący leczy się o część zadanych obrażeń."},
+    "splash":  {"name": "Odłamki", "icon": "💥", "value": "obrażenia", "turns": False,
+                "desc": "Rani też karty stojące obok celu."},
+    # unikalne - każdy może mieć tylko jedna karta
+    "steal_coins": {"name": "Kradzież monet", "icon": "💰", "value": "monety", "turns": False, "unique": True,
+                    "desc": "Rywal ma mniej monet w następnej turze."},
+    "extra_action": {"name": "Dodatkowa akcja", "icon": "⚡", "value": "akcje", "turns": False, "unique": True,
+                     "desc": "Daje od razu dodatkowe akcje w tej turze."},
+    "knockback": {"name": "Do ławki!", "icon": "🔁", "value": None, "turns": False, "unique": True,
+                  "desc": "Odsyła trafioną kartę rywala z planszy na jego ławkę."},
+}
+ARENA_TARGETS = {"enemy": "wybrany wróg", "all_enemies": "wszyscy wrogowie", "self": "ta karta",
+                 "ally": "wybrany sojusznik", "all_allies": "wszyscy sojusznicy"}
+# cel efektu: "target" = ten sam co cel zdolności
+ARENA_EFFECT_TARGETS = {"target": "cel zdolności", "self": "ta karta", "all_allies": "wszyscy sojusznicy",
+                        "all_enemies": "wszyscy wrogowie", "random_enemy": "losowy wróg"}
+# zabawne animacje zdolności
+ARENA_VISUALS = {
+    "hit":       {"name": "Zwykłe uderzenie", "icon": "👊"},
+    "tomato":    {"name": "Rzut pomidorem", "icon": "🍅"},
+    "lightning": {"name": "Piorun", "icon": "⚡"},
+    "explosion": {"name": "Wybuch", "icon": "💥"},
+    "money":     {"name": "Deszcz pieniędzy", "icon": "💸"},
+    "mic":       {"name": "Fala z mikrofonu", "icon": "🎤"},
+    "ball":      {"name": "Strzał piłką", "icon": "⚽"},
+    "fire":      {"name": "Ogień", "icon": "🔥"},
+    "ice":       {"name": "Lód", "icon": "❄️"},
+    "hearts":    {"name": "Serduszka (leczenie)", "icon": "💖"},
+    "bubble":    {"name": "Bańka ochronna", "icon": "🫧"},
+}
+MAX_ABILITY_EFFECTS = 3

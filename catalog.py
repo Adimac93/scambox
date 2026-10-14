@@ -14,7 +14,7 @@ import data
 
 CRATE_FIELDS = ("name", "short", "code", "emoji", "color1", "color2", "price", "desc", "shop", "restricted", "weights")
 CARD_FIELDS = ("name", "wiki", "rarity", "type", "hp", "attack", "dmg", "attack2", "dmg2", "kind1", "kind2", "abilities",
-               "crate", "crates")
+               "arena", "crate", "crates")
 
 
 def clean_abilities(raw):
@@ -30,6 +30,32 @@ def clean_abilities(raw):
             value = 0
         out.append({"name": name, "kind": a.get("kind") if a.get("kind") in data.ABILITY_KINDS else "off", "value": value})
     return out[:data.MAX_EXTRA_ABILITIES]
+
+
+def _int(v, lo, hi, default=None):
+    try:
+        return max(lo, min(hi, int(v)))
+    except (TypeError, ValueError):
+        return default
+
+
+def clean_arena(raw):
+    """Ustawienia zdolności w Arenie - po jednym na zdolność (1., 2., dodatkowe), w tej samej kolejności:
+    {"visual", "cost": None = automatycznie z wartości, "target", "effects": [{"id", "value", "turns", "target"}]}"""
+    out = []
+    for cfg in (raw if isinstance(raw, list) else [])[:2 + data.MAX_EXTRA_ABILITIES]:
+        cfg = cfg if isinstance(cfg, dict) else {}
+        effects = []
+        for e in (cfg.get("effects") if isinstance(cfg.get("effects"), list) else [])[:data.MAX_ABILITY_EFFECTS]:
+            if not isinstance(e, dict) or e.get("id") not in data.ARENA_EFFECTS:
+                continue
+            effects.append({"id": e["id"], "value": _int(e.get("value"), 0, 9999, 0), "turns": _int(e.get("turns"), 1, 9, 1),
+                            "target": e.get("target") if e.get("target") in data.ARENA_EFFECT_TARGETS else "target"})
+        out.append({"visual": cfg.get("visual") if cfg.get("visual") in data.ARENA_VISUALS else "hit",
+                    "cost": _int(cfg.get("cost"), 0, 10) if cfg.get("cost") not in (None, "", "auto") else None,
+                    "target": cfg.get("target") if cfg.get("target") in data.ARENA_TARGETS else None,
+                    "effects": effects})
+    return out
 
 CRATES = {}         # id -> skrzynka (z listą "people" w kolejności numerów)
 PEOPLE = {}         # id -> karta
@@ -121,6 +147,7 @@ def rebuild(conn):
         p["kind1"] = p.get("kind1") if p.get("kind1") in data.ABILITY_KINDS else "off"
         p["kind2"] = p.get("kind2") if p["attack2"] and p.get("kind2") in data.ABILITY_KINDS else "off"
         p["abilities"] = clean_abilities(p.get("abilities"))
+        p["arena"] = clean_arena(p.get("arena"))
         if p.get("rarity") not in data.RARITIES:
             p["rarity"] = "green"
         if p.get("type") not in data.TYPES:

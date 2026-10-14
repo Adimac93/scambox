@@ -15,11 +15,13 @@ from flask import (Flask, Response, g, jsonify, redirect, render_template, reque
                    url_for)
 from werkzeug.security import check_password_hash, generate_password_hash
 
+import arena
 import catalog
 import database
 import export_catalog
 import images
-from data import (ABILITY_KINDS, MAX_EXTRA_ABILITIES, CONTRACT_SIZE, CONTRACT_VARIANT_BONUS, CRATE_PRICE, JACKPOT_WEEKDAY, MAX_DEPOSIT,
+from data import (ABILITY_KINDS, ARENA, ARENA_EFFECT_TARGETS, ARENA_EFFECTS, ARENA_TARGETS, ARENA_VISUALS,
+                  MAX_ABILITY_EFFECTS, MAX_EXTRA_ABILITIES, CONTRACT_SIZE, CONTRACT_VARIANT_BONUS, CRATE_PRICE, JACKPOT_WEEKDAY, MAX_DEPOSIT,
                   MAX_OPEN, MONEY_CHESTS, RARITIES, RARITY_ORDER, SECRET_ODDS, SHOWCASE_SIZE,
                   STARTING_BALANCE, TYPES, UPGRADE_EDGE, UPGRADE_MAX, UPGRADE_MAX_ITEMS, VARIANT_ORDER,
                   VARIANTS, card_value)
@@ -165,6 +167,8 @@ def init_sqlite(conn):
                                                  PRIMARY KEY (user_id, crate_id));
         CREATE TABLE IF NOT EXISTS user_chests (user_id INTEGER NOT NULL, kind TEXT NOT NULL, count INTEGER NOT NULL,
                                                 PRIMARY KEY (user_id, kind));
+        CREATE TABLE IF NOT EXISTS arena_daily (user_id INTEGER NOT NULL, day TEXT NOT NULL, wins INTEGER NOT NULL DEFAULT 0,
+                                                PRIMARY KEY (user_id, day));
         CREATE TABLE IF NOT EXISTS admin_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             created_at REAL NOT NULL,
@@ -538,7 +542,7 @@ def public_person(p, found):
                 "valueMult": p.get("valueMult", 1),
                 "name": "???", "type": "tv", "hp": 0, "attack": "???", "dmg": 0, "imgv": 0}
     base = {k: p.get(k) for k in ("id", "name", "rarity", "type", "hp", "attack", "dmg", "attack2", "dmg2",
-                                  "kind1", "kind2", "abilities", "crate", "crates", "number", "valueMult")}
+                                  "kind1", "kind2", "abilities", "arena", "crate", "crates", "number", "valueMult")}
     base["imgv"] = img_version(p["id"])
     return base
 
@@ -546,10 +550,12 @@ def public_person(p, found):
 # ---------------------------------------------------------------- strony
 
 @app.route("/")
-@app.route("/<any(crates, binder, inventory, forge, friends, ranking):view>")
+@app.route("/<any(crates, binder, inventory, forge, friends, ranking, arena):view>")
 @app.route("/player/<name>")
 @login_required
 def index(view=None, name=None):
+    if view == "arena" and not current_user()["is_admin"]:  # Arena: na razie tylko dla adminów (testy)
+        return redirect(url_for("index"))
     return render_template("index.html")
 
 
@@ -605,7 +611,8 @@ def image(person_id, kind="main"):
     if p["rarity"] == "secret" and person_id not in discovered():
         # ?admin=1 - podgląd w panelu admina, ?feed=ID - tajna karta pokazana w aktywności znajomych
         u = current_user()
-        allowed = (request.args.get("admin") == "1" and u and u["is_admin"]) or                   (u and feed_entry_visible(request.args.get("feed"), person_id)) or                   (u and friend_owns(request.args.get("owner"), person_id))
+        allowed = (request.args.get("admin") == "1" and u and u["is_admin"]) or                   (u and feed_entry_visible(request.args.get("feed"), person_id)) or                   (u and friend_owns(request.args.get("owner"), person_id)) or \
+                  (u and arena_shows(request.args.get("battle"), person_id))
         if not allowed:
             return svg_response(MYSTERY_SVG)
     path = images.ensure(person_id, alt=(kind == "alt"))
@@ -643,6 +650,9 @@ def config():
         "variantOrder": VARIANT_ORDER,
         "types": TYPES,
         "abilityKinds": ABILITY_KINDS,
+        # Arena (wersja testowa) - tylko admini; bez tego klucza przeglądarka chowa zakładkę i wyzwania
+        "arena": {"rules": ARENA, "effects": ARENA_EFFECTS, "visuals": ARENA_VISUALS, "targets": ARENA_TARGETS,
+                  "effectTargets": ARENA_EFFECT_TARGETS} if current_user()["is_admin"] else None,
         "people": {pid: public_person(p, found) for pid, p in catalog.PEOPLE.items()},
         "crates": {cid: crate_json(c) | {"canBuy": can_buy(c)} for cid, c in catalog.CRATES.items()},
         "crateOrder": list(catalog.CRATES),
@@ -1462,6 +1472,271 @@ def me():
                     "incoming": incoming, "unread": unread, "trades": trades_in})
 
 
+# ---------------------------------------------------------------- arena (wersja testowa - TYLKO DLA ADMINÓW)
+# Walkę liczy serwer (arena.py) - przeglądarka wysyła ruchy i odtwarza kroki walki z animacjami.
+# Na czas testów wszystkie /api/arena/* są dostępne tylko dla adminów (gracze nie widzą zakładki).
+
+def arena_hero(u):
+    """Portret gracza w walce (None = komputer)."""
+    if u is None:
+        return {"username": "Komputer", "bot": True}
+    return {k: v for k, v in user_json(u).items() if k != "isAdmin"}
+
+
+def arena_deck(pids):
+    """Talia z moich kart: osoby bez powtórzeń, każda w najlepszym posiadanym wariancie (wariant to tylko wygląd)."""
+    n = ARENA["deckSize"]
+    if not isinstance(pids, list) or len(pids) != n:
+        return None
+    pids = [str(p) for p in pids]
+    if len(set(pids)) != n:
+        return None
+    best = {}
+    marks = ",".join("?" * n)
+    for r in db().execute(f"SELECT person_id, variant FROM items WHERE user_id = ? AND person_id IN ({marks})",
+                          [uid(), *pids]):
+        p = catalog.PEOPLE.get(r["person_id"])
+        if p and p.get("hp", 0) > 0:
+            v = r["variant"] if r["variant"] in VARIANTS else "normal"
+            if VARIANT_ORDER.index(v) >= VARIANT_ORDER.index(best.get(p["id"], "normal")):
+                best[p["id"]] = v
+    if len(best) != n:
+        return None
+    return [{"pid": p, "variant": best[p]} for p in pids]
+
+
+DECK_ERROR = f"Talia musi mieć {ARENA['deckSize']} różnych kart z twojej kolekcji"
+
+
+def arena_wins_today(user_id):
+    r = db().execute("SELECT wins FROM arena_daily WHERE user_id = ? AND day = ?",
+                     (user_id, datetime.date.today().isoformat())).fetchone()
+    return r["wins"] if r else 0
+
+
+def arena_reward_info(wins, chest=None):
+    return {"wins": wins, "chest": chest, "rewardWins": ARENA["rewardWins"],
+            "next": next((w for w in ARENA["rewardWins"] if w > wins), None)}
+
+
+def arena_record(b):
+    """Koniec walki: wygrana liczy się do dziennych nagród - skrzynka z pieniędzmi za 1., 3. i 9. wygraną dnia.
+    Wywoływane pod b.lock, więc nagroda nie zostanie przyznana dwa razy."""
+    if not b.over or b.recorded:
+        return
+    b.recorded = True
+    day = datetime.date.today().isoformat()
+    for k in ("a", "b"):
+        user_id = b.sides[k]["user"]
+        if not user_id:
+            continue
+        chest = None
+        if k == b.over and not b.no_reward:
+            db().execute("INSERT INTO arena_daily (user_id, day, wins) VALUES (?, ?, 0) ON CONFLICT (user_id, day) DO NOTHING",
+                         (user_id, day))
+            db().execute("UPDATE arena_daily SET wins = wins + 1 WHERE user_id = ? AND day = ?", (user_id, day))
+            if arena_wins_today(user_id) in ARENA["rewardWins"]:
+                chest = ARENA["rewardChest"]
+                add_chests("money_" + chest, 1, user_id)
+        b.rewards[k] = arena_reward_info(arena_wins_today(user_id), chest)
+    db().commit()
+
+
+def arena_shows(bid, person_id):
+    """Tajna karta biorąca udział w mojej walce - jej zdjęcie widać, nawet jeśli jej nie odkryłem."""
+    b = arena.get_battle(bid) if bid else None
+    return bool(b and b.side_of_user(uid()) and person_id in b.pids())
+
+
+def arena_reply(b, me, since=0):
+    arena_record(b)
+    out = b.view(me, since)
+    # tajne karty widoczne w walce (moje, na planszy, pokonane) - prawdziwe dane, choć ich jeszcze nie odkryłem
+    found, seen = discovered(), set()
+    for st in [out["state"]] + [s["state"] for s in out["steps"]]:
+        for s in st["sides"].values():
+            seen.update(u["pid"] for u in s["board"] + s["bench"] + s["ko"] if "pid" in u)
+    out["reveal"] = {pid: public_person(catalog.PEOPLE[pid], {pid}) for pid in seen
+                     if pid in catalog.PEOPLE and catalog.PEOPLE[pid]["rarity"] == "secret" and pid not in found}
+    if (b.rewards.get(me) or {}).get("chest"):
+        out["chests"] = get_chests()
+    return jsonify(out)
+
+
+def arena_open(bid):
+    """Moja walka o tym id i moja strona w niej ("a" / "b") albo (None, None)."""
+    b = arena.get_battle(bid)
+    me = b.side_of_user(uid()) if b else None
+    return (b, me) if me else (None, None)
+
+
+def arena_abandon(user_id):
+    """Nowa walka kończy porzuconą walkę z komputerem (porażka, bez nagród). Zwraca trwający pojedynek z graczem."""
+    old = arena.active_battle(user_id)
+    while old and old.mode == "ai":
+        with old.lock:
+            old.surrender(old.side_of_user(user_id))
+            arena_record(old)
+        old = arena.active_battle(user_id)
+    return old
+
+
+@app.get("/api/arena/inbox")
+@admin_required
+def arena_inbox():
+    """Sprawdzane co kilka sekund: wyzwania od innych graczy, odpowiedź na moje wyzwanie, trwająca walka."""
+    me = uid()
+    b = arena.active_battle(me)
+    if b:
+        with b.lock:
+            b.seen[b.side_of_user(me)] = time.time()
+    incoming, outgoing = arena.challenges_for(me)
+    return jsonify({"incoming": [arena.challenge_json(c) for c in incoming],
+                    "outgoing": arena.challenge_json(outgoing) if outgoing else None,
+                    "battle": {"id": b.id, "mode": b.mode} if b else None,
+                    "rewards": arena_reward_info(arena_wins_today(me))})
+
+
+@app.post("/api/arena/start")
+@admin_required
+def arena_start():
+    """Nowa walka z komputerem."""
+    me = current_user()
+    deck = arena_deck(request.get_json(force=True).get("deck"))
+    if deck is None:
+        return jsonify({"error": DECK_ERROR}), 400
+    if arena_abandon(me["id"]):
+        return jsonify({"error": "Masz trwający pojedynek z graczem"}), 400
+    arena.cleanup()
+    b = arena.add_battle(arena.Battle(
+        "ai", {"name": me["username"], "user": me["id"], "deck": deck, "hero": arena_hero(me)},
+        {"name": "Komputer", "user": None, "deck": arena.ai_deck(deck, discovered()), "hero": arena_hero(None)}))
+    with b.lock:
+        b.start()
+        return arena_reply(b, "a")
+
+
+@app.get("/api/arena/battle/<bid>")
+@admin_required
+def arena_battle(bid):
+    b, me = arena_open(bid)
+    if b is None:
+        return jsonify({"error": "Ta walka już się skończyła"}), 404
+    with b.lock:
+        b.seen[me] = time.time()
+        b.tick()
+        return arena_reply(b, me, max(0, request.args.get("since", 0, type=int)))
+
+
+@app.post("/api/arena/battle/<bid>/act")
+@admin_required
+def arena_act(bid):
+    """Ruch gracza: place / retreat / use / end / surrender (+ auto - tylko admin, wtedy walka bez nagród)."""
+    b, me = arena_open(bid)
+    if b is None:
+        return jsonify({"error": "Ta walka już się skończyła"}), 404
+    body = request.get_json(force=True)
+    kind = body.get("type")
+    with b.lock:
+        b.seen[me] = time.time()
+        b.tick()
+        try:
+            if kind == "surrender":
+                b.surrender(me)
+            elif kind == "auto":
+                if not current_user()["is_admin"]:
+                    return jsonify({"error": "Tylko dla admina"}), 403
+                b.auto[me] = bool(body.get("on"))
+                b.no_reward = b.no_reward or b.auto[me]
+            elif b.over:
+                raise arena.ArenaError("Walka już się skończyła")
+            elif kind == "place":
+                b.place(me, int(body["uid"]))
+            elif kind == "retreat":
+                b.retreat(me, int(body["uid"]))
+            elif kind == "use":
+                target = body.get("target")
+                b.use(me, int(body["uid"]), int(body["ab"]), int(target) if target is not None else None)
+            elif kind == "end":
+                b.end_turn(me)
+            else:
+                raise arena.ArenaError("Nieznany ruch")
+            b.run_bots()
+        except arena.ArenaError as e:
+            return jsonify({"error": str(e)}), 400
+        except (KeyError, TypeError, ValueError):
+            return jsonify({"error": "Nieprawidłowy ruch"}), 400
+        return arena_reply(b, me, max(0, int(body.get("since") or 0)))
+
+
+@app.post("/api/arena/challenge")
+@admin_required
+def arena_challenge():
+    """Wyzwanie innego gracza na pojedynek (z jego profilu)."""
+    me = current_user()
+    body = request.get_json(force=True)
+    target = find_user(body.get("username"))
+    if target is None or target["banned"]:
+        return jsonify({"error": "Nie ma takiego gracza"}), 404
+    if target["id"] == me["id"]:
+        return jsonify({"error": "Nie możesz wyzwać samego siebie"}), 400
+    if not target["is_admin"]:  # wersja testowa: walczą tylko admini
+        return jsonify({"error": f"Arena jest na razie tylko dla adminów — {target['username']} nie ma do niej dostępu"}), 400
+    deck = arena_deck(body.get("deck"))
+    if deck is None:
+        return jsonify({"error": DECK_ERROR}), 400
+    for user_id in (me["id"], target["id"]):
+        b = arena.active_battle(user_id)
+        if b and b.mode == "pvp":
+            return jsonify({"error": "Masz trwający pojedynek" if user_id == me["id"] else
+                            f"{target['username']} właśnie walczy z kimś innym"}), 400
+    c = arena.new_challenge(arena_hero(me), arena_hero(target), deck)
+    return jsonify(arena.challenge_json(c))
+
+
+@app.post("/api/arena/challenge/<cid>/accept")
+@admin_required
+def arena_accept(cid):
+    me = current_user()
+    arena.cleanup()
+    c = arena.get_challenge(cid)
+    if c is None or c["to"] != me["id"]:
+        return jsonify({"error": "To wyzwanie już wygasło"}), 404
+    deck = arena_deck(request.get_json(force=True).get("deck"))
+    if deck is None:
+        return jsonify({"error": DECK_ERROR}), 400
+    rival = db().execute("SELECT * FROM users WHERE id = ?", (c["from"],)).fetchone()
+    with arena._lock:
+        if c["status"] != "pending":
+            return jsonify({"error": "To wyzwanie jest już nieaktualne"}), 400
+        if rival is None or rival["banned"]:
+            return jsonify({"error": "Nie ma takiego gracza"}), 404
+        for user_id in (me["id"], rival["id"]):
+            if arena_abandon(user_id):
+                return jsonify({"error": "Ktoś z was ma już trwający pojedynek"}), 400
+        c["status"] = "accepted"
+        b = arena.add_battle(arena.Battle(
+            "pvp", {"name": rival["username"], "user": rival["id"], "deck": c["deck"], "hero": arena_hero(rival)},
+            {"name": me["username"], "user": me["id"], "deck": deck, "hero": arena_hero(me)}, first=random.choice("ab")))
+        with b.lock:
+            b.start()
+        c["battle"] = b.id
+    return jsonify({"battle": b.id})
+
+
+@app.post("/api/arena/challenge/<cid>/decline")
+@admin_required
+def arena_decline(cid):
+    """Odrzucenie wyzwania (przez wyzwanego) albo wycofanie (przez wyzywającego)."""
+    c = arena.get_challenge(cid)
+    if c is None or uid() not in (c["from"], c["to"]):
+        return jsonify({"error": "To wyzwanie już wygasło"}), 404
+    with arena._lock:
+        if c["status"] == "pending":
+            c["status"] = "declined" if uid() == c["to"] else "cancelled"
+    return jsonify(arena.challenge_json(c))
+
+
 # ---------------------------------------------------------------- API admina
 
 def slug(text):
@@ -1479,7 +1754,7 @@ def unique_id(base, taken):
 
 def admin_card_json(p):
     return dict({k: p.get(k) for k in ("id", "name", "rarity", "type", "hp", "attack", "dmg", "attack2", "dmg2",
-                                       "kind1", "kind2", "abilities",
+                                       "kind1", "kind2", "abilities", "arena",
                                        "crate", "crates", "number", "builtin", "modified")},
                 wiki=list(p["wiki"]) if p.get("wiki") else None,
                 hasImage=bool(images.find(p["id"])), hasAlt=bool(images.find(p["id"], True)),
@@ -1543,6 +1818,8 @@ def admin_catalog():
     users = [user_json(u) for u in db().execute("SELECT * FROM users ORDER BY LOWER(username)")]
     return jsonify({"crates": crates, "cards": cards, "rarities": RARITIES, "rarityOrder": RARITY_ORDER,
                     "types": TYPES, "abilityKinds": ABILITY_KINDS, "maxExtraAbilities": MAX_EXTRA_ABILITIES,
+                    "arena": {"effects": ARENA_EFFECTS, "visuals": ARENA_VISUALS, "targets": ARENA_TARGETS,
+                              "effectTargets": ARENA_EFFECT_TARGETS, "maxEffects": MAX_ABILITY_EFFECTS},
                     "defaultPrice": CRATE_PRICE, "users": users})
 
 
@@ -1654,6 +1931,20 @@ def admin_save_card():
         "abilities": catalog.clean_abilities([{"name": n, "kind": k, "value": v} for n, k, v in
                                               zip(f.getlist("ab_name"), f.getlist("ab_kind"), f.getlist("ab_value"))]),
     }
+    try:  # Arena: animacja, koszt, cel i efekty każdej zdolności (z panelu admina jako JSON)
+        fields["arena"] = catalog.clean_arena(json.loads(f.get("arena_json") or "[]"))
+    except ValueError:
+        return jsonify({"error": "Nieprawidłowe ustawienia Areny"}), 400
+    # efekt unikalny może mieć tylko jedna karta
+    pid_now = f.get("id")
+    for cfg in fields["arena"]:
+        for e in cfg["effects"]:
+            if ARENA_EFFECTS[e["id"]].get("unique"):
+                other = next((p for p in catalog.PEOPLE.values() if p["id"] != pid_now and
+                              any(x["id"] == e["id"] for c in p.get("arena", []) for x in c["effects"])), None)
+                if other:
+                    return jsonify({"error": f"Efekt „{ARENA_EFFECTS[e['id']]['name']}” jest unikalny - ma go już "
+                                             f"karta {other['name']}"}), 400
     pid = f.get("id")
     old = catalog.PEOPLE.get(pid) if pid else None
     if not pid:
@@ -1895,6 +2186,7 @@ def admin_delete_user(user_id):
                 "DELETE FROM user_collected WHERE user_id = ?",
                 "DELETE FROM showcase WHERE user_id = ?", "DELETE FROM feed WHERE author_id = ? OR to_user_id = ?",
                 "DELETE FROM user_chests WHERE user_id = ?", "DELETE FROM crate_access WHERE user_id = ?",
+                "DELETE FROM arena_daily WHERE user_id = ?",
                 "DELETE FROM trade_lines WHERE trade_id IN (SELECT id FROM trades WHERE from_id = ? OR to_id = ?)",
                 "DELETE FROM trades WHERE from_id = ? OR to_id = ?",
                 "DELETE FROM friendships WHERE requester_id = ? OR addressee_id = ?", "DELETE FROM users WHERE id = ?"):

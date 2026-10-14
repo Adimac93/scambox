@@ -557,10 +557,11 @@ select { background: var(--panel); color: var(--text); border: 1px solid var(--l
   .balance { font-size: 14px; padding: 6px 9px; white-space: nowrap; }
   .tabs {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; order: initial; flex-basis: auto;
-    display: grid; grid-template-columns: 1fr 1fr 1.3fr 1fr 1fr 1fr; gap: 0;  /* "Ekwipunek" to najdłuższy podpis */
+    display: grid; grid-template-columns: 1fr 1fr 1.3fr 1fr 1fr 1fr 1fr; gap: 0;  /* "Ekwipunek" to najdłuższy podpis */
     padding: 4px 2px calc(4px + env(safe-area-inset-bottom));
     background: #0c0f17f2; backdrop-filter: blur(12px); border-top: 1px solid var(--line);
   }
+  .tabs.no-arena { grid-template-columns: 1fr 1fr 1.3fr 1fr 1fr 1fr; }
   a.tab { display: flex; width: 100%; flex-direction: column; align-items: center; gap: 3px; padding: 6px 0 5px; font-size: 10.5px; border-radius: 10px; position: relative; white-space: nowrap; min-width: 0; }
   .tab .ti { font-size: 21px; line-height: 1; margin: 0; }
   .tab .tl { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 10px; letter-spacing: -.3px; font-weight: 600; }
@@ -577,3 +578,6 @@ select { background: var(--panel); color: var(--text); border: 1px solid var(--l
   .seg::-webkit-scrollbar { display: none; }
   .seg button { flex: none; white-space: nowrap; }
 }
+
+/* ukryta zakładka (np. Arena dla graczy bez dostępu) - a.tab ma własne display */
+.tab[hidden] { display: none !important; }

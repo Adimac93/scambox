@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="{{ asset('css/style.css') }}">
   <link rel="stylesheet" href="{{ asset('css/fx.css') }}">
   <link rel="stylesheet" href="{{ asset('css/cards2.css') }}">
+  <link rel="stylesheet" href="{{ asset('css/arena.css') }}">
   <link rel="stylesheet" href="{{ asset('css/social.css') }}">
   <link rel="stylesheet" href="{{ asset('css/avatars.css') }}">
   <link rel="stylesheet" href="{{ asset('css/chests.css') }}">
@@ -33,6 +34,7 @@
       <a class="tab" href="/forge" data-view="forge"><span class="ti">⚒️</span><span class="tl">Kuźnia</span></a>
       <a class="tab" href="/friends" data-view="friends"><span class="ti">👥</span><span class="tl">Znajomi</span> <span class="badge alert" id="friendsBadge" hidden>0</span></a>
       <a class="tab" href="/ranking" data-view="ranking"><span class="ti">🏆</span><span class="tl">Ranking</span></a>
+      <a class="tab" href="/arena" data-view="arena"><span class="ti">⚔️</span><span class="tl">Arena</span></a>
     </nav>
     <div class="top-right">
       <button class="icon-btn" id="installBtn" title="Zainstaluj grę jako aplikację" hidden>📲</button>
@@ -117,6 +119,11 @@
     </section>
 
     <!-- EKWIPUNEK -->
+    <!-- ARENA (mock-up minigry) -->
+    <section class="view" id="view-arena">
+      <div id="arenaBody"></div>
+    </section>
+
     <section class="view" id="view-inventory">
       <div class="panel chest-shelf" id="chestShelf" hidden></div>
       <div class="inv-toolbar">
@@ -194,6 +201,7 @@
   <script src="{{ asset('js/fx.js') }}"></script>
   <script src="{{ asset('js/forge.js') }}"></script>
   <script src="{{ asset('js/social.js') }}"></script>
+  <script src="{{ asset('js/arena.js') }}"></script>
   <script src="{{ asset('js/app.js') }}"></script>
 </body>
 </html>
