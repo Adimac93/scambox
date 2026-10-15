@@ -550,36 +550,27 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 .vchip.vt-royal.active { background: linear-gradient(90deg, #8a5b00, #fff1c1, #c9952c); color: #2a1c00; }
 
 /* ============================================================ FLAGOWA (wariant wyjątkowy) - barwy flagi kraju karty
-   ramka i tło: same kolory flagi (--fc1..3, liczone z obrazka); pod zdjęciem wstęga: cała flaga w zwykłych proporcjach
-   pośrodku, a po bokach przedłużenie jej lewej / prawej krawędzi (--fl / --fr) */
+   flaga (--flag, z /flag/<kod>.svg) w ramce i lekko prześwitująca przez środek karty, powiewające światło */
 .card.v-flag {
-  background: linear-gradient(150deg, var(--fc1, #8c97b2) 0 38%, var(--fc2, #5a6274) 38% 68%, var(--fc3, var(--fc1, #8c97b2)) 68%);
-  box-shadow: 0 6px 18px #000a, 0 0 0 1px #0006;
+  background: var(--flag, linear-gradient(135deg, #8c97b2, #5a6274)) center / cover no-repeat;
+  box-shadow: 0 6px 18px #000a, 0 0 0 1px #0006, 0 0 20px #ffffff44;
 }
-.card.v-flag .card-inner {
-  background: linear-gradient(170deg, color-mix(in srgb, var(--fc1, #ccc) 16%, #fff), color-mix(in srgb, var(--fc2, #999) 24%, #fff) 60%,
-                                      color-mix(in srgb, var(--fc3, var(--fc1, #ccc)) 16%, #fff));
+.card.v-flag .card-inner { background: linear-gradient(#ffffffcc, #ffffffb8), var(--flag, linear-gradient(#ccc, #999)) center / cover no-repeat; }
+.card.v-flag .card-photo { box-shadow: inset 0 0 1em #0008, 0 0 0 .6cqw #fff, 0 0 0 1.1cqw #0003; }
+.flag-wave {
+  position: absolute; inset: 0; z-index: 3; border-radius: inherit; pointer-events: none; mix-blend-mode: soft-light;
+  background: repeating-linear-gradient(90deg, #0000 0, #ffffff70 12cqw, #0000 25cqw, #00000060 37cqw, #0000 50cqw);
+  animation: flagWave 3.5s linear infinite;
 }
-/* wstęga z flagą zamiast linijki "typ · skrzynka"; zdjęcie trochę niższe, żeby się zmieściła */
-.flag-banner {
-  position: relative; flex: none; margin: 3.2% -1% 0; height: 13cqw; border-radius: .7cqw; overflow: hidden;
-  background: var(--flag) center / auto 100% no-repeat,
-              var(--fl, linear-gradient(#ddd, #ddd)) left / 51% 100% no-repeat,
-              var(--fr, linear-gradient(#ddd, #ddd)) right / 51% 100% no-repeat;
-  box-shadow: 0 0 0 .5cqw #fff;
-}
-.card.v-flag[data-flag] .card-sub { display: none; }
-.card.v-flag[data-flag] .card-photo { aspect-ratio: 1 / .86; }
-.card.v-flag[data-flag].two-atk .card-photo { aspect-ratio: 1 / .7; }
-.card.v-flag[data-flag].atk-3 .card-photo { aspect-ratio: 1 / .62; }
-.card.v-flag[data-flag].atk-4 .card-photo { aspect-ratio: 1 / .54; }
+@keyframes flagWave { from { background-position-x: 0; } to { background-position-x: 50cqw; } }
 .flag-tint { display: none; }
 .r-secret .flag-tint { display: block; position: absolute; inset: 0; z-index: 1; border-radius: inherit; pointer-events: none;
   background: var(--flag) center / cover; mix-blend-mode: overlay; opacity: .6; }
-.var-tag.vt-flag { display: flex; align-items: center; gap: .35em; background: #fffffff0; color: #111; text-shadow: none; }
+.r-secret.v-flag { box-shadow: 0 6px 18px #000c, 0 0 22px #ffffff77; }
+.var-tag.vt-flag { display: flex; align-items: center; gap: .35em; background: #fffffff0; color: #111; text-shadow: none; box-shadow: 0 0 .5em #0006; }
 .var-tag.vt-flag img { height: 1.15em; aspect-ratio: 4 / 3; object-fit: cover; border-radius: .15em; box-shadow: 0 0 0 1px #0004; }
 .ph.vt-flag { background: #fff; color: #111; text-shadow: none; }
-.pick.v-flag { box-shadow: inset 0 0 0 2px #fff, inset 0 -26px 26px -18px var(--rc); }
+.pick.v-flag { box-shadow: inset 0 0 0 2px #fff, 0 0 8px #ffffff88, inset 0 -26px 26px -18px var(--rc); }
 .vdot.vt-flag { background: linear-gradient(180deg, #fff 50%, #dc143c 50%); box-shadow: 0 0 0 1px #0006; }
 .odd.odd-v.vt-flag { border-left-color: #fff; }
 .vchip.vt-flag.active { background: linear-gradient(180deg, #fff 50%, #dc143c 50%); color: #111; }

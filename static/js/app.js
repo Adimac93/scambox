@@ -62,69 +62,7 @@ function crateVariants(crate, p = null) {
     return (crate?.variants || []).includes(v) && (v !== "flag" || !p || p.country);
   });
 }
-function flagUrl(country) { return `/flag/${encodeURIComponent(country)}.svg?v=2`; }  // v: zmiana wersji plików flag (pamięć przeglądarki)
-
-// wariant Flagowy - zmienne CSS liczone raz w przeglądarce z obrazka flagi (karty narysowane wcześniej dostają je,
-// gdy tylko są gotowe): --fc1..3 = główne kolory (ramka i tło karty), --fl / --fr = lewa / prawa krawędź flagi
-// (przedłużenie po bokach flagi na wstędze pod zdjęciem - sama flaga ma zwykłe proporcje), --fa = proporcje flagi
-const FLAG_COLORS = {};
-const FLAG_COLORS_V = 1;  // zmiana sposobu liczenia kolorów -> podnieść, żeby przeglądarki policzyły je od nowa
-const colorDist = (a, z) => Math.hypot(a[0] - z[0], a[1] - z[1], a[2] - z[2]);
-
-// kopia skrajnej kolumny pikseli flagi (1 x 400) - rozciągnięta w bok daje dokładnie te same pasy co flaga,
-// także z jej wygładzonymi krawędziami (bez "schodków" na łączeniu)
-function flagEdgeStrip(img, left) {
-  const w = 400, h = 400, cv = document.createElement("canvas");
-  cv.width = 1; cv.height = h;
-  cv.getContext("2d").drawImage(img, left ? -2 : -(w - 3), 0, w, h);
-  return `url(${cv.toDataURL()})`;
-}
-
-function flagColors(cc) {
-  if (cc in FLAG_COLORS) return FLAG_COLORS[cc];
-  try {  // policzone przy poprzedniej wizycie - karta od razu ma kolory (bez szarej ramki przez chwilę)
-    const saved = JSON.parse(localStorage.getItem("flagColors:" + cc) || "null");
-    if (saved && saved.v === FLAG_COLORS_V) return (FLAG_COLORS[cc] = saved.vars);
-  } catch (e) { /* brak dostępu do pamięci przeglądarki */ }
-  FLAG_COLORS[cc] = null;
-  const img = new Image();
-  img.onload = () => {
-    const vars = {};
-    try {
-      const w = 200, h = 96, cv = document.createElement("canvas");
-      cv.width = w; cv.height = h;
-      const ctx = cv.getContext("2d", { willReadFrequently: true });
-      ctx.drawImage(img, 0, 0, w, h);
-      // główne kolory: najczęstsze, bez bardzo podobnych i bez odcieni "pomiędzy" dwoma wybranymi (rozmyte krawędzie pasów)
-      const d = ctx.getImageData(0, 0, w, h).data, buckets = {};
-      for (let i = 0; i < d.length; i += 4) {
-        if (d[i + 3] < 200) continue;
-        const k = buckets[`${d[i] >> 5},${d[i + 1] >> 5},${d[i + 2] >> 5}`] ||= [0, 0, 0, 0];
-        k[0] += d[i]; k[1] += d[i + 1]; k[2] += d[i + 2]; k[3]++;
-      }
-      const picked = [];
-      for (const k of Object.values(buckets).sort((a, z) => z[3] - a[3])) {
-        if (k[3] < w * h * 0.04 || picked.length >= 3) break;
-        const c = [k[0] / k[3], k[1] / k[3], k[2] / k[3]];
-        const between = picked.some((a, i) => picked.slice(i + 1).some(z => {
-          const dir = [z[0] - a[0], z[1] - a[1], z[2] - a[2]], len = dir[0] ** 2 + dir[1] ** 2 + dir[2] ** 2 || 1;
-          const t = Math.max(0, Math.min(1, ((c[0] - a[0]) * dir[0] + (c[1] - a[1]) * dir[1] + (c[2] - a[2]) * dir[2]) / len));
-          return colorDist(c, [a[0] + t * dir[0], a[1] + t * dir[1], a[2] + t * dir[2]]) < 30;
-        }));
-        if (!between && !picked.some(p => colorDist(p, c) < 70)) picked.push(c);
-      }
-      picked.forEach((c, i) => { vars[`--fc${i + 1}`] = `rgb(${c.map(Math.round).join(" ")})`; });
-      vars["--fl"] = flagEdgeStrip(img, true);
-      vars["--fr"] = flagEdgeStrip(img, false);
-      vars["--fa"] = (img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 1.5).toFixed(4);
-    } catch (e) { /* zostają kolory domyślne */ }
-    FLAG_COLORS[cc] = vars;
-    if (vars["--fl"]) try { localStorage.setItem("flagColors:" + cc, JSON.stringify({ v: FLAG_COLORS_V, vars })); } catch (e) { /* pełna pamięć */ }
-    $$(`.card.v-flag[data-flag="${cc}"]`).forEach(el => Object.entries(vars).forEach(([k, v]) => el.style.setProperty(k, v)));
-  };
-  img.src = flagUrl(cc);
-  return null;
-}
+function flagUrl(country) { return `/flag/${encodeURIComponent(country)}.svg`; }
 function person(id) { return S.cfg.people[id]; }
 function crateOf(id) { return S.cfg.crates[id]; }
 function crateList() { return S.cfg.crateOrder.map(id => S.cfg.crates[id]); }
@@ -158,7 +96,7 @@ function variantLayers(v, p = null) {
   let html = "";
   if (v === "royal") html += '<div class="gold-sheen"></div><div class="royal-border"></div><div class="royal-crown"></div>';
   if (v === "rzulty") html += '<div class="rzulty-tint"></div>';  // żółty filtr na całej karcie
-  if (v === "flag" && p?.rarity === "secret") html += '<div class="flag-tint"></div>';  // tajna: flaga na całym zdjęciu
+  if (v === "flag") html += '<div class="flag-tint"></div><div class="flag-wave"></div>';
   if (v === "flag" && p?.country) return html + `<div class="var-tag vt-flag"><img src="${flagUrl(p.country)}" alt="">${esc(p.country.toUpperCase())}</div>`;
   if (v === "holo") html += '<div class="holo-layer"></div>';
   if (v === "gold" || v === "silver") html += '<div class="gold-sheen"></div>';
@@ -176,12 +114,8 @@ function abilitiesOf(p) {
   return list.concat(p.abilities || []);
 }
 
-// wariant flagowy: obrazek flagi (--flag, wstęga pod zdjęciem) + kolory z flagColors (ramka, tło, boki wstęgi)
-function flagStyle(p, variant) {
-  if (variant !== "flag" || !p.country) return "";
-  const vars = flagColors(p.country) || {};
-  return ` data-flag="${esc(p.country)}" style="--flag:url('${flagUrl(p.country)}')${Object.entries(vars).map(([k, v]) => `;${k}:${v}`).join("")}"`;
-}
+// wariant flagowy: flaga kraju karty jako tło ramki (zmienna CSS --flag)
+function flagStyle(p, variant) { return variant === "flag" && p.country ? ` style="--flag:url('${flagUrl(p.country)}')"` : ""; }
 
 function cardHTML(pid, variant = "normal") {
   const p = person(pid);
@@ -203,7 +137,6 @@ function cardHTML(pid, variant = "normal") {
         <span class="card-type">${type.icon}</span>
       </div>
       <div class="card-photo"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false"></div>
-      ${variant === "flag" && p.country ? '<div class="flag-banner"></div>' : ""}
       <div class="card-sub">${type.name} · ${esc(crate.short)}</div>
       ${abils.map((a, i) => `<div class="card-attack${i ? " atk2" : ""}${a.kind === "def" ? " def" : ""}">
         <span class="atk-cost">${a.kind === "def" ? "🛡️" : cost + (i ? type.icon : "")}</span>

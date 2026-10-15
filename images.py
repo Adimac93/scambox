@@ -365,15 +365,6 @@ FLAG_RE = re.compile(r"^[a-z]{2}(-[a-z0-9]{1,3})?$")
 _flag_failed = {}
 
 
-def _stretchable(svg):
-    """Flaga ma się dać rozciągnąć (wydłużona wstęga pod zdjęciem): preserveAspectRatio="none" w głównym <svg>."""
-    m = re.search(rb"<svg[^>]*>", svg)
-    if not m or m.group(0).endswith(b"/>"):
-        return svg
-    tag = re.sub(rb'\s+preserveAspectRatio="[^"]*"', b"", m.group(0))
-    return svg[:m.start()] + tag[:-1] + b' preserveAspectRatio="none">' + svg[m.end():]
-
-
 def flag(code):
     """Flaga kraju (kod ISO, np. "pl", "gb-eng") jako plik SVG - pobrana raz z flagcdn.com, potem z image_cache/flags.
     Zwraca ścieżkę albo None (zły kod, brak internetu - kolejna próba najwcześniej za 10 minut)."""
@@ -382,11 +373,6 @@ def flag(code):
         return None
     path = os.path.join(FLAG_DIR, code + ".svg")
     if os.path.exists(path):
-        with open(path, "rb") as f:
-            blob = f.read()
-        if b'preserveAspectRatio="none"' not in blob[:3000]:  # flaga zapisana starszą wersją - poprawka raz
-            with open(path, "wb") as f:
-                f.write(_stretchable(blob))
         return path
     if time.time() - _flag_failed.get(code, 0) < 600:
         return None
@@ -400,5 +386,5 @@ def flag(code):
         return None
     os.makedirs(FLAG_DIR, exist_ok=True)
     with open(path, "wb") as f:
-        f.write(_stretchable(blob))
+        f.write(blob)
     return path
