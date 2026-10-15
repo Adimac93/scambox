@@ -125,6 +125,8 @@
     </section>
 
     <section class="view" id="view-inventory">
+      <div class="seg inv-mode" id="invMode"><button data-mode="cards">🎒 Moje karty</button><button data-mode="hof">🏆 Hall of Fame</button></div>
+      <div id="invCards">
       <div class="panel chest-shelf" id="chestShelf" hidden></div>
       <div class="inv-toolbar">
         <div class="seg" id="invCrateSeg"></div>
@@ -140,6 +142,8 @@
       <div class="inv-summary" id="invSummary"></div>
       <div class="inv-grid" id="invGrid"></div>
       <div class="inv-more"><button class="btn" id="invMore">Pokaż więcej</button></div>
+      </div>
+      <div id="hofBody" hidden></div>
     </section>
 
     <!-- ZNAJOMI -->
@@ -202,6 +206,7 @@
   <script src="{{ asset('js/forge.js') }}"></script>
   <script src="{{ asset('js/social.js') }}"></script>
   <script src="{{ asset('js/arena.js') }}"></script>
+  <script src="{{ asset('js/hof.js') }}"></script>
   <script src="{{ asset('js/app.js') }}"></script>
 </body>
 </html>

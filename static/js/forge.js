@@ -7,7 +7,9 @@ const FORGE = {
   slots: [],
   busy: false,
   upg: { inputs: new Set(), target: null, variant: "all", search: "", angle: 0 },
+  bulk: { n: 1, dupes: true, keepSpecial: true },   // wiele kontraktów naraz
 };
+const MAX_BULK_CONTRACTS = 50;  // tyle przyjmie serwer w jednym zapytaniu
 const PICK_LIMIT = 300;
 // ulubione karty (⭐) nie trafiają do kuźni
 const forgeItems = () => S.items.filter(i => !i.fav);
@@ -103,9 +105,101 @@ function renderContract() {
         <button class="btn" id="cClear"${FORGE.slots.length ? "" : " disabled"}>Wyczyść</button>
       </div>
       <button class="big-btn" id="cSign"${slotItems.length === need ? "" : " disabled"}>✍️ PODPISZ KONTRAKT</button>
+      ${bulkPanelHTML(tier, need)}
       ${outcomes ? `<div class="outcomes-title muted small">Możliwe wyniki:</div><div class="outcomes">${outcomes}</div>` : ""}
     </div>
   </div>`;
+}
+
+// ---------------------------------------------------------------- wiele kontraktów naraz
+// karty dobierane automatycznie: nigdy ulubione ani z gabloty; domyślnie zostaje po 1 karcie każdej osoby (najlepszy
+// wariant) i pomijamy warianty specjalne; najpierw najtańsze
+function bulkPool(tier) {
+  const { dupes, keepSpecial } = FORGE.bulk, show = new Set(S.showcase), byPerson = {};
+  S.items.filter(i => person(i.person).rarity === tier).forEach(i => (byPerson[i.person] ||= []).push(i));
+  const out = [];
+  for (const list of Object.values(byPerson)) {
+    list.sort((a, b) => (b.fav - a.fav) || (show.has(b.id) - show.has(a.id)) || varRank(b.variant) - varRank(a.variant) || a.id - b.id);
+    list.forEach((it, k) => {
+      if ((dupes && k === 0) || it.fav || show.has(it.id) || (keepSpecial && isSpecial(it.variant))) return;
+      out.push(it);
+    });
+  }
+  return out.sort((a, b) => a.value - b.value || a.id - b.id);
+}
+
+function bulkPlan(tier) {
+  const need = S.cfg.contractSize[tier], pool = bulkPool(tier);
+  const max = Math.min(MAX_BULK_CONTRACTS, Math.floor(pool.length / need));
+  const n = Math.max(0, Math.min(FORGE.bulk.n, max));
+  const groups = Array.from({ length: n }, (_, k) => pool.slice(k * need, (k + 1) * need));
+  return { need, max, n, groups, items: groups.flat() };
+}
+
+function bulkPanelHTML(tier) {
+  const plan = bulkPlan(tier), value = plan.items.reduce((a, i) => a + i.value, 0);
+  const word = n => plural(n, "kontrakt", "kontrakty", "kontraktów");
+  return `<div class="bulk-contract">
+    <div class="bulk-title">⚡ Wiele kontraktów naraz</div>
+    <div class="bulk-row">
+      <button class="step-btn" data-bulk="-" ${plan.n > 1 ? "" : "disabled"}>−</button>
+      <b class="bulk-n">${plan.n}</b>
+      <button class="step-btn" data-bulk="+" ${plan.n < plan.max ? "" : "disabled"}>+</button>
+      <button class="btn tiny" data-bulk="max" ${plan.max ? "" : "disabled"}>max (${plan.max})</button>
+    </div>
+    <label class="chk"><input type="checkbox" data-bulk-opt="dupes" ${FORGE.bulk.dupes ? "checked" : ""}> tylko duplikaty (zostaje po 1 karcie każdej osoby)</label>
+    <label class="chk"><input type="checkbox" data-bulk-opt="keepSpecial" ${FORGE.bulk.keepSpecial ? "checked" : ""}> pomiń karty w specjalnych wariantach</label>
+    <div class="muted small">${plan.max ? `Zużyjesz <b>${plan.items.length}</b> ${plural(plan.items.length, "kartę", "karty", "kart")} (${fmt(value)}) — najpierw najtańsze. Ulubione ⭐ i karty z gabloty nigdy nie są brane.`
+      : "Za mało kart tej rzadkości (przy tych ustawieniach) na choćby 1 kontrakt."}</div>
+    <button class="btn primary bulk-go" id="cBulk" ${plan.n ? "" : "disabled"}>📜 Wykonaj ${plan.n} ${word(plan.n)}</button>
+  </div>`;
+}
+
+async function runBulkContracts() {
+  if (FORGE.busy) return;
+  const tier = FORGE.tier, plan = bulkPlan(tier);
+  if (!plan.n) return;
+  const value = plan.items.reduce((a, i) => a + i.value, 0);
+  const legendary = rarityIdx(tier) >= 4 ? "\nUwaga: to karty legendarne!" : "";
+  if (!confirm(`Wykonać ${plan.n} ${plural(plan.n, "kontrakt", "kontrakty", "kontraktów")}? Zużyjesz ${plan.items.length} kart o wartości ${fmt(value)}.${legendary}`)) return;
+  FORGE.busy = true;
+  let res;
+  try { res = await api("/api/contracts", { groups: plan.groups.map(g => g.map(i => i.id)) }); }
+  catch (e) { FORGE.busy = false; Sound.error(); toast(e.message, true); return renderContract(); }
+  if (res.discovered?.length) await refreshConfig();
+  removeItems(res.consumed);
+  const got = res.results.map(r => r.item);
+  S.items = [...got.slice().reverse(), ...S.items];
+  applyState(res.state);
+  FORGE.slots = [];
+  FORGE.busy = false;
+  renderContract();
+  showBulkResults(got, value);
+}
+
+function showBulkResults(got, stake) {
+  const gain = got.reduce((a, i) => a + i.value, 0);
+  const sorted = got.slice().sort((a, b) => rarityIdx(person(b.person).rarity) - rarityIdx(person(a.person).rarity) ||
+    varRank(b.variant) - varRank(a.variant) || b.value - a.value);
+  const best = person(sorted[0].person).rarity;
+  const dlg = openDialog(`<div class="bulk-res">
+      <h3>📜 ${got.length} ${plural(got.length, "kontrakt", "kontrakty", "kontraktów")}</h3>
+      <p class="muted">Oddane karty: ${fmt(stake)} → otrzymane: <b>${fmt(gain)}</b></p>
+      <div class="bulk-grid">${sorted.map((it, k) => `<div class="bulk-card${isSpecial(it.variant) ? " special" : ""}" style="animation-delay:${Math.min(k, 30) * 70}ms">
+        ${cardHTML(it.person, it.variant)}</div>`).join("")}</div>
+      <div class="daily-actions">
+        <button class="btn sell" data-bulk-sell>💰 Sprzedaj wszystkie (${fmt(gain)})</button>
+        <button class="btn primary" data-close>✔ Odbierz</button></div>
+    </div>`, "bulk-box");
+  Sound.reveal(best);
+  if (rarityIdx(best) >= 4 || got.some(i => isSpecial(i.variant))) confetti(GOLDS.concat(RAINBOW), 160);
+  announceFirsts(got);
+  dlg.querySelector("[data-bulk-sell]").addEventListener("click", async () => {
+    if (got.some(i => rarityIdx(person(i.person).rarity) >= 4) && !confirm("Wśród nich są karty legendarne lub lepsze. Sprzedać wszystkie?")) return;
+    try { await sellIds(got.map(i => i.id)); } catch (e) { return toast(e.message, true); }
+    closeDialogs();
+    renderForge();
+  });
 }
 
 function contractAutoFill() {
@@ -252,6 +346,7 @@ async function runContract() {
     P.burst(innerWidth / 2, innerHeight / 2, 120, colors, { speed: 12 });
     if (isSpecial(res.item.variant)) confetti(["#9ff6ff", "#ff9ff3", "#fff"], 80);
   }
+  announceFirsts([res.item]);
   reel.hidden = true;
   const box = el.querySelector(".fa-result");
   box.hidden = false;
@@ -449,6 +544,7 @@ async function runUpgrade() {
     fx().burst(cx, cy, 180, rr === "ultra" ? RAINBOW : ["#3ddc84", "#b6ff5c", "#ffffff", S.cfg.rarities[rr].color], { speed: 14 });
     if (rarityIdx(rr) >= 4) { await sleep(600); await epicReveal(res.item, { fast }); }
     else confetti(["#3ddc84", "#b6ff5c", "#fff", S.cfg.rarities[rr].color], 120);
+    announceFirsts([res.item]);
     box.innerHTML = `<div class="upg-res-label win">WYGRANA!</div>${cardHTML(res.item.person, res.item.variant)}<div class="muted small">kliknij kartę, aby ją obejrzeć</div>`;
   } else {
     wheel.classList.add("lost");
@@ -480,6 +576,10 @@ function bindForge() {
     const b = e.target.closest("button"); if (!b || FORGE.busy) return;
     FORGE.mode = b.dataset.mode; Sound.click(); renderForge();
   });
+  $("#forgeBody").addEventListener("change", e => {
+    const opt = e.target.closest("[data-bulk-opt]");
+    if (opt) { FORGE.bulk[opt.dataset.bulkOpt] = opt.checked; renderContract(); }
+  });
   $("#forgeBody").addEventListener("click", e => {
     const t = e.target;
     if (FORGE.busy) {
@@ -501,6 +601,13 @@ function bindForge() {
       if (t.closest("#cAuto")) return contractAutoFill();
       if (t.closest("#cClear")) { FORGE.slots = []; Sound.click(); return renderContract(); }
       if (t.closest("#cSign")) return runContract();
+      if (t.closest("#cBulk")) return runBulkContracts();
+      const b = t.closest("[data-bulk]");
+      if (b) {
+        const plan = bulkPlan(FORGE.tier);
+        FORGE.bulk.n = b.dataset.bulk === "max" ? plan.max : Math.max(1, Math.min(plan.max, plan.n + (b.dataset.bulk === "+" ? 1 : -1)));
+        Sound.click(); return renderContract();
+      }
     } else {
       const u = FORGE.upg;
       const pick = t.closest(".pick");

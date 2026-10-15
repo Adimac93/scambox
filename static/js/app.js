@@ -21,7 +21,8 @@ const S = {
   fast: false,
   binderCrate: null,
   spread: 0,
-  inv: { crate: "all", rarities: new Set(), variant: "all", sort: "new", limit: INV_PAGE, selected: new Set() },
+  inv: { crate: "all", rarities: new Set(), variant: "all", sort: "new", limit: INV_PAGE, selected: new Set(),
+         mode: "cards" },        // mode: "cards" = moje karty, "hof" = Hall of Fame (/inventory/hall-of-fame)
   opening: null,
   me: null,               // zalogowany gracz
   showcase: [],           // id kart w mojej gablocie
@@ -438,6 +439,7 @@ function setupInstall() {
 const VIEW_PATHS = { crates: "/crates", binder: "/binder", inventory: "/inventory", forge: "/forge", friends: "/friends", ranking: "/ranking", arena: "/arena" };
 
 function viewPath(view) {
+  if (view === "inventory" && S.inv.mode === "hof") return "/inventory/hall-of-fame";
   return view === "profile" ? "/player/" + encodeURIComponent(PROF.username || S.me.username) : VIEW_PATHS[view] || "/";
 }
 
@@ -445,11 +447,13 @@ function routeFromPath(path = location.pathname) {
   const m = path.match(/^\/player\/([^/]+)\/?$/);
   if (m) return { view: "profile", user: decodeURIComponent(m[1]) };
   const clean = path.replace(/\/+$/, "") || "/";
+  if (clean === "/inventory/hall-of-fame") return { view: "inventory", hof: true };
   return { view: Object.keys(VIEW_PATHS).find(v => VIEW_PATHS[v] === clean) || "crates" };
 }
 
 function showRoute(how = "none") {
   const r = routeFromPath();
+  if (r.view === "inventory") S.inv.mode = r.hof ? "hof" : "cards";
   if (r.view === "profile") openProfile(r.user, how);
   else switchView(r.view, how);
 }
@@ -845,6 +849,7 @@ function showResults(afterEpic = false) {
   o.spinning = false;
   o.showingResults = true;
   const n = o.drops.length;
+  announceFirsts(o.drops);
   $("#reels").hidden = true;
   const results = $("#results");
   results.hidden = false;
@@ -1179,6 +1184,11 @@ function renderChestShelf() {
 }
 
 function renderInventory() {
+  const hof = S.inv.mode === "hof";
+  $$("#invMode [data-mode]").forEach(b => b.classList.toggle("active", b.dataset.mode === S.inv.mode));
+  $("#invCards").hidden = hof;
+  $("#hofBody").hidden = !hof;
+  if (hof) return renderHallOfFame();
   renderChestShelf();
   const f = S.inv;
   const inCrate = id => S.items.filter(i => { const p = person(i.person); return (p.crates || [p.crate]).includes(id); }).length;
@@ -1212,7 +1222,7 @@ function updateSellbar() {
   $("#selInfo").textContent = `Zaznaczono ${sel.length}` + (sel.length ? ` (${fmt(sel.reduce((a, i) => a + i.value, 0))})` : "");
   $("#sellSel").disabled = !sel.length;
   $("#selNone").disabled = !sel.length;
-  $("#sellbar").hidden = currentView() !== "inventory" || !S.items.length;
+  $("#sellbar").hidden = currentView() !== "inventory" || S.inv.mode === "hof" || !S.items.length;
 }
 
 async function sellSelected() {
@@ -1242,7 +1252,9 @@ async function sellAllDupes() {
 function bind() {
   $$(".tab").forEach(t => t.addEventListener("click", e => {
     if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;  // otwieranie w nowej karcie przeglądarki
-    e.preventDefault(); Sound.click(); switchView(t.dataset.view);
+    e.preventDefault(); Sound.click();
+    if (t.dataset.view === "inventory") S.inv.mode = "cards";  // zakładka = moje karty (Hall of Fame ma własny przycisk)
+    switchView(t.dataset.view);
   }));
   window.addEventListener("popstate", () => showRoute("none"));
 
@@ -1365,6 +1377,7 @@ function bind() {
   bindForge();
   bindSocial();
   bindArena();
+  bindHallOfFame();
 
   // nagłówek
   $("#soundBtn").addEventListener("click", () => { Sound.toggle(); renderHeader(); });

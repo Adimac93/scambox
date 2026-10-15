@@ -117,7 +117,31 @@ def init_db():
         print("  Wczytano karty i skrzynki z catalog_export.json")
     export_catalog.copy_custom_images()
     catalog.rebuild(conn)
+    backfill_hall_of_fame(conn)
     conn.close()
+
+
+def backfill_hall_of_fame(conn):
+    """Hall of Fame zapisujemy od tej aktualizacji. Jednorazowo (pusta tabela) uzupełniamy ją z historii: karty, które
+    gracze mają teraz (czas wylosowania) i aktywność (legendarne+ - też te później sprzedane). Liczby są przybliżone."""
+    if conn.execute("SELECT 1 FROM hall_of_fame LIMIT 1").fetchone():
+        return
+    best = {}  # (osoba, wariant) -> [gracz, czas, ile kart, ile wpisów w aktywności]
+    for r in conn.execute("SELECT person_id, variant, user_id, created_at FROM items WHERE user_id IS NOT NULL"):
+        b = best.setdefault((r[0], r[1] or "normal"), [None, None, 0, 0])
+        b[2] += 1
+        if b[1] is None or r[3] < b[1]:
+            b[0], b[1] = r[2], r[3]
+    for r in conn.execute("SELECT author_id, person_id, variant, created_at FROM feed "
+                          "WHERE kind IN ('drop', 'contract', 'upgrade') AND person_id IS NOT NULL"):
+        b = best.setdefault((r[1], r[2] or "normal"), [None, None, 0, 0])
+        b[3] += 1
+        if b[1] is None or r[3] < b[1]:
+            b[0], b[1] = r[0], r[3]
+    for (pid, variant), (user_id, at, n_items, n_feed) in best.items():
+        conn.execute("INSERT INTO hall_of_fame (person_id, variant, first_user_id, first_at, source, drops) "
+                     "VALUES (?, ?, ?, ?, 'drop', ?) ON CONFLICT DO NOTHING", (pid, variant, user_id, at, max(n_items, n_feed)))
+    conn.commit()
 
 
 def init_sqlite(conn):
@@ -170,6 +194,9 @@ def init_sqlite(conn):
                                                 PRIMARY KEY (user_id, kind));
         CREATE TABLE IF NOT EXISTS arena_daily (user_id INTEGER NOT NULL, day TEXT NOT NULL, wins INTEGER NOT NULL DEFAULT 0,
                                                 PRIMARY KEY (user_id, day));
+        CREATE TABLE IF NOT EXISTS hall_of_fame (person_id TEXT NOT NULL, variant TEXT NOT NULL, first_user_id INTEGER,
+                                                 first_at REAL NOT NULL, source TEXT NOT NULL DEFAULT 'drop',
+                                                 drops INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (person_id, variant));
         CREATE TABLE IF NOT EXISTS admin_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             created_at REAL NOT NULL,
@@ -508,13 +535,25 @@ def collected_list(user_id):
             if r[0] in catalog.PEOPLE]
 
 
-def insert_item(person_id, variant):
+def insert_item(person_id, variant, source="drop"):
+    """Nowa karta gracza (source: drop = ze skrzynki, contract, upgrade - do Hall of Fame)."""
     now = time.time()
     note_collected(uid(), person_id, variant)
     new_id = db().execute("INSERT INTO items (person_id, holo, variant, created_at, user_id) VALUES (?, ?, ?, ?, ?) "
                           "RETURNING id", (person_id, int(variant != "normal"), variant, now, uid())).fetchone()[0]
     return {"id": new_id, "person": person_id, "variant": variant,
-            "value": card_value(catalog.PEOPLE[person_id], variant), "created": now, "fav": False}
+            "value": card_value(catalog.PEOPLE[person_id], variant), "created": now, "fav": False,
+            "first": note_hall_of_fame(person_id, variant, source, now)}
+
+
+def note_hall_of_fame(person_id, variant, source, now):
+    """Hall of Fame: kto pierwszy zdobył tę kartę w tym wariancie (i kiedy) + ile ich w ogóle wypadło.
+    Zwraca True, gdy to pierwsza taka karta w grze."""
+    cur = db().execute("INSERT INTO hall_of_fame (person_id, variant, first_user_id, first_at, source, drops) "
+                       "VALUES (?, ?, ?, ?, ?, 0) ON CONFLICT (person_id, variant) DO NOTHING",
+                       (person_id, variant, uid(), now, source))
+    db().execute("UPDATE hall_of_fame SET drops = drops + 1 WHERE person_id = ? AND variant = ?", (person_id, variant))
+    return cur.rowcount == 1
 
 
 def note_drops(items, kind="drop"):
@@ -555,6 +594,7 @@ def public_person(p, found):
 
 @app.route("/")
 @app.route("/<any(crates, binder, inventory, forge, friends, ranking, arena):view>")
+@app.route("/inventory/hall-of-fame")
 @app.route("/player/<name>")
 @login_required
 def index(view=None, name=None):
@@ -853,42 +893,93 @@ def set_favorite():
     return jsonify({"ok": True})
 
 
+class ContractError(Exception):
+    """Kontrakt niezgodny z zasadami - komunikat dla gracza."""
+
+
+MAX_BULK_CONTRACTS = 50   # ile kontraktów naraz
+
+
+def contract_candidates(crate_id, target, max_mult):
+    # wynik nie może być "droższą" kartą (np. tylko ze skrzynek po 500 $) niż najtańsza z włożonych
+    return [p for p in catalog.CRATES[crate_id]["people"] if p["rarity"] == target and p.get("valueMult", 1) <= max_mult]
+
+
+def contract_check(ids):
+    """Sprawdza karty jednego kontraktu (nic nie zmienia). Zwraca plan albo rzuca ContractError."""
+    rows = owned_rows(ids)
+    if rows is None:
+        raise ContractError("Nie masz tych kart")
+    if any(r["favorite"] for r in rows):
+        raise ContractError(FAV_ERROR)
+    rarities = {catalog.PEOPLE[r["person_id"]]["rarity"] for r in rows}
+    rarity = rarities.pop() if len(rarities) == 1 else None
+    if rarity is not None and rarity not in CONTRACT_SIZE:
+        raise ContractError("Z tych kart nie da się nic wytworzyć — tajnych kart nie można zrobić w kuźni")
+    if rarity not in CONTRACT_SIZE:
+        raise ContractError("Wszystkie karty muszą mieć tę samą rzadkość")
+    if len(rows) != CONTRACT_SIZE[rarity]:
+        raise ContractError(f"Kontrakt wymaga {CONTRACT_SIZE[rarity]} kart")
+    target = RARITY_ORDER[RARITY_ORDER.index(rarity) + 1]
+    max_mult = min(catalog.PEOPLE[r["person_id"]].get("valueMult", 1) for r in rows)
+    pool = [c for c in (catalog.PEOPLE[r["person_id"]]["crate"] for r in rows) if contract_candidates(c, target, max_mult)]
+    if not pool:
+        raise ContractError("W tych skrzynkach nie ma kart wyższej rzadkości")
+    return {"ids": ids, "target": target, "max_mult": max_mult, "pool": pool,
+            "specials": sum(r["variant"] != "normal" for r in rows)}
+
+
+def contract_exec(plan):
+    """Wykonuje sprawdzony kontrakt: zabiera karty, losuje nową. Zwraca (karta, skrzynka wyniku)."""
+    crate_id = rng.choice(plan["pool"])
+    person = rng.choice(contract_candidates(crate_id, plan["target"], plan["max_mult"]))
+    delete_items(plan["ids"])
+    item = insert_item(person["id"], roll_variant(1 + CONTRACT_VARIANT_BONUS * plan["specials"]), "contract")
+    add_state("contracts", 1)
+    return item, crate_id
+
+
 @app.post("/api/contract")
 @login_required
 def contract():
     lock_me()
     ids = [int(i) for i in request.get_json(force=True).get("ids", [])]
-    rows = owned_rows(ids)
-    if rows is None:
-        return jsonify({"error": "Nie masz tych kart"}), 400
-    if any(r["favorite"] for r in rows):
-        return jsonify({"error": FAV_ERROR}), 400
-    rarities = {catalog.PEOPLE[r["person_id"]]["rarity"] for r in rows}
-    rarity = rarities.pop() if len(rarities) == 1 else None
-    if rarity is not None and rarity not in CONTRACT_SIZE:
-        return jsonify({"error": "Z tych kart nie da się nic wytworzyć — tajnych kart nie można zrobić w kuźni"}), 400
-    if rarity not in CONTRACT_SIZE:
-        return jsonify({"error": "Wszystkie karty muszą mieć tę samą rzadkość"}), 400
-    if len(rows) != CONTRACT_SIZE[rarity]:
-        return jsonify({"error": f"Kontrakt wymaga {CONTRACT_SIZE[rarity]} kart"}), 400
-    target = RARITY_ORDER[RARITY_ORDER.index(rarity) + 1]
-    # wynik nie może być "droższą" kartą (np. tylko ze skrzynek po 500 $) niż najtańsza z włożonych
-    max_mult = min(catalog.PEOPLE[r["person_id"]].get("valueMult", 1) for r in rows)
-    candidates = lambda c: [p for p in catalog.CRATES[c]["people"]
-                            if p["rarity"] == target and p.get("valueMult", 1) <= max_mult]
-    pool = [catalog.PEOPLE[r["person_id"]]["crate"] for r in rows]
-    pool = [c for c in pool if candidates(c)]
-    if not pool:
-        return jsonify({"error": "W tych skrzynkach nie ma kart wyższej rzadkości"}), 400
-    crate_id = rng.choice(pool)
-    person = rng.choice(candidates(crate_id))
-    specials = sum(r["variant"] != "normal" for r in rows)
-    delete_items(ids)
-    item = insert_item(person["id"], roll_variant(1 + CONTRACT_VARIANT_BONUS * specials))
+    try:
+        plan = contract_check(ids)
+    except ContractError as e:
+        return jsonify({"error": str(e)}), 400
+    item, crate_id = contract_exec(plan)
     new = note_drops([item], "contract")
-    add_state("contracts", 1)
     db().commit()
     return jsonify({"item": item, "crate": crate_id, "consumed": ids, "discovered": new, "state": get_state()})
+
+
+@app.post("/api/contracts")
+@login_required
+def contracts_bulk():
+    """Wiele kontraktów naraz: groups = [[id, id, ...], ...]. Najpierw sprawdzamy wszystkie - błąd w jednym = nic się nie dzieje."""
+    lock_me()
+    groups = request.get_json(force=True).get("groups")
+    if not isinstance(groups, list) or not 1 <= len(groups) <= MAX_BULK_CONTRACTS:
+        return jsonify({"error": f"Naraz można zrobić od 1 do {MAX_BULK_CONTRACTS} kontraktów"}), 400
+    try:
+        groups = [[int(i) for i in g] for g in groups]
+    except (TypeError, ValueError):
+        return jsonify({"error": "Nieprawidłowe żądanie"}), 400
+    all_ids = [i for g in groups for i in g]
+    if len(set(all_ids)) != len(all_ids):
+        return jsonify({"error": "Ta sama karta nie może być w dwóch kontraktach"}), 400
+    try:
+        plans = [contract_check(g) for g in groups]
+    except ContractError as e:
+        return jsonify({"error": str(e)}), 400
+    results = []
+    for plan in plans:
+        item, crate_id = contract_exec(plan)
+        results.append({"item": item, "crate": crate_id})
+    new = note_drops([r["item"] for r in results], "contract")
+    db().commit()
+    return jsonify({"results": results, "consumed": all_ids, "discovered": new, "state": get_state()})
 
 
 @app.post("/api/upgrade")
@@ -916,7 +1007,7 @@ def upgrade():
     roll_ = rng.random()
     win = roll_ < chance
     delete_items(ids)
-    item = insert_item(target["id"], variant) if win else None
+    item = insert_item(target["id"], variant, "upgrade") if win else None
     new = note_drops([item], "upgrade") if win else []
     add_state("upgrades_won" if win else "upgrades_lost", 1)
     db().commit()
@@ -1496,6 +1587,18 @@ def me():
     return jsonify({"user": user_json(u), "dailyClaimable": daily_info(me_id)["claimable"],
                     "incoming": incoming, "unread": unread, "trades": trades_in,
                     "patchNotes": [n for n in PATCH_NOTES if n["v"] > seen][:3]})  # nowości od ostatniej wizyty
+
+
+@app.get("/api/halloffame")
+@login_required
+def hall_of_fame():
+    """Hall of Fame: dla każdej karty i wariantu - kto pierwszy ją zdobył, kiedy, skąd i ile ich wypadło."""
+    rows = [r for r in db().execute("SELECT * FROM hall_of_fame") if r["person_id"] in catalog.PEOPLE]
+    ids = {r["first_user_id"] for r in rows if r["first_user_id"]}
+    users = {u["id"]: user_json(u) for u in db().execute("SELECT * FROM users") if u["id"] in ids}
+    return jsonify({"rows": [{"p": r["person_id"], "v": r["variant"], "u": r["first_user_id"], "t": r["first_at"],
+                              "s": r["source"], "n": r["drops"]} for r in rows],
+                    "users": users})
 
 
 @app.get("/api/patchnotes")

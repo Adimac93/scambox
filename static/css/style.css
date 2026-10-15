@@ -590,3 +590,45 @@ select { background: var(--panel); color: var(--text); border: 1px solid var(--l
 .pn-note ul { margin: 8px 0 2px; padding: 0; list-style: none; display: grid; gap: 7px; line-height: 1.45; }
 .pn-note li b { color: var(--accent); }
 .pn .daily-actions { justify-content: center; }
+
+/* Ekwipunek: przełącznik Moje karty / Hall of Fame */
+.inv-mode { margin-bottom: 14px; }
+.inv-mode button { font-size: 15px; }
+/* Hall of Fame */
+.hof-head h2 { margin: 0 0 6px; font-family: Bungee, Rubik, sans-serif; font-weight: 400; }
+.hof-head p { margin: 0; line-height: 1.5; }
+.hof-sub { margin: 14px 0 8px; font-size: 15px; }
+.hof-recent { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.hof-recent-item { display: flex; gap: 10px; align-items: center; background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 8px; min-width: 0; }
+.hof-ri-text { min-width: 0; line-height: 1.35; font-size: 14px; }
+.hof-ri-text b { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.hof-vtag { font-size: 11px; font-weight: 800; padding: 1px 6px; border-radius: 6px; background: var(--panel); border: 1px solid var(--line); }
+.hof-toolbar { margin-top: 14px; }
+.hof-toolbar input[type=search] { min-width: 180px; }
+.hof-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
+.hof-card { display: flex; gap: 12px; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--rc); border-radius: 14px; padding: 10px 12px; min-width: 0; }
+.hof-card.none { opacity: .55; }
+.hof-thumb { flex: none; width: 64px; height: 76px; border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 2px var(--rc); cursor: pointer; background: #222; }
+.hof-thumb.masked { cursor: default; }
+.hof-thumb img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; display: block; }
+.hof-info { flex: 1; min-width: 0; }
+.hof-name { font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hof-meta { font-size: 13px; color: var(--muted); margin: 2px 0 6px; }
+.hof-vars { display: flex; flex-direction: column; gap: 4px; }
+.hof-var { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.5fr) auto auto; gap: 8px; align-items: center; font-size: 13px;
+  padding: 3px 6px; border-radius: 8px; background: var(--panel2); }
+.hof-vname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 700; }
+.hof-first { min-width: 0; overflow: hidden; white-space: nowrap; }
+.hof-first .ulink { max-width: 100%; }
+.hof-when { font-size: 12px; white-space: nowrap; }
+.hof-n { font-weight: 800; white-space: nowrap; }
+.hof-nobody { margin-top: 6px; }
+@media (max-width: 700px) {
+  .hof-grid { grid-template-columns: 1fr; }
+  .hof-var { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) auto; }
+  .hof-when { display: none; }
+}
+/* Hall of Fame: mniejsze linki do graczy (ikona + nazwa w jednej linii z 🥇) */
+:is(.hof-ri-text, .hof-first) .ulink { display: inline-flex; vertical-align: middle; gap: 4px; font-size: 13px; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+:is(.hof-ri-text, .hof-first) .ulink .av { font-size: 15px; width: 18px; height: 18px; flex: none; }
+:is(.hof-ri-text, .hof-first) .ulink .av img { width: 18px; height: 18px; }
