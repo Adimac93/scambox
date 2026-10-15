@@ -11,7 +11,7 @@ import json
 import os
 import shutil
 
-import data
+import data as game_data  # 'data' to też nazwa zmiennej w export()
 import database
 import images
 
@@ -43,7 +43,7 @@ def export(db_path=os.path.join(BASE_DIR, "game.db")):
             shutil.copy2(path, os.path.join(IMAGES_DIR, os.path.basename(path)))
             copied += 1
     # zdjęcia wariantów przypisanych do kart (np. Rzulty Jana Pawła II)
-    for v, info in data.VARIANTS.items():
+    for v, info in game_data.VARIANTS.items():
         for pid in info.get("cards") or []:
             path = images.find(pid, v)
             if path:
