@@ -414,17 +414,11 @@ MAX_ABILITY_EFFECTS = 3
 # ============================================================ LISTA ZMIAN (pokazywana raz po aktualizacji)
 # Najnowsza na górze. "v" musi rosnąć z każdą nową wersją - gracz zobaczy wpisy nowsze niż ostatnio obejrzany.
 PATCH_NOTES = [
-    {"v": 3, "date": "2026-10-15", "title": "Rzulty",
-     "items": [
-         "💛 Nowy, najrzadszy wariant w grze: <b>Rzulty</b>. Tylko dla jednej, wyjątkowej tajnej karty — cała karta na żółto i własne zdjęcie (kremówki w zestawie nie ma 😉).",
-         "🎲 Szansa: 1 na 2 137 420 skrzynek — odrobinę rzadziej niż Negatyw tej samej karty.",
-     ]},
     {"v": 2, "date": "2026-10-15", "title": "Hall of Fame i wiele kontraktów naraz",
      "items": [
          "🏆 Nowa podstrona w Ekwipunku: <b>Hall of Fame</b> — kto pierwszy zdobył każdą kartę i każdy jej wariant, kiedy i ile ich wypadło.",
          "🥇 Zdobędziesz kartę albo wariant jako pierwsza osoba w grze? Dostaniesz powiadomienie i trafisz do Hall of Fame.",
          "📜 W Kuźni możesz zrobić <b>wiele kontraktów naraz</b> — karty dobierają się same (domyślnie tylko duplikaty, bez ulubionych, gabloty i specjalnych wariantów).",
-         "🏳️ Odświeżony wariant <b>Flagowy</b>: kolory flagi w ramce, a pod zdjęciem cała flaga.",
      ]},
     {"v": 1, "date": "2026-10-14", "title": "Witaj w ScamBox!",
      "items": [
