@@ -42,8 +42,10 @@ def clean_country(raw):
 
 
 def crate_variants(crate, person=None):
-    """Warianty wyjątkowe, które mogą wypaść z tej skrzynki (dla tej karty: flagowy tylko z ustawionym krajem)."""
-    return [v for v in crate.get("variants") or [] if v != "flag" or person is None or person.get("country")]
+    """Warianty wyjątkowe, które mogą wypaść z tej skrzynki (dla tej karty: flagowy tylko z ustawionym krajem,
+    plus warianty przypisane do samej karty, np. Rzulty)."""
+    out = [v for v in crate.get("variants") or [] if v != "flag" or person is None or person.get("country")]
+    return out + (data.card_variants(person["id"]) if person is not None else [])
 
 
 def _int(v, lo, hi, default=None):
@@ -185,7 +187,7 @@ def rebuild(conn):
         crate["restricted"] = bool(crate.get("restricted", False))
         # warianty wyjątkowe (np. Królewski, Flagowy) - tylko te, które admin włączył (albo domyślne z data.py)
         chosen = crate["variants"] if "variants" in crate else data.DEFAULT_CRATE_VARIANTS.get(cid, [])
-        crate["variants"] = [v for v in data.EXCLUSIVE_VARIANTS if v in (chosen or [])]
+        crate["variants"] = [v for v in data.CRATE_VARIANTS if v in (chosen or [])]
         crate["weights"] = {r: float(w) for r, w in (crate.get("weights") or {}).items() if r in data.RARITIES}
         # tajna karta: zawsze 1 na SECRET_ODDS otwartych skrzynek (chyba że admin ustawi inaczej)
         crate["autoSecret"] = "secret" not in crate["weights"]

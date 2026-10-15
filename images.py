@@ -72,7 +72,8 @@ def _api(base, params):
 # ---------------------------------------------------------------- pliki
 
 def _stem(pid, alt=False):
-    return os.path.join(CACHE_DIR, f"{pid}__alt" if alt else pid)
+    """alt: False = zdjęcie główne, True = alternatywne, nazwa wariantu (np. "rzulty") = zdjęcie tego wariantu karty."""
+    return os.path.join(CACHE_DIR, pid if not alt else f"{pid}__alt" if alt is True else f"{pid}__{alt}")
 
 
 def find(pid, alt=False):

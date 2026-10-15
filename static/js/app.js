@@ -9,7 +9,7 @@ const fmt = n => Math.round(n).toLocaleString("pl-PL") + " $";
 
 const COUNT_CHIPS = [1, 2, 3, 5, 10, 15, 20];
 const INV_PAGE = 120;
-const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", silver: "SILVER", holo: "HOLO", gold: "GOLDEN", flag: "FLAG", clear: "🫧 CLEAR", emerald: "💚 EMERALD", ruby: "❤️ RUBY", royal: "👑 ROYAL", diamond: "💎 DIAMOND", negative: "◐ NEGATIVE" };
+const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", silver: "SILVER", holo: "HOLO", gold: "GOLDEN", flag: "FLAG", clear: "🫧 CLEAR", emerald: "💚 EMERALD", ruby: "❤️ RUBY", royal: "👑 ROYAL", diamond: "💎 DIAMOND", negative: "◐ NEGATIVE", rzulty: "💛 RZULTY" };
 const GEMS = ["emerald", "ruby", "diamond"];  // warianty z kamieniami szlachetnymi - wspólny wygląd, inne kolory
 
 const S = {
@@ -52,9 +52,15 @@ function varRank(v) { return S.cfg.variantOrder.indexOf(v || "normal"); }
 function isExclusive(v) { return !!S.cfg.variants[v]?.exclusive; }
 // warianty specjalne, które mogą wypaść z tej skrzynki: zwykłe zawsze, wyjątkowe tylko włączone w skrzynce
 // (flagowy - tylko dla kart z ustawionym krajem)
+// (warianty z polem "cards", np. Rzulty, należą do konkretnych kart - nie do skrzynki)
 function crateVariants(crate, p = null) {
-  return S.cfg.variantOrder.filter(v => isSpecial(v) && (!isExclusive(v) ||
-    ((crate?.variants || []).includes(v) && (v !== "flag" || !p || p.country))));
+  return S.cfg.variantOrder.filter(v => {
+    if (!isSpecial(v)) return false;
+    const V = S.cfg.variants[v];
+    if (!V.exclusive) return true;
+    if (V.cards) return !!p && V.cards.includes(p.id);
+    return (crate?.variants || []).includes(v) && (v !== "flag" || !p || p.country);
+  });
 }
 function flagUrl(country) { return `/flag/${encodeURIComponent(country)}.svg?v=2`; }  // v: zmiana wersji plików flag (pamięć przeglądarki)
 
@@ -128,9 +134,10 @@ function cardValue(pid, v = "normal") {
   const p = person(pid);  // valueMult: karty tylko z droższych skrzynek są warte więcej (liczy serwer)
   return Math.round(S.cfg.rarities[p.rarity].value * (p.valueMult || 1) * S.cfg.variants[v || "normal"].mult);
 }
-function imgUrl(pid) {
-  const p = person(pid);
-  return `/img/${pid}?v=${p.imgv || 0}${p.imgq ? "&" + p.imgq : ""}`;
+// zdjęcie karty; wariant z własnym zdjęciem (np. Rzulty Jana Pawła II) -> /img/<id>/<wariant>
+function imgUrl(pid, variant = null) {
+  const p = person(pid), vv = variant && p.variantPhotos?.[variant];
+  return `/img/${pid}${vv != null ? "/" + variant : ""}?v=${vv ?? (p.imgv || 0)}${p.imgq ? "&" + p.imgq : ""}`;
 }
 // ikona gracza: zdjęcie wybranej karty albo emoji
 function avatarHTML(u, cls = "av") {
@@ -150,6 +157,7 @@ function crateStyle(c) {
 function variantLayers(v, p = null) {
   let html = "";
   if (v === "royal") html += '<div class="gold-sheen"></div><div class="royal-border"></div><div class="royal-crown"></div>';
+  if (v === "rzulty") html += '<div class="rzulty-tint"></div>';  // żółty filtr na całej karcie
   if (v === "flag" && p?.rarity === "secret") html += '<div class="flag-tint"></div>';  // tajna: flaga na całym zdjęciu
   if (v === "flag" && p?.country) return html + `<div class="var-tag vt-flag"><img src="${flagUrl(p.country)}" alt="">${esc(p.country.toUpperCase())}</div>`;
   if (v === "holo") html += '<div class="holo-layer"></div>';
@@ -194,7 +202,7 @@ function cardHTML(pid, variant = "normal") {
         <span class="card-hp"><small>HP</small>${p.hp}</span>
         <span class="card-type">${type.icon}</span>
       </div>
-      <div class="card-photo"><img src="${imgUrl(p.id)}" alt="${esc(p.name)}" loading="lazy" draggable="false"></div>
+      <div class="card-photo"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false"></div>
       ${variant === "flag" && p.country ? '<div class="flag-banner"></div>' : ""}
       <div class="card-sub">${type.name} · ${esc(crate.short)}</div>
       ${abils.map((a, i) => `<div class="card-attack${i ? " atk2" : ""}${a.kind === "def" ? " def" : ""}">
@@ -225,7 +233,7 @@ function secretCardHTML(p, variant) {
   return `
   <div class="card r-secret v-${variant}" data-pid="${p.id}" data-variant="${variant}"${flagStyle(p, variant)}>
     <div class="sc">
-      <div class="sc-art"><img src="${imgUrl(p.id)}" alt="${esc(p.name)}" loading="lazy" draggable="false"></div>
+      <div class="sc-art"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false"></div>
       <div class="sc-halo"></div>
       <div class="sc-stars"></div>
       ${variant === "reverse" ? '<div class="rev-foil"></div>' : ""}

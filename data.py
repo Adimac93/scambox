@@ -33,12 +33,24 @@ VARIANTS = {
     "royal":   {"name": "Królewska",    "chance": 0.004, "mult": 15.0, "exclusive": True,   # wyjątkowy (Skrzynia Królów)
                 "desc": "Ozdobna złota rama z ornamentami i złota korona na górze."},
     "diamond": {"name": "Diamentowa",   "chance": 0.003, "mult": 18.0},
-    "negative": {"name": "Negatyw",     "chance": 0.001, "mult": 30.0},   # najrzadszy
+    "negative": {"name": "Negatyw",     "chance": 0.001, "mult": 30.0},
+    # wariant jednej karty (pole "cards"): Jan Paweł II. Tajna karta wypada raz na 2137 skrzynek, więc Negatyw JP2 to
+    # 1 na 2 137 000 skrzynek - Rzulty ma być trochę rzadszy: 1 na 2 137 420 (szansa na wariant przy wypadnięciu JP2).
+    # Może mieć własne zdjęcie (panel admina, edycja karty); cała karta ma żółty filtr.
+    "rzulty":  {"name": "Rzulty",       "chance": 2137 / 2_137_420, "mult": 31.0, "exclusive": True, "cards": ["pl_secret"],
+                "desc": "Wariant tylko jednej karty - żółty filtr na całej karcie i własne zdjęcie."},   # najrzadszy
 }
 VARIANT_ORDER = list(VARIANTS)   # od najpospolitszego do najrzadszego
 # Warianty wyjątkowe ("exclusive"): wypadają TYLKO ze skrzynek, w których admin je włączył (pole skrzynki "variants"),
 # nie da się ich dostać z kontraktu ani z ulepszacza.
 EXCLUSIVE_VARIANTS = [v for v, x in VARIANTS.items() if x.get("exclusive")]
+# te można włączać w skrzynkach (panel admina); warianty z polem "cards" należą do konkretnych kart
+CRATE_VARIANTS = [v for v in EXCLUSIVE_VARIANTS if not VARIANTS[v].get("cards")]
+
+
+def card_variants(pid):
+    """Warianty przypisane tylko do tej karty (np. Rzulty dla Jana Pawła II) - mogą mieć własne zdjęcie."""
+    return [v for v, x in VARIANTS.items() if pid in (x.get("cards") or [])]
 # domyślne warianty wyjątkowe skrzynek - dopóki admin nie zapisze w panelu własnego wyboru
 DEFAULT_CRATE_VARIANTS = {"skrzynia_krolow": ["royal"]}
 
@@ -402,6 +414,11 @@ MAX_ABILITY_EFFECTS = 3
 # ============================================================ LISTA ZMIAN (pokazywana raz po aktualizacji)
 # Najnowsza na górze. "v" musi rosnąć z każdą nową wersją - gracz zobaczy wpisy nowsze niż ostatnio obejrzany.
 PATCH_NOTES = [
+    {"v": 3, "date": "2026-10-15", "title": "Rzulty",
+     "items": [
+         "💛 Nowy, najrzadszy wariant w grze: <b>Rzulty</b>. Tylko dla jednej, wyjątkowej tajnej karty — cała karta na żółto i własne zdjęcie (kremówki w zestawie nie ma 😉).",
+         "🎲 Szansa: 1 na 2 137 420 skrzynek — odrobinę rzadziej niż Negatyw tej samej karty.",
+     ]},
     {"v": 2, "date": "2026-10-15", "title": "Hall of Fame i wiele kontraktów naraz",
      "items": [
          "🏆 Nowa podstrona w Ekwipunku: <b>Hall of Fame</b> — kto pierwszy zdobył każdą kartę i każdy jej wariant, kiedy i ile ich wypadło.",

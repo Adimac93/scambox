@@ -132,3 +132,8 @@ fieldset .chk { display: flex; margin: 4px 0; color: var(--text); font-size: 14p
 .a-country-row { display: flex; gap: 8px; align-items: center; }
 .a-country-row input { max-width: 120px; text-transform: uppercase; }
 .a-flag { height: 30px; border-radius: 4px; box-shadow: 0 0 0 1px #0006; }
+
+/* zdjęcie wariantu jednej karty (np. Rzulty) */
+.a-vphoto-row { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+.a-vphoto-row .a-img-box { width: 120px; flex: none; }
+.a-vphoto-row .a-grid { flex: 1; min-width: 220px; }

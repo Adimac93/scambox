@@ -225,6 +225,18 @@ function openCardForm(id) {
         </div>
       </fieldset>
 
+      ${(c.cardVariants || []).map(v => `<fieldset class="a-vphoto">
+        <legend>📷 Zdjęcie wariantu ${esc(A.cat.variants[v].name)} <small class="muted">(wariant tylko tej karty — gdy brak, zwykłe zdjęcie)</small></legend>
+        <div class="a-vphoto-row">
+          <div class="a-img-box"><img src="${(c.variantPhotos || {})[v] != null ? `/img/${esc(c.id)}/${v}?admin=1&v=${c.variantPhotos[v]}` : ""}" alt="" id="prevV_${v}" ${(c.variantPhotos || {})[v] != null ? "" : "hidden"}><span>${esc(A.cat.variants[v].name)}</span></div>
+          <div class="a-grid">
+            <label class="wide">Adres obrazka (URL)<input type="text" name="image_url_v_${v}" placeholder="https://…"></label>
+            <label class="wide">…albo plik z dysku<input type="file" name="image_v_${v}" accept="image/jpeg,image/png,image/webp,image/gif" data-prev="prevV_${v}"></label>
+            ${(c.variantPhotos || {})[v] != null ? `<label class="chk"><input type="checkbox" name="remove_v_${v}" value="1"> usuń to zdjęcie</label>` : ""}
+          </div>
+        </div>
+      </fieldset>`).join("")}
+
       <div class="a-actions">
         <button class="btn primary" type="submit">💾 ${isNew ? "Dodaj kartę" : "Zapisz"}</button>
         ${!isNew && !c.hidden ? '<button class="btn" type="button" data-act="refetch">🔄 Pobierz zdjęcie ponownie</button>' : ""}

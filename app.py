@@ -24,7 +24,7 @@ from data import (ABILITY_KINDS, ARENA, ARENA_EFFECT_TARGETS, ARENA_EFFECTS, ARE
                   MAX_ABILITY_EFFECTS, MAX_EXTRA_ABILITIES, CONTRACT_SIZE, CONTRACT_VARIANT_BONUS, CRATE_PRICE, JACKPOT_WEEKDAY, MAX_DEPOSIT,
                   MAX_OPEN, MONEY_CHESTS, RARITIES, RARITY_ORDER, SECRET_ODDS, SHOWCASE_SIZE,
                   STARTING_BALANCE, TYPES, UPGRADE_EDGE, UPGRADE_MAX, UPGRADE_MAX_ITEMS, VARIANT_ORDER,
-                  VARIANTS, EXCLUSIVE_VARIANTS, PATCH_NOTES, card_value)
+                  VARIANTS, CRATE_VARIANTS, PATCH_NOTES, card_value, card_variants)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEST_MODE = "--test" in sys.argv  # osobny zapis do testów: python app.py --test
@@ -572,6 +572,16 @@ def note_drops(items, kind="drop"):
     return new
 
 
+def variant_photos(pid):
+    """{wariant: wersja} - warianty tej karty, które mają własne zdjęcie (wersja = czas pliku, dla pamięci przeglądarki)."""
+    out = {}
+    for v in card_variants(pid):
+        path = images.find(pid, v)
+        if path:
+            out[v] = int(os.path.getmtime(path)) % 100000
+    return out
+
+
 def img_version(pid):
     paths = [images.find(pid), images.find(pid, True)]
     return int(sum(os.path.getmtime(p) for p in paths if p)) % 100000
@@ -587,6 +597,9 @@ def public_person(p, found):
                                   "kind1", "kind2", "abilities", "arena", "crate", "crates", "number", "valueMult",
                                   "country")}
     base["imgv"] = img_version(p["id"])
+    vp = variant_photos(p["id"])
+    if vp:
+        base["variantPhotos"] = vp
     return base
 
 
@@ -675,7 +688,10 @@ def image(person_id, kind="main"):
                   (u and arena_shows(request.args.get("battle"), person_id))
         if not allowed:
             return svg_response(MYSTERY_SVG)
-    path = images.ensure(person_id, alt=(kind == "alt"))
+    if kind in card_variants(person_id):  # własne zdjęcie wariantu (np. Rzulty), inaczej zwykłe
+        path = images.find(person_id, kind) or images.ensure(person_id)
+    else:
+        path = images.ensure(person_id, alt=(kind == "alt"))
     if path:
         resp = send_file(path, mimetype=images.mimetype(path), max_age=86400)
         if p["rarity"] == "secret":
@@ -1901,6 +1917,7 @@ def admin_card_json(p):
                                        "crate", "crates", "number", "builtin", "modified")},
                 wiki=list(p["wiki"]) if p.get("wiki") else None,
                 hasImage=bool(images.find(p["id"])), hasAlt=bool(images.find(p["id"], True)),
+                cardVariants=card_variants(p["id"]), variantPhotos=variant_photos(p["id"]),
                 imgv=img_version(p["id"]))
 
 
@@ -1963,7 +1980,7 @@ def admin_catalog():
                     "types": TYPES, "abilityKinds": ABILITY_KINDS, "maxExtraAbilities": MAX_EXTRA_ABILITIES,
                     "arena": {"effects": ARENA_EFFECTS, "visuals": ARENA_VISUALS, "targets": ARENA_TARGETS,
                               "effectTargets": ARENA_EFFECT_TARGETS, "maxEffects": MAX_ABILITY_EFFECTS},
-                    "variants": VARIANTS, "exclusiveVariants": EXCLUSIVE_VARIANTS,
+                    "variants": VARIANTS, "exclusiveVariants": CRATE_VARIANTS,
                     "defaultPrice": CRATE_PRICE, "users": users})
 
 
@@ -1990,7 +2007,7 @@ def admin_save_crate():
         "shop": bool(body.get("shop", True)),
         "restricted": bool(body.get("restricted", False)),
         # warianty wyjątkowe (Królewski, Flagowy...) - wypadają tylko ze skrzynek, w których są włączone
-        "variants": [v for v in EXCLUSIVE_VARIANTS if v in (body.get("variants") or [])],
+        "variants": [v for v in CRATE_VARIANTS if v in (body.get("variants") or [])],
     }
     weights = {}
     for r, w in (body.get("weights") or {}).items():
@@ -2121,6 +2138,18 @@ def admin_save_card():
                     warnings.append("Nie znaleziono zdjęcia w artykule Wikipedii")
         except Exception as e:
             warnings.append(f"Zdjęcie{' alt' if alt else ''}: {e}")
+    for v in card_variants(pid):  # własne zdjęcie wariantu tej karty (np. Rzulty)
+        try:
+            upload = request.files.get("image_v_" + v)
+            url = (f.get("image_url_v_" + v) or "").strip()
+            if upload and upload.filename:
+                images.save(pid, upload.read(), v)
+            elif url:
+                images.save_url(pid, url, v)
+            elif f.get("remove_v_" + v) == "1":
+                images.delete(pid, v)
+        except Exception as e:
+            warnings.append(f"Zdjęcie wariantu {VARIANTS[v]['name']}: {e}")
     return jsonify({"ok": True, "id": pid, "warnings": warnings})
 
 

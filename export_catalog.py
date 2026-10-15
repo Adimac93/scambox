@@ -11,6 +11,7 @@ import json
 import os
 import shutil
 
+import data
 import database
 import images
 
@@ -41,6 +42,13 @@ def export(db_path=os.path.join(BASE_DIR, "game.db")):
         if path and (not card["data"].get("wiki") or not path.lower().endswith(".jpg")):
             shutil.copy2(path, os.path.join(IMAGES_DIR, os.path.basename(path)))
             copied += 1
+    # zdjęcia wariantów przypisanych do kart (np. Rzulty Jana Pawła II)
+    for v, info in data.VARIANTS.items():
+        for pid in info.get("cards") or []:
+            path = images.find(pid, v)
+            if path:
+                shutil.copy2(path, os.path.join(IMAGES_DIR, os.path.basename(path)))
+                copied += 1
     return len(out["crates"]), len(out["cards"]), copied
 
 

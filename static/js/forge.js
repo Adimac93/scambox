@@ -13,12 +13,12 @@ const MAX_BULK_CONTRACTS = 50;  // tyle przyjmie serwer w jednym zapytaniu
 const PICK_LIMIT = 300;
 // ulubione karty (⭐) nie trafiają do kuźni
 const forgeItems = () => S.items.filter(i => !i.fav);
-const PICK_TAGS = { bw: "B&W", reverse: "REV", silver: "SILV", holo: "HOLO", gold: "GOLD", flag: "🏳️", clear: "🫧", emerald: "💚", ruby: "❤️", royal: "👑", diamond: "💎", negative: "◐" };
+const PICK_TAGS = { bw: "B&W", reverse: "REV", silver: "SILV", holo: "HOLO", gold: "GOLD", flag: "🏳️", clear: "🫧", emerald: "💚", ruby: "❤️", royal: "👑", diamond: "💎", negative: "◐", rzulty: "💛" };
 
 function pickHTML(item, { sel = false, extra = "" } = {}) {
   const p = person(item.person);
   const v = item.variant || "normal";
-  const img = p.rarity === "secret" && p.masked ? `/img/${p.id}` : imgUrl(p.id);
+  const img = p.rarity === "secret" && p.masked ? `/img/${p.id}` : imgUrl(p.id, v);
   return `<div class="pick r-${p.rarity} v-${v}${sel ? " sel" : ""}" data-id="${item.id}" style="--rc:${S.cfg.rarities[p.rarity].color}">
     <img src="${img}" alt="" loading="lazy" draggable="false">
     ${isSpecial(v) ? `<span class="ph vt-${v}">${PICK_TAGS[v]}</span>` : ""}

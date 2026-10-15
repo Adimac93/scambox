@@ -420,6 +420,7 @@ const AR_ENTER_COLORS = {
   holo: RAINBOW, gold: GOLDS, clear: ["#ffffff", "#e0f7ff", "#bfefff"], emerald: ["#00c853", "#6dffb0", "#fff"],
   ruby: ["#ff1744", "#ff8a9c", "#fff"], diamond: ["#e8fbff", "#9ff6ff", "#c9b8ff", "#fff"], negative: ["#000", "#fff", "#00e5ff"],
   royal: ["#ffd75e", "#fff3c4", "#e0115f", "#1e5bff", "#12b85c", "#9b30ff"], flag: ["#ffffff", "#ff3b3b", "#3b6bff", "#ffd54a"],
+  rzulty: ["#ffe600", "#fff59d", "#ffd000", "#ffffff"],
 };
 async function arEnterFx(unit) {
   const el = unit && arEl(unit.uid); if (!el) return;
@@ -429,7 +430,7 @@ async function arEnterFx(unit) {
   const [x, y] = arCenter(el);
   const special = v !== "normal";
   fx().burst(x, y, special ? 130 : 30, AR_ENTER_COLORS[v] || AR_ENTER_COLORS.normal, { speed: special ? 13 : 6, stars: special ? 0.4 : 0.1 });
-  if (["gold", "diamond", "emerald", "ruby", "negative", "royal", "flag"].includes(v)) Sound.gold(); else Sound.land(person(unit.pid).rarity === "secret" ? "ultra" : person(unit.pid).rarity);
+  if (["gold", "diamond", "emerald", "ruby", "negative", "royal", "flag", "rzulty"].includes(v)) Sound.gold(); else Sound.land(person(unit.pid).rarity === "secret" ? "ultra" : person(unit.pid).rarity);
   await arWait(380);
   el.classList.remove("ar-enter", "ar-enter-" + v);
 }

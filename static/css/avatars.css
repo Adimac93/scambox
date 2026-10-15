@@ -34,3 +34,6 @@
 .avv-royal img { filter: saturate(1.15) sepia(.12); box-shadow: 0 0 0 2px #ffd75e, 0 0 0 4px #6a1b9a, 0 0 14px #ffd75e !important; }
 .avv-flag img { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #dc143c, 0 0 10px #ffffff88 !important; }
 .av-vname.vt-royal { color: #ffd75e; } .av-vname.vt-flag { color: #fff; }
+
+.avv-rzulty img { filter: sepia(1) saturate(3.2) hue-rotate(5deg) brightness(1.05); box-shadow: 0 0 0 2px #ffe600, 0 0 12px #ffe600 !important; }
+.av-vname.vt-rzulty { color: #ffe600; }

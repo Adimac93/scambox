@@ -583,3 +583,15 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 .vdot.vt-flag { background: linear-gradient(180deg, #fff 50%, #dc143c 50%); box-shadow: 0 0 0 1px #0006; }
 .odd.odd-v.vt-flag { border-left-color: #fff; }
 .vchip.vt-flag.active { background: linear-gradient(180deg, #fff 50%, #dc143c 50%); color: #111; }
+
+/* ============================================================ RZULTY (wariant jednej karty - Jan Paweł II)
+   cała karta (ramka, zdjęcie, napisy) przez żółty filtr */
+.rzulty-tint { position: absolute; inset: 0; z-index: 4; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(160deg, #fff200, #ffd000); mix-blend-mode: multiply; opacity: .78; }
+.card.v-rzulty { box-shadow: 0 6px 18px #000a, 0 0 22px #ffe600aa; }
+.var-tag.vt-rzulty, .ph.vt-rzulty { background: #ffe600; color: #3a2f00; text-shadow: none; z-index: 5; }
+.pick.v-rzulty { box-shadow: inset 0 0 0 2px #ffe600, inset 0 -26px 26px -18px var(--rc); }
+.pick.v-rzulty img { filter: sepia(1) saturate(3.2) hue-rotate(5deg) brightness(1.05); }
+.vdot.vt-rzulty { background: #ffe600; box-shadow: 0 0 0 1px #6b5a00, 0 0 6px #ffe600; }
+.odd.odd-v.vt-rzulty { border-left-color: #ffe600; }
+.vchip.vt-rzulty.active { background: #ffe600; color: #3a2f00; }
