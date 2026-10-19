@@ -29,8 +29,8 @@ function arAbilities(p) {
   (p.abilities || []).forEach((a, i) => list.push({ slot: 2 + i, name: a.name, kind: a.kind, value: a.value }));
   return list.map(a => {
     const c = cfg[a.slot] || {};
-    return { ...a, visual: c.visual || (a.kind === "def" ? "bubble" : "hit"),
-             cost: c.cost ?? arAutoCost(a.value), target: c.target || (a.kind === "def" ? "self" : "enemy"), effects: c.effects || [] };
+    return { ...a, visual: c.visual || ({ def: "bubble", heal: "hearts", eco: "money" }[a.kind] || "hit"),
+             cost: c.cost ?? arAutoCost(a.value), target: c.target || (a.kind === "off" ? "enemy" : "self"), effects: c.effects || [] };
   });
 }
 
@@ -396,7 +396,7 @@ function arCallout(unit, ab, primary) {
   const vis = arCfg().visuals[ab.visual]?.icon || "👊";
   const target = primary.length === 1 && primary[0] !== unit ? person(primary[0].pid).name : primary.length > 1 ? (ab.kind === "off" ? "wszyscy wrogowie" : "wszyscy sojusznicy") : "";
   const el = arSpawn(`<div class="hs-call-who"><img src="${imgUrl(unit.pid)}" alt="">${esc(p.name)}${target ? ` <span>→ ${esc(target)}</span>` : ""}</div>
-      <div class="hs-call-ab">${vis} ${esc(ab.name)} <b>${ab.kind === "def" ? "🛡" : "⚔"}${ab.value}</b></div>
+      <div class="hs-call-ab">${vis} ${esc(ab.name)} <b>${kindIcon(ab.kind)}${ab.value}</b></div>
       ${ab.effects.length ? `<div class="hs-call-eff">${ab.effects.map(e => `${arEffect(e.id).icon} ${esc(arEffect(e.id).name)}`).join(" · ")}</div>` : ""}`,
     r.left + r.width / 2, r.top + r.height / 2, `hs-callout ${unit.side}`);
   setTimeout(() => el.remove(), 2600 / AR.speed);
@@ -648,10 +648,10 @@ function arPopoverHTML() {
     <div class="hs-pop-list">
       ${arAbilities(p).map((ab, i) => {
         const why = arCanUse("me", u, ab);
-        return `<button class="hs-ab${ab.kind === "def" ? " def" : ""}" data-ab="${i}" ${why ? `disabled title="${esc(why)}"` : ""}>
+        return `<button class="hs-ab${ab.kind !== "off" ? " " + ab.kind : ""}" data-ab="${i}" ${why ? `disabled title="${esc(why)}"` : ""}>
           <span class="hs-ab-vis">${arCfg().visuals[ab.visual]?.icon || "👊"}</span>
           <span class="hs-ab-name">${esc(ab.name)}</span>
-          <span class="hs-ab-val">${ab.kind === "def" ? "🛡" : "⚔"} ${ab.value}</span>
+          <span class="hs-ab-val">${kindIcon(ab.kind)} ${ab.value}</span>
           <span class="hs-ab-meta">${ab.cost ? `<b class="hs-ab-cost">${ab.cost} 🪙</b>` : "za darmo"} · ${esc(arCfg().targets[ab.target])}</span>
           ${ab.effects.length ? `<span class="hs-ab-eff">${ab.effects.map(e => `${arEffect(e.id).icon} ${esc(arEffect(e.id).name)}`).join(" · ")}</span>` : ""}
         </button>`;
@@ -737,7 +737,7 @@ function arPreview(el) {
   if (!u || u.hidden) return;
   const p = person(u.pid);
   box.innerHTML = `${cardHTML(u.pid, u.variant)}
-    <div class="hs-prev-info">${arAbilities(p).map(ab => `<div><b>${arCfg().visuals[ab.visual]?.icon || ""} ${esc(ab.name)}</b> ${ab.kind === "def" ? "🛡" : "⚔"}${ab.value}
+    <div class="hs-prev-info">${arAbilities(p).map(ab => `<div><b>${arCfg().visuals[ab.visual]?.icon || ""} ${esc(ab.name)}</b> ${kindIcon(ab.kind)}${ab.value}
       ${ab.cost ? ` · ${ab.cost}🪙` : ""}${ab.effects.length ? `<br><small>${ab.effects.map(e => `${arEffect(e.id).icon} ${esc(arEffect(e.id).name)}${e.value && arEffect(e.id).value ? " " + e.value : ""}${arEffect(e.id).turns ? ` (${e.turns} t.)` : ""}`).join(", ")}</small>` : ""}</div>`).join("")}
       ${u.st.length ? `<div class="hs-prev-st">${u.st.map(s => `${arEffect(s.id).icon} ${esc(arEffect(s.id).name)} (${s.turns} t.)`).join("<br>")}</div>` : ""}</div>`;
   const r = el.getBoundingClientRect();

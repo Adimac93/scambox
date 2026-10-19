@@ -246,8 +246,7 @@ function openViewer(pid, variant = "normal") {
     const type = S.cfg.types[p.type];
     const crate = crateOf(p.crate);
     const avail = crateVariants(crate, p);  // warianty możliwe w skrzynce głównej (wyjątkowe tylko, gdy są w niej włączone)
-    const specialsTotal = avail.reduce((a, v) => a + S.cfg.variants[v].chance, 0);
-    const chance = rarityShare(p.crate, p.rarity) * (isSpecial(variant) ? (avail.includes(variant) ? S.cfg.variants[variant].chance : 0) : 1 - specialsTotal);
+    const chance = rarityShare(p.crate, p.rarity) * variantChance(avail, variant);
     // wyjątkowe warianty pokazujemy tylko tam, gdzie da się je zdobyć (albo gdy już je masz)
     const possible = new Set((p.crates || [p.crate]).flatMap(c => crateVariants(crateOf(c), p)));
     const mine = S.items.filter(i => i.person === pid);
@@ -260,7 +259,7 @@ function openViewer(pid, variant = "normal") {
         <div class="muted">${type.icon} ${type.name} · ${esc(crate.name)} · nr ${String(p.number).padStart(3, "0")}/${String(crate.people.length).padStart(3, "0")}</div>
         <table class="vi-table">
           <tr><td>HP</td><td>${p.hp}</td></tr>
-          ${abilitiesOf(p).map((a, i, all) => `<tr><td>${a.kind === "def" ? "🛡️ Obrona" : "Atak"}${all.length > 1 ? " " + (i + 1) : ""}</td><td>${esc(a.name)} <b>${a.value}</b></td></tr>`).join("")}
+          ${abilitiesOf(p).map((a, i, all) => `<tr><td>${a.kind !== "off" ? kindIcon(a.kind) + " " : ""}${KIND_LABELS[a.kind] || "Atak"}${all.length > 1 ? " " + (i + 1) : ""}</td><td>${esc(a.name)} <b>${a.value}</b></td></tr>`).join("")}
           <tr><td>Słabość / odporność</td><td>${S.cfg.types[type.weak].icon} ×2 · ${S.cfg.types[type.resist].icon} −20</td></tr>
           <tr><td>Wartość</td><td><b>${fmt(cardValue(pid, variant))}</b> <span class="muted">(×${String(S.cfg.variants[variant].mult).replace(".", ",")})</span></td></tr>
           <tr><td>Szansa z 1 skrzynki</td><td>${chance ? "1 na " + Math.round(1 / chance).toLocaleString("pl-PL") : "—"}</td></tr>
@@ -268,7 +267,7 @@ function openViewer(pid, variant = "normal") {
           <tr><td>Posiadasz</td><td>${owned || '<span class="muted">brak</span>'}</td></tr>
         </table>
         <div class="vi-variants">${S.cfg.variantOrder.filter(v => !isExclusive(v) || v === variant || possible.has(v) || mine.some(i => i.variant === v)).map(v =>
-          `<button class="vchip vt-${v}${v === variant ? " active" : ""}" data-var="${v}">${variantName(v)}</button>`).join("")}</div>
+          `<button class="vchip ${vtClass(v)}${v === variant ? " active" : ""}" data-var="${v}">${variantName(v)}</button>`).join("")}</div>
         <div class="vi-actions">
           <button class="btn" data-act="flip">🔄 Obróć</button>
           <button class="btn" data-act="close">✕ Zamknij</button>

@@ -53,15 +53,45 @@ function isExclusive(v) { return !!S.cfg.variants[v]?.exclusive; }
 // warianty specjalne, które mogą wypaść z tej skrzynki: zwykłe zawsze, wyjątkowe tylko włączone w skrzynce
 // (flagowy - tylko dla kart z ustawionym krajem)
 // (warianty z polem "cards", np. Rzulty, należą do konkretnych kart - nie do skrzynki)
+// (połączenia "flag+gold" nie wypadają osobno - patrz variantChance)
 function crateVariants(crate, p = null) {
   return S.cfg.variantOrder.filter(v => {
     if (!isSpecial(v)) return false;
     const V = S.cfg.variants[v];
+    if (V.combo) return false;
     if (!V.exclusive) return true;
     if (V.cards) return !!p && V.cards.includes(p.id);
     return (crate?.variants || []).includes(v) && (v !== "flag" || !p || p.country);
   });
 }
+// Warstwy wariantu: flaga leży na osobnej warstwie, więc karta może być np. "flag+gold" (Flagowa + Złota)
+function variantParts(v) { return S.cfg.variants[v || "normal"]?.layers || [v || "normal"]; }
+function isCombo(v) { return !!S.cfg.variants[v]?.combo; }
+// wariant z warstwy zwykłych wariantów (bez flagi) - od niego zależy zdjęcie i kolor plakietki
+function baseVariant(v) { const parts = variantParts(v); return parts[parts.length - 1]; }
+// klasy wyglądu: "v-flag v-gold v-combo" (prefix "avv-" dla ikon graczy)
+function vClass(v, prefix = "v-") {
+  const parts = variantParts(v);
+  return parts.map(x => prefix + x).join(" ") + (parts.length > 1 ? ` ${prefix}combo` : "");
+}
+// klasa koloru (kropki, plakietki, przyciski): połączony wariant = kolor zwykłego wariantu z obwódką flagi
+function vtClass(v) { return isCombo(v) ? `vt-${baseVariant(v)} vt-combo` : `vt-${v || "normal"}`; }
+// szansa na wariant przy wypadnięciu karty (avail = warianty możliwe w skrzynce, z crateVariants)
+function variantChance(avail, v) {
+  const V = S.cfg.variants;
+  if (!isSpecial(v)) return 1 - avail.reduce((a, x) => a + V[x].chance, 0);
+  if (isCombo(v)) {
+    const [layer, base] = variantParts(v);
+    const bases = avail.filter(x => !V[x].layer), tot = bases.reduce((a, x) => a + V[x].chance, 0);
+    return avail.includes(layer) && bases.includes(base) && tot ? V[layer].chance * V[layer].extraChance * V[base].chance / tot : 0;
+  }
+  if (!avail.includes(v)) return 0;
+  return V[v].chance * (1 - (V[v].extraChance || 0));
+}
+// rodzaje zdolności: ofensywna, defensywna, lecząca, ekonomiczna
+const KIND_ICONS = { off: "⚔", def: "🛡", heal: "💚", eco: "🪙" };
+const KIND_LABELS = { off: "Atak", def: "Obrona", heal: "Leczenie", eco: "Ekonomia" };
+function kindIcon(k) { return KIND_ICONS[k] || KIND_ICONS.off; }
 function flagUrl(country) { return `/flag/${encodeURIComponent(country)}.svg`; }
 function person(id) { return S.cfg.people[id]; }
 function crateOf(id) { return S.cfg.crates[id]; }
@@ -74,14 +104,14 @@ function cardValue(pid, v = "normal") {
 }
 // zdjęcie karty; wariant z własnym zdjęciem (np. Rzulty Jana Pawła II) -> /img/<id>/<wariant>
 function imgUrl(pid, variant = null) {
-  const p = person(pid), vv = variant && p.variantPhotos?.[variant];
-  return `/img/${pid}${vv != null ? "/" + variant : ""}?v=${vv ?? (p.imgv || 0)}${p.imgq ? "&" + p.imgq : ""}`;
+  const p = person(pid), base = variant && baseVariant(variant), vv = base && p.variantPhotos?.[base];
+  return `/img/${pid}${vv != null ? "/" + base : ""}?v=${vv ?? (p.imgv || 0)}${p.imgq ? "&" + p.imgq : ""}`;
 }
 // ikona gracza: zdjęcie wybranej karty albo emoji
 function avatarHTML(u, cls = "av") {
   if (u && u.avatarCard) {
     const rc = S.cfg?.rarities[u.avatarRarity]?.color || "#ffffff55";
-    return `<span class="${cls} av-card avv-${u.avatarVariant || "normal"}${u.avatarRarity === "secret" ? " av-secret" : ""}" style="--rc:${rc}"><img src="/avatar/${encodeURIComponent(u.username)}?c=${encodeURIComponent(u.avatarCard)}" alt="" draggable="false"></span>`;
+    return `<span class="${cls} av-card ${S.cfg ? vClass(u.avatarVariant, "avv-") : "avv-" + (u.avatarVariant || "normal")}${u.avatarRarity === "secret" ? " av-secret" : ""}" style="--rc:${rc}"><img src="/avatar/${encodeURIComponent(u.username)}?c=${encodeURIComponent(u.avatarCard)}" alt="" draggable="false"></span>`;
   }
   return `<span class="${cls}">${esc(u?.avatar || "😎")}</span>`;
 }
@@ -92,30 +122,38 @@ function crateStyle(c) {
 
 // ================================================================ KARTA
 
+// efekty wariantu na karcie - połączony wariant (np. flag+gold) dostaje efekty obu warstw i dwie plakietki
 function variantLayers(v, p = null) {
+  const parts = variantParts(v).filter(isSpecial);
   let html = "";
-  if (v === "royal") html += '<div class="gold-sheen"></div><div class="royal-border"></div><div class="royal-crown"></div>';
-  if (v === "rzulty") html += '<div class="rzulty-tint"></div>';  // żółty filtr na całej karcie
-  if (v === "flag") html += '<div class="flag-tint"></div><div class="flag-wave"></div>';
-  if (v === "flag" && p?.country) return html + `<div class="var-tag vt-flag"><img src="${flagUrl(p.country)}" alt="">${esc(p.country.toUpperCase())}</div>`;
-  if (v === "holo") html += '<div class="holo-layer"></div>';
-  if (v === "gold" || v === "silver") html += '<div class="gold-sheen"></div>';
-  if (v === "clear") html += '<div class="clear-sheen"></div>';
-  if (v === "negative") html += '<div class="neg-grain"></div>';
-  if (GEMS.includes(v)) html += '<div class="diamond-layer"></div><div class="diamond-glints"><i></i><i></i><i></i><i></i><i></i></div>';
-  if (isSpecial(v)) html += `<div class="var-tag vt-${v}">${VARIANT_TAGS[v]}</div>`;
+  for (const x of parts) {
+    if (x === "royal") html += '<div class="gold-sheen"></div><div class="royal-border"></div><div class="royal-crown"></div>';
+    if (x === "rzulty") html += '<div class="rzulty-tint"></div>';  // żółty filtr na całej karcie
+    if (x === "flag") html += '<div class="flag-tint"></div><div class="flag-wave"></div>';
+    if (x === "holo") html += '<div class="holo-layer"></div>';
+    if (x === "gold" || x === "silver") html += '<div class="gold-sheen"></div>';
+    if (x === "clear") html += '<div class="clear-sheen"></div>';
+    if (x === "negative") html += '<div class="neg-grain"></div>';
+    if (GEMS.includes(x)) html += '<div class="diamond-layer"></div><div class="diamond-glints"><i></i><i></i><i></i><i></i><i></i></div>';
+  }
+  parts.forEach((x, i) => {
+    const cls = `var-tag vt-${x}${i ? " vt-second" : ""}`;
+    html += x === "flag" && p?.country
+      ? `<div class="${cls}"><img src="${flagUrl(p.country)}" alt="">${esc(p.country.toUpperCase())}</div>`
+      : `<div class="${cls}">${VARIANT_TAGS[x]}</div>`;
+  });
   return html;
 }
 
-// wszystkie zdolności karty po kolei: [{ name, kind: "off" | "def", value }]
+// wszystkie zdolności karty po kolei: [{ name, kind: "off" | "def" | "heal" | "eco", value }]
 function abilitiesOf(p) {
   const list = [{ name: p.attack, kind: p.kind1 || "off", value: p.dmg }];
   if (p.attack2) list.push({ name: p.attack2, kind: p.kind2 || "off", value: p.dmg2 });
   return list.concat(p.abilities || []);
 }
 
-// wariant flagowy: flaga kraju karty jako tło ramki (zmienna CSS --flag)
-function flagStyle(p, variant) { return variant === "flag" && p.country ? ` style="--flag:url('${flagUrl(p.country)}')"` : ""; }
+// wariant flagowy (także połączony, np. flag+gold): flaga kraju karty jako tło ramki (zmienna CSS --flag)
+function flagStyle(p, variant) { return variantParts(variant).includes("flag") && p.country ? ` style="--flag:url('${flagUrl(p.country)}')"` : ""; }
 
 function cardHTML(pid, variant = "normal") {
   const p = person(pid);
@@ -128,9 +166,9 @@ function cardHTML(pid, variant = "normal") {
   const cost = type.icon.repeat(Math.min(3, 1 + Math.floor(rarityIdx(p.rarity) / 2)));
   const abils = abilitiesOf(p);
   return `
-  <div class="card r-${p.rarity} v-${variant}${abils.length > 1 ? " two-atk" : ""}${abils.length > 2 ? ` atk-${abils.length}` : ""}" data-pid="${p.id}" data-variant="${variant}"${flagStyle(p, variant)}>
+  <div class="card r-${p.rarity} ${vClass(variant)}${abils.length > 1 ? " two-atk" : ""}${abils.length > 2 ? ` atk-${abils.length}` : ""}" data-pid="${p.id}" data-variant="${variant}"${flagStyle(p, variant)}>
     <div class="card-inner">
-      ${variant === "reverse" ? '<div class="rev-foil"></div>' : ""}
+      ${baseVariant(variant) === "reverse" ? '<div class="rev-foil"></div>' : ""}
       <div class="card-head">
         <span class="card-name">${esc(p.name)}</span>
         <span class="card-hp"><small>HP</small>${p.hp}</span>
@@ -138,8 +176,8 @@ function cardHTML(pid, variant = "normal") {
       </div>
       <div class="card-photo"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false"></div>
       <div class="card-sub">${type.name} · ${esc(crate.short)}</div>
-      ${abils.map((a, i) => `<div class="card-attack${i ? " atk2" : ""}${a.kind === "def" ? " def" : ""}">
-        <span class="atk-cost">${a.kind === "def" ? "🛡️" : cost + (i ? type.icon : "")}</span>
+      ${abils.map((a, i) => `<div class="card-attack${i ? " atk2" : ""}${a.kind !== "off" ? " " + a.kind : ""}">
+        <span class="atk-cost">${a.kind === "off" ? cost + (i ? type.icon : "") : S.cfg.abilityKinds[a.kind]?.icon || ""}</span>
         <span class="atk-name">${esc(a.name)}</span>
         <span class="atk-dmg">${a.value}</span>
       </div>`).join("")}
@@ -164,19 +202,19 @@ function secretCardHTML(p, variant) {
   const type = S.cfg.types[p.type];
   const crate = crateOf(p.crate);
   return `
-  <div class="card r-secret v-${variant}" data-pid="${p.id}" data-variant="${variant}"${flagStyle(p, variant)}>
+  <div class="card r-secret ${vClass(variant)}" data-pid="${p.id}" data-variant="${variant}"${flagStyle(p, variant)}>
     <div class="sc">
       <div class="sc-art"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false"></div>
       <div class="sc-halo"></div>
       <div class="sc-stars"></div>
-      ${variant === "reverse" ? '<div class="rev-foil"></div>' : ""}
+      ${baseVariant(variant) === "reverse" ? '<div class="rev-foil"></div>' : ""}
       <div class="sc-top">
         <span class="sc-seal">★</span>
         <span class="sc-name">${esc(p.name)}</span>
         <span class="sc-hp"><small>HP</small>${p.hp}</span>
       </div>
       <div class="sc-panel">
-        ${abilitiesOf(p).map((a, i) => `<div class="sc-attack${a.kind === "def" ? " def" : ""}"><span>${a.kind === "def" ? "🛡️" : type.icon.repeat(i ? 2 : 1)}</span><span class="sc-atk">${esc(a.name)}</span><b>${a.value}</b></div>`).join("")}
+        ${abilitiesOf(p).map((a, i) => `<div class="sc-attack${a.kind !== "off" ? " " + a.kind : ""}"><span>${a.kind === "off" ? type.icon.repeat(i ? 2 : 1) : S.cfg.abilityKinds[a.kind]?.icon || ""}</span><span class="sc-atk">${esc(a.name)}</span><b>${a.value}</b></div>`).join("")}
         <div class="sc-foot"><span>★ TAJNA ★</span><span>${esc(crate.code)} ★${String(p.number).padStart(3, "0")}</span><span class="sc-val">${fmt(cardValue(p.id, variant))}</span></div>
       </div>
       <div class="sc-frame"></div>
@@ -377,7 +415,8 @@ function setupInstall() {
 
 // ================================================================ ADRESY STRON
 // każda zakładka ma swój adres (/inventory...), profil gracza: /player/<nazwa>; "/" = skrzynki
-const VIEW_PATHS = { crates: "/crates", binder: "/binder", inventory: "/inventory", forge: "/forge", friends: "/friends", ranking: "/ranking", arena: "/arena" };
+const VIEW_PATHS = { crates: "/crates", binder: "/binder", inventory: "/inventory", forge: "/forge", market: "/market", casino: "/casino",
+                     friends: "/friends", ranking: "/ranking", arena: "/arena" };
 
 function viewPath(view) {
   if (view === "inventory" && S.inv.mode === "hof") return "/inventory/hall-of-fame";
@@ -413,6 +452,9 @@ function switchView(view, how = "push") {
   if (view === "inventory") renderInventory();
   if (view === "crates") renderCrates();
   if (view === "forge") renderForge();
+  if (view === "market") renderMarket();
+  if (view === "casino") renderCasino();
+  else stopJackpotPolling();
   if (view === "friends") renderFriends();
   if (view === "ranking") renderRanking();
   if (view === "profile") renderProfile();
@@ -512,7 +554,8 @@ function renderCrates() {
     const V = S.cfg.variants[v];
     const flags = v === "flag" ? crate.people.filter(id => person(id).country).length : null;
     return `<span class="odd odd-v vt-${v}"><b>${isExclusive(v) ? "✨ " : ""}${V.name}</b> ${pctTxt(V.chance)} · wartość ×${String(V.mult).replace(".", ",")}${
-      flags !== null ? ` · ${flags} ${plural(flags, "karta", "karty", "kart")} z flagą` : ""}${isExclusive(v) ? " · tylko w tej skrzynce" : ""}</span>`;
+      flags !== null ? ` · ${flags} ${plural(flags, "karta", "karty", "kart")} z flagą` : ""}${
+      V.extraChance ? ` · ${Math.round(V.extraChance * 100)}% z dodatkowym wariantem (wartości się mnożą)` : ""}${isExclusive(v) ? " · tylko w tej skrzynce" : ""}</span>`;
   }).join("")}</div>`;
   $("#contentsGrid").innerHTML = crate.people.map(id => cardHTML(id)).join("");
 }
@@ -832,14 +875,16 @@ function showResults(afterEpic = false) {
   const specials = o.drops.filter(d => isSpecial(d.variant));
   if (specials.length && !afterEpic) {
     const top = specials.reduce((a, d) => varRank(d.variant) > varRank(a.variant) ? d : a);
+    const topBase = baseVariant(top.variant);
     const colors = {
       diamond: ["#e8fbff", "#9ff6ff", "#c9b8ff", "#ffffff"], emerald: ["#00c853", "#6dffb0", "#c6ffe0", "#ffffff"],
       ruby: ["#ff1744", "#ff8a9c", "#ffd0d8", "#ffffff"], clear: ["#ffffff", "#e0f7ff", "#bfefff"],
       negative: ["#000000", "#ffffff", "#7a7a7a", "#00e5ff"], gold: ["#ffc531", "#fff3b0", "#fff"], holo: ["#9ff6ff", "#ff9ff3", "#fff"],
       silver: ["#e6ebf2", "#b8c2d0", "#ffffff"], reverse: ["#c9d6ff", "#ffffff", "#9ff6ff"], bw: ["#ffffff", "#111111", "#888888"],
-    }[top.variant];
+      rzulty: ["#ffe600", "#fff6a0", "#ffffff"], flag: ["#ffffff", "#dc143c", "#ffcf3f"],
+    }[topBase] || GOLDS;
     const rare = varRank(top.variant) >= varRank("gold");
-    setTimeout(() => confetti(colors, top.variant === "negative" ? 360 : varRank(top.variant) > varRank("gold") ? 260 : rare ? 140 : 60), 300);
+    setTimeout(() => confetti(colors, topBase === "negative" ? 360 : varRank(top.variant) > varRank("gold") ? 260 : rare ? 140 : 60), 300);
     if (rare) toast(`✨ ${variantName(top.variant).toUpperCase()}: ${person(top.person).name}!`);
   }
 
@@ -1047,7 +1092,7 @@ function openModal(pid) {
     const all = o.byVar[v], list = all.filter(id => !favs.has(id)), val = cardValue(pid, v);  // ulubionych nie sprzedajemy
     const nFav = all.length - list.length;
     return `<div class="copy-row">
-      <span class="lbl"><span class="vdot vt-${v}"></span>${variantName(v)} ×${all.length}${nFav ? ` <span class="fav-note">★${nFav}</span>` : ""} <small>· ${fmt(val)}/szt.</small></span>
+      <span class="lbl"><span class="vdot ${vtClass(v)}"></span>${variantName(v)} ×${all.length}${nFav ? ` <span class="fav-note">★${nFav}</span>` : ""} <small>· ${fmt(val)}/szt.</small></span>
       <span>${list.length ? `<button class="btn" data-sell="${list[0]}">Sprzedaj 1</button>` : ""}
       ${list.length > 1 ? `<button class="btn sell" data-sell="${list.join(",")}">${nFav ? "Pozostałe" : "Wszystkie"} (${fmt(val * list.length)})</button>` : ""}</span>
     </div>`;
@@ -1316,6 +1361,8 @@ function bind() {
   }, true);
 
   bindForge();
+  bindMarket();
+  bindCasino();
   bindSocial();
   bindArena();
   bindHallOfFame();

@@ -48,7 +48,7 @@ async function renderHallOfFame() {
       <div class="hof-recent">${recent.map(r => {
         const p = person(r.p);
         return `<div class="hof-recent-item">${hofThumb(r.p)}<div class="hof-ri-text">
-          <b>${esc(p.masked ? "???" : p.name)}</b>${isSpecial(r.v) ? ` <span class="hof-vtag vt-${r.v}">${esc(variantName(r.v))}</span>` : ""}
+          <b>${esc(p.masked ? "???" : p.name)}</b>${isSpecial(r.v) ? ` <span class="hof-vtag ${vtClass(r.v)}">${esc(variantName(r.v))}</span>` : ""}
           <div class="small">🥇 ${hofUser(r.u)}</div><div class="muted small">${timeAgo(r.t)}</div></div></div>`;
       }).join("")}</div>` : ""}
     </div>
@@ -98,7 +98,7 @@ function renderHofList() {
         <div class="hof-meta"><span style="color:${R.color}">${R.name}</span>${vars.length ? ` · zdobyto łącznie <b>${total(id).toLocaleString("pl-PL")}×</b>` : ""}</div>
         ${vars.length ? `<div class="hof-vars">${vars.map(r => `
           <div class="hof-var" title="${esc(HOF_SOURCES[r.s] || "")} · ${new Date(r.t * 1000).toLocaleString("pl-PL")}">
-            <span class="hof-vname"><span class="vdot vt-${r.v}"></span>${esc(variantName(r.v))}</span>
+            <span class="hof-vname"><span class="vdot ${vtClass(r.v)}"></span>${esc(variantName(r.v))}</span>
             <span class="hof-first">🥇 ${hofUser(r.u)}</span>
             <span class="hof-when muted">${hofDate(r.t)}</span>
             <span class="hof-n">×${r.n.toLocaleString("pl-PL")}</span>

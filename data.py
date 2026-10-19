@@ -24,9 +24,11 @@ VARIANTS = {
     "silver":  {"name": "Srebrna",      "chance": 0.03,  "mult": 2.5},
     "holo":    {"name": "Holo",         "chance": 0.025, "mult": 3.0},
     "gold":    {"name": "Złota",        "chance": 0.01,  "mult": 7.5},
-    # wyjątkowy: tylko ze skrzynek z tym wariantem, karta musi mieć ustawiony kraj (pole "country")
-    "flag":    {"name": "Flagowa",      "chance": 0.008, "mult": 8.0, "exclusive": True,
-                "desc": "Karta w barwach flagi swojego kraju. Każda karta w skrzynce potrzebuje ustawionego kraju (np. PL)."},
+    # wyjątkowy: tylko ze skrzynek z tym wariantem, karta musi mieć ustawiony kraj (pole "country").
+    # "layer": osobna warstwa - flagowa karta może mieć DODATKOWO inny wariant (extraChance, patrz niżej)
+    "flag":    {"name": "Flagowa",      "chance": 0.008, "mult": 8.0, "exclusive": True, "layer": True, "extraChance": 0.4,
+                "desc": "Karta w barwach flagi swojego kraju. Każda karta w skrzynce potrzebuje ustawionego kraju (np. PL). "
+                        "40% flagowych kart ma dodatkowo inny wariant (np. Flagowa + Złota)."},
     "clear":   {"name": "Przezroczysta", "chance": 0.006, "mult": 9.0},
     "emerald": {"name": "Szmaragdowa",  "chance": 0.005, "mult": 11.0},
     "ruby":    {"name": "Rubinowa",     "chance": 0.004, "mult": 14.0},
@@ -40,12 +42,29 @@ VARIANTS = {
     "rzulty":  {"name": "Rzulty",       "chance": 2137 / 2_137_420, "mult": 31.0, "exclusive": True, "cards": ["pl_secret"],
                 "desc": "Wariant tylko jednej karty - żółty filtr na całej karcie i własne zdjęcie."},   # najrzadszy
 }
-VARIANT_ORDER = list(VARIANTS)   # od najpospolitszego do najrzadszego
+# Warstwy (na razie tylko Flagowy): wszystkie warianty leżą na jednej warstwie, a flaga na osobnej. Gdy wypadnie
+# flagowa karta, z szansą "extraChance" dostaje jeszcze jeden wariant - losowany z tymi samymi szansami co zwykle
+# (spośród wariantów dostępnych w tej skrzynce). Taki wariant zapisujemy jako "flag+gold": wygląd obu wariantów,
+# nazwa "Flagowa + Złota", mnożnik wartości = iloczyn (×8 · ×7,5 = ×60). Tych połączeń nie losujemy osobno ("combo").
+for _layer in [v for v, x in VARIANTS.items() if x.get("layer")]:
+    for _base, _x in list(VARIANTS.items()):
+        if _base == "normal" or _x.get("layer") or _x.get("combo"):
+            continue
+        VARIANTS[f"{_layer}+{_base}"] = {
+            "name": f"{VARIANTS[_layer]['name']} + {_x['name']}", "chance": 0.0,
+            "mult": round(VARIANTS[_layer]["mult"] * _x["mult"], 2), "exclusive": True, "combo": True,
+            "layers": [_layer, _base]}
+VARIANT_ORDER = sorted(VARIANTS, key=lambda v: VARIANTS[v]["mult"])   # od najtańszego do najdroższego
 # Warianty wyjątkowe ("exclusive"): wypadają TYLKO ze skrzynek, w których admin je włączył (pole skrzynki "variants"),
 # nie da się ich dostać z kontraktu ani z ulepszacza.
 EXCLUSIVE_VARIANTS = [v for v, x in VARIANTS.items() if x.get("exclusive")]
 # te można włączać w skrzynkach (panel admina); warianty z polem "cards" należą do konkretnych kart
-CRATE_VARIANTS = [v for v in EXCLUSIVE_VARIANTS if not VARIANTS[v].get("cards")]
+CRATE_VARIANTS = [v for v in EXCLUSIVE_VARIANTS if not VARIANTS[v].get("cards") and not VARIANTS[v].get("combo")]
+
+
+def combine_variant(layer, base):
+    """Wariant-warstwa (flaga) + zwykły wariant: "flag" + "gold" -> "flag+gold" (+ zwykła = sama flaga)."""
+    return layer if base == "normal" else f"{layer}+{base}"
 
 
 def card_variants(pid):
@@ -124,10 +143,12 @@ MATCHUPS = {
     "wojsko":   ("polityka", "sport"),
 }
 
-# Zdolności kart: każda jest ofensywna (atak, wartość = obrażenia) albo defensywna (obrona, wartość = osłona).
+# Zdolności kart - rodzaj (kategoria) i co znaczy wartość: ofensywna (obrażenia), defensywna (osłona),
+# lecząca (leczone HP), ekonomiczna (monety 🪙 w Arenie). Rodzaj ustawia admin w panelu.
 # Pierwsze dwie to pola attack/dmg i attack2/dmg2 (rodzaj: kind1/kind2, domyślnie ofensywna),
 # kolejne admin dodaje w panelu jako listę "abilities".
-ABILITY_KINDS = {"off": {"name": "Ofensywna", "icon": "⚔️"}, "def": {"name": "Defensywna", "icon": "🛡️"}}
+ABILITY_KINDS = {"off": {"name": "Ofensywna", "icon": "⚔️"}, "def": {"name": "Defensywna", "icon": "🛡️"},
+                 "heal": {"name": "Lecząca", "icon": "💚"}, "eco": {"name": "Ekonomiczna", "icon": "🪙"}}
 MAX_EXTRA_ABILITIES = 2
 for _t, (_weak, _res) in MATCHUPS.items():
     TYPES[_t]["weak"] = _weak
@@ -411,9 +432,60 @@ ARENA_VISUALS = {
 }
 MAX_ABILITY_EFFECTS = 3
 
+# ============================================================ RYNEK KART (zakładka Rynek)
+# Oferty za stałą cenę (kupujący może zaproponować niższą), licytacje i "Szukam" (zlecenia kupna).
+# Karty wystawione na rynek i pieniądze z ofert / licytacji / zleceń są zablokowane, dopóki transakcja się nie skończy.
+MARKET = {
+    "fee": 0.0,               # prowizja gry od sprzedaży (0.05 = 5%) - na razie bez prowizji
+    "maxPrice": 100_000_000,
+    "maxListings": 50,        # aktywnych ofert jednego gracza
+    "maxWanted": 20,          # aktywnych zleceń "Szukam" jednego gracza
+    "auctionHours": [1, 6, 12, 24, 48],
+    "snipeSeconds": 120,      # oferta w ostatnich 2 min. przedłuża licytację do 2 min. (bez "snajperów")
+}
+
+# ============================================================ KASYNO
+# Ruletka europejska (0-36). Wygrana: karty wracają + wygrana w kartach o tej samej wartości (losowe karty
+# ze skrzynek w sklepie, zwykły wariant, bez tajnych); końcówka mniejsza niż najtańsza karta - w pieniądzach.
+ROULETTE = {"maxCards": 20, "maxPayoutCards": 100}
+ROULETTE_WHEEL = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14,
+                  31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26]   # kolejność pól na kole
+ROULETTE_RED = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]
+_RED = set(ROULETTE_RED)
+# zakład: (nazwa, liczby, wypłata x:1)
+ROULETTE_BETS = {
+    "red":    ("Czerwone", [n for n in range(1, 37) if n in _RED], 1),
+    "black":  ("Czarne", [n for n in range(1, 37) if n not in _RED], 1),
+    "green":  ("Zielone (0)", [0], 35),
+    "even":   ("Parzyste", list(range(2, 37, 2)), 1),
+    "odd":    ("Nieparzyste", list(range(1, 37, 2)), 1),
+    "low":    ("1–18", list(range(1, 19)), 1),
+    "high":   ("19–36", list(range(19, 37)), 1),
+    "dozen1": ("1–12", list(range(1, 13)), 2),
+    "dozen2": ("13–24", list(range(13, 25)), 2),
+    "dozen3": ("25–36", list(range(25, 37)), 2),
+    "col1":   ("1. kolumna", list(range(1, 37, 3)), 2),
+    "col2":   ("2. kolumna", list(range(2, 37, 3)), 2),
+    "col3":   ("3. kolumna", list(range(3, 37, 3)), 2),
+}
+ROULETTE_BETS.update({f"n{n}": (f"Liczba {n}", [n], 35) for n in range(1, 37)})
+# Jackpot: dwóch graczy stawia karty, szansa na wygraną = wartość moich kart / wartość wszystkich; zwycięzca bierze wszystko
+JACKPOT = {"maxCards": 20, "expireHours": 24}
+
 # ============================================================ LISTA ZMIAN (pokazywana raz po aktualizacji)
 # Najnowsza na górze. "v" musi rosnąć z każdą nową wersją - gracz zobaczy wpisy nowsze niż ostatnio obejrzany.
 PATCH_NOTES = [
+    {"v": 3, "date": "2026-10-19", "title": "Rynek kart, Kasyno i flagowe karty z dodatkowym wariantem",
+     "items": [
+         "🏪 Nowa zakładka <b>Rynek</b> — wystawiaj karty za stałą cenę albo na <b>licytację</b> (cena wywoławcza i minimalne przebicie). "
+         "Kupujący mogą zaproponować niższą cenę, a ty decydujesz, czy ją przyjąć.",
+         "📢 <b>Szukam</b> — dodaj zlecenie kupna karty za wybraną cenę. Każdy, kto ją ma, może ci ją od razu sprzedać.",
+         "🎰 Nowa zakładka <b>Kasyno</b>: <b>Ruletka</b> na karty (czerwone / czarne ×2, zielone ×36 i inne zakłady jak w prawdziwej ruletce) "
+         "oraz <b>Jackpot</b> dla dwóch graczy — im więcej warte twoje karty, tym większa szansa, a zwycięzca bierze wszystkie karty ze stołu.",
+         "🏳️ Flagowa karta ma teraz 40% szansy na <b>dodatkowy wariant</b> — np. Flagowa + Złota. Wartości obu wariantów się mnożą!",
+         "💚 Nowe rodzaje zdolności kart: <b>lecząca</b> i <b>ekonomiczna</b> 🪙.",
+         "⚒️ Kuźnia (kontrakt i ulepszacz) daje już tylko karty ze skrzynek, które są teraz w sklepie.",
+     ]},
     {"v": 2, "date": "2026-10-15", "title": "Hall of Fame i wiele kontraktów naraz",
      "items": [
          "🏆 Nowa podstrona w Ekwipunku: <b>Hall of Fame</b> — kto pierwszy zdobył każdą kartę i każdy jej wariant, kiedy i ile ich wypadło.",

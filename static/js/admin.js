@@ -40,7 +40,8 @@ async function load() {
 function avHTML(u) {
   if (u.avatarCard) {
     const rc = A.cat?.rarities?.[u.avatarRarity]?.color || "#ffffff55";
-    return `<span class="av av-card avv-${u.avatarVariant || "normal"}" style="--rc:${rc}"><img src="/avatar/${encodeURIComponent(u.username)}?c=${encodeURIComponent(u.avatarCard)}" alt=""></span>`;
+    const vcls = (u.avatarVariant || "normal").split("+").map(v => "avv-" + v).join(" ");   // flag+gold -> obie warstwy
+    return `<span class="av av-card ${vcls}" style="--rc:${rc}"><img src="/avatar/${encodeURIComponent(u.username)}?c=${encodeURIComponent(u.avatarCard)}" alt=""></span>`;
   }
   return `<span class="av">${esc(u.avatar)}</span>`;
 }
@@ -195,10 +196,10 @@ function openCardForm(id) {
         <label>Typ<select name="type">${opt(Object.fromEntries(Object.entries(A.cat.types).map(([k, t]) => [k, `${t.icon} ${t.name}`])), c.type)}</select></label>
         <label>HP<input type="number" name="hp" value="${c.hp}" min="0" max="9999"></label>
         <label>Nazwa ataku<input type="text" name="attack" value="${esc(c.attack)}" maxlength="40"></label>
-        <label>Obrażenia<input type="number" name="dmg" value="${c.dmg}" min="0" max="9999"></label>
+        <label>Wartość<input type="number" name="dmg" value="${c.dmg}" min="0" max="9999"></label>
         <label>Rodzaj<select name="kind1">${kindOpts(c.kind1)}</select></label>
         <label>Druga zdolność <small class="muted">(opcjonalna)</small><input type="text" name="attack2" value="${esc(c.attack2 || "")}" maxlength="40" placeholder="np. dla legendarnych"></label>
-        <label>Obrażenia 2<input type="number" name="dmg2" value="${c.dmg2 || ""}" min="0" max="9999"></label>
+        <label>Wartość 2<input type="number" name="dmg2" value="${c.dmg2 || ""}" min="0" max="9999"></label>
         <label>Rodzaj 2<select name="kind2">${kindOpts(c.kind2)}</select></label>
       </div>
 
@@ -206,7 +207,7 @@ function openCardForm(id) {
         <legend>Dodatkowe zdolności <small class="muted">(max ${A.cat.maxExtraAbilities})</small></legend>
         <div id="abilityRows">${(c.abilities || []).map(abilityRowHTML).join("")}</div>
         <button class="btn tiny" type="button" data-act="add-ability">➕ Dodaj zdolność</button>
-        <p class="muted small">Ofensywna: wartość to obrażenia. Defensywna: wartość to osłona (🛡️).</p>
+        <p class="muted small">Wartość zdolności zależy od rodzaju — ofensywna: obrażenia, defensywna: osłona (🛡️), lecząca: leczone HP (💚), ekonomiczna: monety 🪙 w Arenie.</p>
       </fieldset>
 
       <fieldset class="a-arena">

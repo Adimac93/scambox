@@ -63,11 +63,15 @@ def abilities(p):
     out = []
     for a in raw:
         c = (cfg[a["slot"]] if a["slot"] < len(cfg) else None) or {}
-        out.append(dict(a, visual=c.get("visual") or ("bubble" if a["kind"] == "def" else "hit"),
+        out.append(dict(a, visual=c.get("visual") or KIND_VISUAL.get(a["kind"], "hit"),
                         cost=c["cost"] if c.get("cost") is not None else auto_cost(a["value"]),
-                        target=c.get("target") or ("self" if a["kind"] == "def" else "enemy"),
+                        target=c.get("target") or ("enemy" if a["kind"] == "off" else "self"),
                         effects=c.get("effects") or []))
     return out
+
+
+# domyślna animacja zdolności z jej rodzaju (admin może ustawić inną)
+KIND_VISUAL = {"off": "hit", "def": "bubble", "heal": "hearts", "eco": "money"}
 
 
 def has(u, sid):
@@ -266,7 +270,14 @@ class Battle:
                 if note:
                     ev.append({"uid": t["uid"], "kind": "text", "text": note})
                 dealt += damage(t, dmg, ev)
-        else:
+        elif ab["kind"] == "heal":     # lecząca: wartość = leczone HP
+            for t in primary:
+                heal(t, ab["value"], ev)
+        elif ab["kind"] == "eco":      # ekonomiczna: wartość = monety na tę turę (najwyżej limit monet)
+            gain = max(0, min(ab["value"], ARENA["maxCoins"] - s["coins"]))
+            s["coins"] += gain
+            ev.append({"uid": u["uid"], "kind": "text", "text": f"🪙 +{gain}"})
+        else:                          # defensywna: wartość = osłona
             for t in primary:
                 add_status(t, "shield", ab["value"], 1)
                 ev.append({"uid": t["uid"], "kind": "shield", "amount": ab["value"]})
@@ -462,6 +473,13 @@ class Battle:
                 base = max(0, ab["value"] + st_val(u, "boost") - st_val(u, "weaken"))
                 dmg = max(0, type_mult(u, t, base)[0] - st_val(t, "shield"))
                 score += min(dmg, t["hp"]) + (400 + card_cost(person(t["pid"])) * 40 if dmg >= t["hp"] else 0)
+        elif ab["kind"] == "heal":
+            score = sum(min(ab["value"], t["maxHp"] - t["hp"]) for t in self.primary(k, u, ab, target)
+                        if not has(t, "poison")) * 0.9 or -1
+        elif ab["kind"] == "eco":
+            s = self.sides[k]
+            want = any(card_cost(person(b["pid"])) > s["coins"] for b in s["bench"]) and len(s["board"]) < ARENA["boardSlots"]
+            score = min(ab["value"], ARENA["maxCoins"] - s["coins"]) * (35 if want else 4)
         else:
             hurt = any(x["hp"] < x["maxHp"] * 0.5 for x in self.sides[k]["board"])
             score = ab["value"] * (0.8 if hurt else 0.25)
@@ -471,13 +489,17 @@ class Battle:
 
     def ai_turn(self, k):
         s = self.sides[k]
-        # 1) wystaw karty: najmocniejsze, na które stać
-        while not self.over and self.active == k and len(s["board"]) < ARENA["boardSlots"]:
-            options = [u for u in s["bench"] if card_cost(person(u["pid"])) <= s["coins"]]
-            if not options:
-                break
-            options.sort(key=lambda u: (-card_cost(person(u["pid"])), -person(u["pid"])["hp"]))
-            self.place(k, options[0]["uid"])
+
+        def place_all():   # wystaw karty: najmocniejsze, na które stać
+            while not self.over and self.active == k and len(s["board"]) < ARENA["boardSlots"]:
+                options = [u for u in s["bench"] if card_cost(person(u["pid"])) <= s["coins"]]
+                if not options:
+                    break
+                options.sort(key=lambda u: (-card_cost(person(u["pid"])), -person(u["pid"])["hp"]))
+                self.place(k, options[0]["uid"])
+
+        # 1) wystaw karty
+        place_all()
         # 2) akcje: najlepsza zdolność albo ratowanie słabej karty (powrót na ławkę + wystawienie mocniejszej)
         while not self.over and self.active == k and s["actions"] > 0:
             best = None
@@ -497,6 +519,7 @@ class Battle:
                 self.place(k, fresh["uid"])
             elif best and best[0] > 0:
                 self.use(k, best[1]["uid"], best[2], best[3]["uid"] if best[3] else None)
+                place_all()   # zdolność ekonomiczna mogła dać monety na kolejną kartę
             else:
                 break
         if not self.over and self.active == k:

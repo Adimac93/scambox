@@ -434,6 +434,12 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 /* zdolność defensywna: tarcza zamiast kosztu, niebieska wartość osłony */
 .card-attack.def .atk-dmg, .sc-attack.def b { color: #1e6bff; }
 .card-attack.def .atk-dmg::before { content: "🛡"; font-size: .6em; margin-right: .1em; vertical-align: middle; }
+/* zdolność lecząca (zielone +HP) i ekonomiczna (złote monety) */
+.card-attack.heal .atk-dmg, .sc-attack.heal b { color: #10a34a; }
+.card-attack.heal .atk-dmg::before { content: "+"; font-size: .8em; margin-right: .05em; }
+.card-attack.eco .atk-dmg, .sc-attack.eco b { color: #c98a00; }
+.card-attack.eco .atk-dmg::before { content: "🪙"; font-size: .6em; margin-right: .1em; vertical-align: middle; }
+.sc-attack.heal b { color: #7dffb0; } .sc-attack.eco b { color: #ffd54a; }
 .sc-attack + .sc-attack { margin-top: .3em; padding-top: .3em; border-top: 1px solid #f3e3b033; }
 
 
@@ -555,7 +561,7 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
   background: var(--flag, linear-gradient(135deg, #8c97b2, #5a6274)) center / cover no-repeat;
   box-shadow: 0 6px 18px #000a, 0 0 0 1px #0006, 0 0 20px #ffffff44;
 }
-.card.v-flag .card-inner { background: linear-gradient(#ffffffcc, #ffffffb8), var(--flag, linear-gradient(#ccc, #999)) center / cover no-repeat; }
+.card.v-flag:not(.v-combo) .card-inner { background: linear-gradient(#ffffffcc, #ffffffb8), var(--flag, linear-gradient(#ccc, #999)) center / cover no-repeat; }
 .card.v-flag .card-photo { box-shadow: inset 0 0 1em #0008, 0 0 0 .6cqw #fff, 0 0 0 1.1cqw #0003; }
 .flag-wave {
   position: absolute; inset: 0; z-index: 3; border-radius: inherit; pointer-events: none; mix-blend-mode: soft-light;
@@ -574,6 +580,18 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 .vdot.vt-flag { background: linear-gradient(180deg, #fff 50%, #dc143c 50%); box-shadow: 0 0 0 1px #0006; }
 .odd.odd-v.vt-flag { border-left-color: #fff; }
 .vchip.vt-flag.active { background: linear-gradient(180deg, #fff 50%, #dc143c 50%); color: #111; }
+
+/* Flagowa + inny wariant (np. flag+gold, klasy "v-flag v-gold v-combo"): flaga w ramce i powiewające światło,
+   reszta karty (środek, zdjęcie, efekty) wygląda jak drugi wariant; dwie plakietki jedna pod drugą */
+.card.v-flag.v-combo { background: var(--flag, linear-gradient(135deg, #8c97b2, #5a6274)) center / cover no-repeat; }
+.card.v-flag.v-combo:is(.v-diamond, .v-emerald, .v-ruby) { box-shadow: 0 6px 18px #000a, 0 0 0 1px #0006, 0 0 26px color-mix(in srgb, var(--gem-2) 87%, transparent); }
+.card.v-flag.v-combo.v-gold { box-shadow: 0 6px 18px #000a, 0 0 0 1px #0006, 0 0 24px #ffcf3fbb; }
+.var-tag.vt-second { top: calc(34% + 2.1em); }
+.r-secret .var-tag.vt-second { top: calc(13% + 2.1em); }
+.vdot.vt-combo, .vchip.vt-combo, .hof-vtag.vt-combo { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px #dc143c; }
+.ph.vt-combo { box-shadow: 0 0 0 1.5px #fff, 0 0 0 3px #dc143c; }
+.av-vname.vt-combo { text-decoration: underline 2px #dc143c; }
+.pick.v-flag.v-combo { box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 4px #dc143c, 0 0 8px #ffffff88, inset 0 -26px 26px -18px var(--rc); }
 
 /* ============================================================ RZULTY (wariant jednej karty - Jan Paweł II)
    cała karta (ramka, zdjęcie, napisy) przez żółty filtr */

@@ -204,6 +204,8 @@ body.hs-open { overflow: hidden; }
   background: linear-gradient(90deg, #5a1a1a, #3a2410); border: 2px solid #ff6b5a88; border-radius: 12px; padding: 7px 10px; color: #fff;
 }
 .hs-ab.def { background: linear-gradient(90deg, #12305a, #3a2410); border-color: #6fb8ff88; }
+.hs-ab.heal { background: linear-gradient(90deg, #0f4a2a, #3a2410); border-color: #6dffb088; }
+.hs-ab.eco { background: linear-gradient(90deg, #5a4300, #3a2410); border-color: #ffd54a88; }
 .hs-ab.swap { background: linear-gradient(90deg, #4a3a10, #3a2410); border-color: #ffd54a88; }
 .hs-ab:disabled { opacity: .45; cursor: not-allowed; }
 .hs-ab:not(:disabled):hover { filter: brightness(1.25); transform: translateX(3px); }

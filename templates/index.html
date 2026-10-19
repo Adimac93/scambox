@@ -23,6 +23,8 @@
   <link rel="stylesheet" href="{{ asset('css/avatars.css') }}">
   <link rel="stylesheet" href="{{ asset('css/chests.css') }}">
   <link rel="stylesheet" href="{{ asset('css/shop.css') }}">
+  <link rel="stylesheet" href="{{ asset('css/market.css') }}">
+  <link rel="stylesheet" href="{{ asset('css/casino.css') }}">
 </head>
 <body>
   <header class="topbar">
@@ -32,6 +34,8 @@
       <a class="tab" href="/binder" data-view="binder"><span class="ti">📖</span><span class="tl">Klaser</span></a>
       <a class="tab" href="/inventory" data-view="inventory"><span class="ti">🎒</span><span class="tl">Ekwipunek</span> <span class="badge" id="invCount">0</span></a>
       <a class="tab" href="/forge" data-view="forge"><span class="ti">⚒️</span><span class="tl">Kuźnia</span></a>
+      <a class="tab" href="/market" data-view="market"><span class="ti">🏪</span><span class="tl">Rynek</span> <span class="badge alert" id="marketBadge" hidden>0</span></a>
+      <a class="tab" href="/casino" data-view="casino"><span class="ti">🎰</span><span class="tl">Kasyno</span></a>
       <a class="tab" href="/friends" data-view="friends"><span class="ti">👥</span><span class="tl">Znajomi</span> <span class="badge alert" id="friendsBadge" hidden>0</span></a>
       <a class="tab" href="/ranking" data-view="ranking"><span class="ti">🏆</span><span class="tl">Ranking</span></a>
       <a class="tab" href="/arena" data-view="arena"><span class="ti">⚔️</span><span class="tl">Arena</span></a>
@@ -146,6 +150,18 @@
       <div id="hofBody" hidden></div>
     </section>
 
+    <!-- RYNEK KART -->
+    <section class="view" id="view-market">
+      <div class="seg mk-seg" id="marketSeg"></div>
+      <div id="marketBody"></div>
+    </section>
+
+    <!-- KASYNO -->
+    <section class="view" id="view-casino">
+      <div class="seg mk-seg" id="casinoSeg"></div>
+      <div id="casinoBody"></div>
+    </section>
+
     <!-- ZNAJOMI -->
     <section class="view" id="view-friends"><div id="friendsBody"></div></section>
 
@@ -204,6 +220,8 @@
   <script src="{{ asset('js/sound.js') }}"></script>
   <script src="{{ asset('js/fx.js') }}"></script>
   <script src="{{ asset('js/forge.js') }}"></script>
+  <script src="{{ asset('js/market.js') }}"></script>
+  <script src="{{ asset('js/casino.js') }}"></script>
   <script src="{{ asset('js/social.js') }}"></script>
   <script src="{{ asset('js/arena.js') }}"></script>
   <script src="{{ asset('js/hof.js') }}"></script>

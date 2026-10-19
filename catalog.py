@@ -201,6 +201,8 @@ def rebuild(conn):
     for p in final_people.values():
         cheapest = min((crates[c]["price"] for c in p["crates"]), default=data.CRATE_PRICE)
         p["valueMult"] = max(1.0, cheapest / data.CRATE_PRICE)
+        # kuźnia (kontrakt, ulepszacz) i wygrane w kasynie: tylko karty ze skrzynek, które są teraz w sklepie
+        p["forge"] = any(crates[c]["shop"] for c in p["crates"])
 
     CRATES, PEOPLE = crates, final_people
     HIDDEN_CRATES, HIDDEN_CARDS = hidden_crates, hidden_cards

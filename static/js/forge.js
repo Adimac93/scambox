@@ -19,9 +19,9 @@ function pickHTML(item, { sel = false, extra = "" } = {}) {
   const p = person(item.person);
   const v = item.variant || "normal";
   const img = p.rarity === "secret" && p.masked ? `/img/${p.id}` : imgUrl(p.id, v);
-  return `<div class="pick r-${p.rarity} v-${v}${sel ? " sel" : ""}" data-id="${item.id}" style="--rc:${S.cfg.rarities[p.rarity].color}">
+  return `<div class="pick r-${p.rarity} ${vClass(v)}${sel ? " sel" : ""}" data-id="${item.id}" style="--rc:${S.cfg.rarities[p.rarity].color}">
     <img src="${img}" alt="" loading="lazy" draggable="false">
-    ${isSpecial(v) ? `<span class="ph vt-${v}">${PICK_TAGS[v]}</span>` : ""}
+    ${isSpecial(v) ? `<span class="ph ${vtClass(v)}">${isCombo(v) ? PICK_TAGS.flag : ""}${PICK_TAGS[baseVariant(v)]}</span>` : ""}
     <span class="pn">${esc(p.name)}</span>
     <span class="pv">${fmt(item.value)}</span>${extra}
   </div>`;
@@ -46,6 +46,17 @@ function contractVariantChance(specials) {
   return Math.min(0.9, base * (1 + S.cfg.contractVariantBonus * specials));
 }
 
+// wynik kontraktu (jak na serwerze): tylko karty ze skrzynek, które są teraz w sklepie (p.forge), i nie "droższe"
+// (valueMult) niż najtańsza z włożonych; crateId = null - ze wszystkich skrzynek w sklepie
+function contractCandidates(crateId, target, maxMult) {
+  const ids = crateId ? crateOf(crateId)?.people || [] : Object.keys(S.cfg.people);
+  return ids.filter(id => { const p = person(id); return p.rarity === target && p.forge && (p.valueMult || 1) <= maxMult; });
+}
+// skrzynka, z której kontrakt losuje wynik za tę kartę (karta tylko ze skrzynek spoza sklepu - null)
+function contractCrate(p, target, maxMult) {
+  return (p.crates || [p.crate]).find(c => contractCandidates(c, target, maxMult).length) ?? null;
+}
+
 function renderContract() {
   const order = S.cfg.rarityOrder;
   const tiers = order.filter(r => r in S.cfg.contractSize);
@@ -67,12 +78,18 @@ function renderContract() {
   // możliwe wyniki
   let outcomes = "";
   if (slotItems.length) {
+    const maxMult = Math.min(...slotItems.map(i => person(i.person).valueMult || 1));
+    const pool = slotItems.map(i => contractCrate(person(i.person), next, maxMult)).filter(c => contractCandidates(c, next, maxMult).length);
     const share = {};
-    slotItems.forEach(i => { const c = person(i.person).crate; share[c] = (share[c] || 0) + 1 / slotItems.length; });
-    outcomes = Object.entries(share).flatMap(([c, sh]) => {
-      const ids = crateOf(c).people.filter(id => person(id).rarity === next);
-      return ids.map(id => `<div class="oc" title="${esc(person(id).name)}"><img src="${person(id).masked ? `/img/${id}` : imgUrl(id)}" alt=""><span>${pct(sh / ids.length)}</span></div>`);
-    }).join("");
+    pool.forEach(c => { share[c ?? ""] = (share[c ?? ""] || 0) + 1 / pool.length; });
+    const chance = {};   // ta sama karta może wypaść z kilku skrzynek - sumujemy
+    Object.entries(share).forEach(([c, sh]) => {
+      const ids = contractCandidates(c || null, next, maxMult);
+      ids.forEach(id => { chance[id] = (chance[id] || 0) + sh / ids.length; });
+    });
+    outcomes = Object.entries(chance).sort((a, b) => b[1] - a[1]).map(([id, ch]) =>
+      `<div class="oc" title="${esc(person(id).name)}"><img src="${person(id).masked ? `/img/${id}` : imgUrl(id)}" alt=""><span>${pct(ch)}</span></div>`).join("")
+      || `<div class="muted small">W skrzynkach ze sklepu nie ma kart wyższej rzadkości.</div>`;
   }
 
   $("#forgeBody").innerHTML = `
@@ -307,7 +324,8 @@ async function runContract() {
   FORGE.slots = [];
 
   // faza 2: bęben z możliwymi wynikami
-  const candidates = crateOf(res.crate).people.filter(id => person(id).rarity === next);
+  const candidates = crateOf(res.crate).people.filter(id => person(id).rarity === next && person(id).forge);
+  if (!candidates.includes(res.item.person)) candidates.push(res.item.person);
   const reel = el.querySelector(".fa-reel");
   reel.hidden = false;
   const strip = reel.querySelector(".fa-strip");
@@ -386,7 +404,8 @@ function upgChance(stake, goal) {
 
 function allTargets() {
   const out = [];
-  Object.values(S.cfg.people).filter(p => p.rarity !== "secret").forEach(p => {
+  // tylko karty ze skrzynek, które są teraz w sklepie (bez tajnych)
+  Object.values(S.cfg.people).filter(p => p.rarity !== "secret" && p.forge).forEach(p => {
     S.cfg.variantOrder.filter(v => !isExclusive(v))  // wariantów wyjątkowych nie da się ulepszyć - tylko ze skrzynek
       .forEach(v => out.push({ key: `${p.id}|${v}`, person: p.id, variant: v, value: cardValue(p.id, v) }));
   });

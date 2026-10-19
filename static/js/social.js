@@ -65,6 +65,10 @@ function applyBadges(me) {
   const b = $("#friendsBadge");
   b.textContent = n;
   b.hidden = !n;
+  // rynek: propozycje cen do moich ofert + nowości (sprzedane, kupione, przebite...) od ostatniej wizyty
+  const mb = $("#marketBadge");
+  mb.textContent = me.market || 0;
+  mb.hidden = !me.market || currentView() === "market";
   if (me.user) S.me = me.user;
 }
 
@@ -76,6 +80,7 @@ function startPolling() {
       const hadNew = me.unread > 0 || me.incoming > 0 || me.trades > 0;
       applyBadges(me);
       if (hadNew && currentView() === "friends" && !S.opening) renderFriends();
+      if (me.market && currentView() === "market" && !S.opening && !dialogOpen()) renderMarket(true);
     } catch (_) { /* serwer chwilowo niedostępny */ }
   }, 30000);
 }
@@ -313,7 +318,8 @@ function feedText(f) {
     if (f.mine) return f.to ? `pokazujesz kartę: <b>${esc(f.to)}</b>` : "pokazujesz kartę znajomym";
     return f.to ? "pokazuje ci kartę" : "chwali się kartą";
   }
-  const verb = { drop: "trafia ze skrzynki", contract: "wytwarza w kontrakcie", upgrade: "wygrywa w ulepszaczu" }[f.kind] || "zdobywa";
+  const verb = { drop: "trafia ze skrzynki", contract: "wytwarza w kontrakcie", upgrade: "wygrywa w ulepszaczu",
+                 casino: "wygrywa w ruletce" }[f.kind] || "zdobywa";
   return `${verb}!`;
 }
 
@@ -767,8 +773,8 @@ function openAvatarPicker(tab = null) {
         const active = c.person === S.me.avatarCard && c.variant === (S.me.avatarVariant || "normal");
         return `<button class="av-card-opt${active ? " active" : ""}${p.rarity === "secret" ? " av-secret" : ""}" data-card="${c.person}" data-variant="${c.variant}"
             data-name="${esc(p.name.toLowerCase())}" style="--rc:${R.color}" title="${esc(p.name)} — ${variantName(c.variant)}">
-          <span class="av-card avv-${c.variant}${p.rarity === "secret" ? " av-secret" : ""}" style="--rc:${R.color}"><img src="${imgUrl(c.person)}" alt="" loading="lazy" draggable="false"></span>
-          <span>${esc(p.name)}</span>${isSpecial(c.variant) ? `<small class="av-vname vt-${c.variant}">${variantName(c.variant)}</small>` : ""}</button>`;
+          <span class="av-card ${vClass(c.variant, "avv-")}${p.rarity === "secret" ? " av-secret" : ""}" style="--rc:${R.color}"><img src="${imgUrl(c.person)}" alt="" loading="lazy" draggable="false"></span>
+          <span>${esc(p.name)}</span>${isSpecial(c.variant) ? `<small class="av-vname ${vtClass(c.variant)}">${variantName(c.variant)}</small>` : ""}</button>`;
       }).join("") || '<div class="empty">Nie masz jeszcze żadnych kart — otwórz skrzynkę! 📦</div>'}</div>` : `
       <div class="avatar-grid">${AVATARS.map(a => `<button class="av-opt${!S.me.avatarCard && a === S.me.avatar ? " active" : ""}" data-av="${a}">${a}</button>`).join("")}</div>`}
     <div class="daily-actions"><button class="btn" data-close>Zamknij</button></div>`, "avatar-box");

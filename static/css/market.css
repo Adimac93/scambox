@@ -1,0 +1,84 @@
+/* ============================================================ RYNEK KART */
+.mk-seg { margin-bottom: 14px; max-width: 100%; overflow-x: auto; }
+.mk-seg small { color: var(--muted); font-weight: 700; margin-left: 2px; }
+.mk-seg small.mk-alert { background: var(--bad); color: #fff; border-radius: 99px; padding: 0 6px; }
+.mk-help { margin: 0 0 12px; line-height: 1.5; }
+.mk-money { color: var(--good); font-family: Bungee, Rubik, sans-serif; font-weight: 400; }
+.pos-txt { color: var(--good); }
+
+.mk-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.mk-filters input, .mk-filters select, .mk-form input, .mk-form select, .mk-new-want input, .mk-sell-pick input, .mk-ask input {
+  background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font: inherit; min-width: 0;
+}
+.mk-filters input { flex: 1 1 180px; }
+
+/* oferty */
+.mk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; }
+.mk-item {
+  display: flex; gap: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 10px; min-width: 0;
+}
+.mk-item.auction { border-color: #ffcf3f55; background: linear-gradient(135deg, #2a230e66, var(--panel) 45%); }
+.mk-item.mine { border-style: dashed; }
+.mk-card { flex: none; width: 128px; cursor: zoom-in; }
+.mk-card .card { width: 100%; --cw: 100%; }
+.mk-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.mk-kind { font-size: 13px; font-weight: 700; color: var(--muted); }
+.mk-time { color: var(--accent); font-variant-numeric: tabular-nums; }
+.mk-price { font-size: 15px; }
+.mk-price .mk-money { font-size: 20px; }
+.mk-meta { font-size: 12px; color: var(--muted); }
+.mk-seller { display: flex; align-items: center; gap: 8px; font-size: 13px; flex-wrap: wrap; }
+.mk-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: auto; }
+.mk-tag { font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 8px; background: var(--panel2); border: 1px solid var(--line); }
+.mk-tag.mine { color: var(--accent); }
+.mk-tag.lead { color: #241800; background: var(--accent); border-color: var(--accent); }
+
+/* dwie kolumny: wybór + formularz */
+.mk-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 14px; align-items: start; }
+.mk-cols h3 { margin: 0 0 8px; }
+.mk-new-want, .mk-sell-pick, .mk-sell-side { display: flex; flex-direction: column; gap: 10px; }
+.mk-sell-pick .pick-grid, .mk-pick { max-height: 560px; overflow-y: auto; }
+.mk-pick { max-height: 300px; }
+.mk-want-form, .mk-sell-form { display: flex; gap: 14px; flex-wrap: wrap; }
+.mk-want-card { flex: none; width: 190px; cursor: zoom-in; }
+.mk-want-card .card { width: 100%; --cw: 100%; }
+.mk-form { flex: 1; min-width: 210px; display: flex; flex-direction: column; gap: 10px; }
+.mk-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); font-weight: 700; }
+.mk-kind-seg { align-self: flex-start; }
+.mk-go { width: 100%; font-size: 18px; padding: 14px; }
+.mk-hint { background: #1d3a2a; border: 1px solid #2ccf7466; border-radius: 12px; padding: 8px 10px; font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
+/* zlecenia "Szukam" */
+.mk-want-list { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.mk-wanted { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.mk-want { display: flex; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 8px; min-width: 0; }
+.mk-want.can { border-color: #2ccf74aa; box-shadow: 0 0 12px #2ccf7433; }
+.mk-want.mine { border-style: dashed; }
+.mk-want .pick { flex: none; width: 82px; }
+.mk-want-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+
+/* moje */
+.mk-mine { display: flex; flex-direction: column; gap: 14px; }
+.mk-mine h3 { margin: 0 0 10px; }
+.mk-mine-item { display: flex; flex-direction: column; gap: 6px; }
+.mk-offers { background: var(--panel2); border: 1px solid #ffcf3f66; border-radius: 12px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.mk-offer { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.mk-hist { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.mk-hist:first-of-type { border-top: none; }
+.mk-hist .pick { flex: none; width: 64px; }
+.mk-hist > div:nth-child(2) { flex: 1; min-width: 0; }
+
+.mk-dialog { max-width: 420px; }
+.mk-ask { display: flex; flex-direction: column; gap: 10px; }
+.mk-ask input { font-size: 20px; padding: 10px 12px; }
+
+@media (max-width: 860px) {
+  .mk-cols { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  .mk-filters { display: grid; grid-template-columns: 1fr 1fr; }
+  .mk-filters input { grid-column: 1 / -1; }
+  .mk-grid { grid-template-columns: 1fr; }
+  .mk-card { width: 104px; }
+  .mk-want-card { width: 150px; }
+}
