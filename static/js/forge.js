@@ -7,7 +7,8 @@ const FORGE = {
   slots: [],
   busy: false,
   sort: "valueAsc",       // sortowanie kart do kontraktu
-  upg: { inputs: new Set(), target: null, variant: "all", search: "", angle: 0, sortMine: "value", sortTarget: "valueAsc" },
+  q: "",                  // wyszukiwanie kart do kontraktu
+  upg: { inputs: new Set(), target: null, variant: "all", search: "", angle: 0, sortMine: "value", sortTarget: "valueAsc", qMine: "" },
   bulk: { n: 1, dupes: true, keepSpecial: true },   // wiele kontraktów naraz
 };
 const MAX_BULK_CONTRACTS = 50;  // tyle przyjmie serwer w jednym zapytaniu
@@ -72,7 +73,7 @@ function renderContract() {
   FORGE.slots = FORGE.slots.filter(id => byId.has(id) && person(byId.get(id).person).rarity === tier).slice(0, need);
   const slotItems = FORGE.slots.map(id => byId.get(id));
   const inSlots = new Set(FORGE.slots);
-  const eligible = sortCards(forgeItems().filter(i => person(i.person).rarity === tier && !inSlots.has(i.id)), FORGE.sort);
+  const eligible = sortCards(forgeItems().filter(i => person(i.person).rarity === tier && !inSlots.has(i.id) && cardMatches(i, FORGE.q)), FORGE.sort);
 
   const specials = slotItems.filter(i => isSpecial(i.variant)).length;
   const stake = slotItems.reduce((a, i) => a + i.value, 0);
@@ -101,9 +102,10 @@ function renderContract() {
         const n = forgeItems().filter(i => person(i.person).rarity === t).length;
         return `<button class="rf rf-${t}${t === tier ? " active" : ""}" data-tier="${t}" style="--rc:${S.cfg.rarities[t].color}"><i></i>${S.cfg.rarities[t].name} <small>${n}</small></button>`;
       }).join("")}</div>
-      <div class="forge-pick-head"><span class="muted small">Kliknij kartę, aby dodać ją do kontraktu.</span>${sortSelectHTML(FORGE.sort, 'data-fsort="contract"')}</div>
-      <div class="pick-grid">${eligible.length ? eligible.slice(0, PICK_LIMIT).map(i => pickHTML(i)).join("") :
-        `<div class="empty">Nie masz więcej kart rzadkości „${R.name}”.</div>`}</div>
+      <div class="forge-pick-head"><span class="muted small">Kliknij kartę, aby dodać ją do kontraktu.</span>
+        <input type="text" data-fq="contract" placeholder="🔍 Szukaj…" value="${esc(FORGE.q)}">${sortSelectHTML(FORGE.sort, 'data-fsort="contract"')}</div>
+      <div class="pick-grid">${eligible.length ? eligible.slice(0, PICK_LIMIT).map(i => pickHTML(i)).join("") : FORGE.q.trim()
+        ? '<div class="empty">Żadna karta nie pasuje do wyszukiwania.</div>' : `<div class="empty">Nie masz więcej kart rzadkości „${R.name}”.</div>`}</div>
     </div>
     <div class="panel contract" style="--rc:${R.color}; --nc:${NR.color}">
       <h3>${need} × <span style="color:${R.color}">${R.name}</span> ➜ 1 × <span class="${next === "ultra" ? "rainbow-text" : next === "secret" ? "secret-text" : ""}" style="color:${NR.color}">${NR.name}</span></h3>
@@ -421,20 +423,22 @@ function renderUpgrader() {
   const stake = upgStake();
   const everything = allTargets();
   const targets = everything.filter(t => t.value > stake && (u.variant === "all" || t.variant === u.variant) &&
-    (!u.search || person(t.person).name.toLowerCase().includes(u.search.toLowerCase())));
+    cardMatches(t, u.search));
   let target = u.target ? everything.find(t => t.key === u.target) : null;
   if (target && target.value <= stake) { target = null; u.target = null; }
   const chance = target ? upgChance(stake, target.value) : 0;
-  const mine = sortCards(forgeItems(), u.sortMine);
+  // wybrane karty zostają na liście także wtedy, gdy nie pasują do wyszukiwania (żeby dało się je odznaczyć)
+  const mine = sortCards(forgeItems().filter(i => u.inputs.has(i.id) || cardMatches(i, u.qMine)), u.sortMine);
 
   $("#forgeBody").innerHTML = `
   <div class="upg-cols">
     <div class="panel upg-side">
       <h3>Twoje karty <small class="muted">(max ${S.cfg.upgradeMaxItems})</small></h3>
       <div class="upg-sum">Wkład: <b>${fmt(stake)}</b> · ${u.inputs.size} ${plural(u.inputs.size, "karta", "karty", "kart")}
-        ${u.inputs.size ? '<button class="btn tiny" id="uClear">Wyczyść</button>' : ""}${sortSelectHTML(u.sortMine, 'data-fsort="mine"')}</div>
+        ${u.inputs.size ? '<button class="btn tiny" id="uClear">Wyczyść</button>' : ""}</div>
+      <div class="upg-filters"><input type="text" data-fq="mine" placeholder="🔍 Szukaj…" value="${esc(u.qMine)}">${sortSelectHTML(u.sortMine, 'data-fsort="mine"')}</div>
       <div class="pick-grid">${mine.length ? mine.slice(0, PICK_LIMIT).map(i => pickHTML(i, { sel: u.inputs.has(i.id) })).join("")
-        : '<div class="empty">Nie masz kart.</div>'}</div>
+        : `<div class="empty">${u.qMine.trim() ? "Żadna karta nie pasuje do wyszukiwania." : "Nie masz kart."}</div>`}</div>
     </div>
 
     <div class="panel upg-mid">
@@ -467,7 +471,7 @@ function renderUpgrader() {
     <div class="panel upg-side">
       <h3>Cel</h3>
       <div class="upg-filters">
-        <input type="text" id="uSearch" placeholder="Szukaj…" value="${esc(u.search)}">
+        <input type="text" id="uSearch" placeholder="🔍 Szukaj…" value="${esc(u.search)}">
         <select id="uVariant">${[["all", "Wszystkie"], ...S.cfg.variantOrder.filter(v => !isExclusive(v)).map(v => [v, variantName(v)])].map(([v, n]) =>
           `<option value="${v}"${u.variant === v ? " selected" : ""}>${n}</option>`).join("")}</select>
         ${sortSelectHTML(u.sortTarget, 'data-fsort="target"', CARD_SORTS.filter(([k]) => k !== "new"))}
@@ -658,6 +662,13 @@ function bindForge() {
       const pos = e.target.selectionStart;
       renderUpgrader();
       const inp = $("#uSearch"); inp.focus(); inp.setSelectionRange(pos, pos);
+    }
+    const fq = e.target.dataset.fq;
+    if (fq) {
+      const pos = e.target.selectionStart;
+      if (fq === "contract") { FORGE.q = e.target.value; renderContract(); }
+      else { FORGE.upg.qMine = e.target.value; renderUpgrader(); }
+      const inp = $(`[data-fq=${fq}]`); inp.focus(); inp.setSelectionRange(pos, pos);
     }
   });
   $("#forgeBody").addEventListener("change", e => {

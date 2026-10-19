@@ -23,10 +23,9 @@ function csPct(x) { return (x * 100).toLocaleString("pl-PL", { maximumFractionDi
 
 // siatka moich kart do wyboru (ruletka / jackpot)
 function csPickerHTML(set, q, max, zone) {
-  const ql = q.trim().toLowerCase();
-  const sorted = sortCards(csItems().filter(i => !ql || person(i.person).name.toLowerCase().includes(ql)), CS.sorts[zone]);
+  const sorted = sortCards(csItems().filter(i => cardMatches(i, q)), CS.sorts[zone]);
   const list = [...sorted.filter(i => set.has(i.id)), ...sorted.filter(i => !set.has(i.id))];   // wybrane na początku
-  return `<div class="cs-pick-head"><input type="text" data-csq="${zone}" placeholder="Szukaj w swoich kartach…" value="${esc(q)}">
+  return `<div class="cs-pick-head"><input type="text" data-csq="${zone}" placeholder="🔍 Szukaj: nazwa, wariant, rzadkość…" value="${esc(q)}">
       ${sortSelectHTML(CS.sorts[zone], `data-cssort="${zone}"`)}
       <span class="muted small">${set.size}/${max} kart · ${fmt(csStake(set))}</span>
       ${set.size ? `<button class="btn tiny" data-csclear="${zone}">Wyczyść</button>` : ""}</div>

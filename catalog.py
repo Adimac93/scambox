@@ -62,14 +62,16 @@ def photo_variants(pid):
 
 def possible_variants(person):
     """Warianty, w których ta karta może istnieć: zwykłe zawsze, wyjątkowe tylko z jej skrzynek (flagowy - z krajem),
-    własne warianty karty (np. Rzulty tylko dla Jana Pawła II) i połączenia flagi z każdym z nich ("flag+gold")."""
+    własne warianty karty (np. Rzulty tylko dla Jana Pawła II) i połączenia flagi z każdym z nich ("flag+gold")
+    (Lampionowa / Diabelska - "noCombo" - bez połączeń)."""
     extra = set(data.card_variants(person["id"]))
     for c in person.get("crates") or []:
         if c in CRATES:
             extra |= set(crate_variants(CRATES[c], person))
     base = [v for v in data.VARIANT_ORDER if not data.VARIANTS[v].get("combo")
             and (not data.VARIANTS[v].get("exclusive") or v in extra)]
-    combos = {data.combine_variant(layer, b) for layer in base if data.VARIANTS[layer].get("layer")
+    combos = {data.combine_variant(layer, b) for layer in base
+              if data.VARIANTS[layer].get("layer") and not data.VARIANTS[layer].get("noCombo")
               for b in base if b != "normal" and not data.VARIANTS[b].get("layer")}
     return [v for v in data.VARIANT_ORDER if v in base or v in combos]
 

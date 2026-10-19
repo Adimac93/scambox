@@ -643,6 +643,7 @@ select { background: var(--panel); color: var(--text); border: 1px solid var(--l
 /* sortowanie kart w listach do wyboru (kuźnia, kasyno, rynek, wymiany, ikona gracza) */
 .sort-sel { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 7px 8px; font: inherit; font-size: 13px; max-width: 100%; }
 .mk-row, .tb-row, .forge-pick-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.mk-row > input, .tb-row > input { flex: 1 1 160px; min-width: 0; }
-.forge-pick-head { justify-content: space-between; }
-.upg-sum .sort-sel { margin-left: auto; }
+.mk-row > input, .tb-row > input, .forge-pick-head > input { flex: 1 1 160px; min-width: 0; }
+.forge-pick-head > span { flex: 1 1 100%; }
+.upg-filters { flex-wrap: wrap; }
+.upg-filters input[type=text] { min-width: 120px; }

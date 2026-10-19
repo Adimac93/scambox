@@ -857,10 +857,13 @@ def roll_variant(factor=1.0, extra=()):
     """Wariant karty. extra = warianty wyjątkowe dostępne w tej skrzynce (bez nich: tylko zwykłe warianty).
     Wariant-warstwa (flaga) z szansą "extraChance" dostaje jeszcze jeden wariant - z tymi samymi szansami co zwykle.
     Warianty "always" (Halloweenowa / Lampionowa / Diabelska): w tej skrzynce każda karta dostaje jeden z nich
-    (losowany według "weight"), a zwykły wariant losuje się normalnie."""
+    (losowany według "weight"), a zwykły wariant losuje się normalnie - chyba że wylosowany ma "noCombo" (Lampionowa,
+    Diabelska): wtedy karta ma tylko ten wariant."""
     always = [v for v in extra if VARIANTS[v].get("always")]
     if always:
         layer = rng.choices(always, weights=[VARIANTS[v].get("weight", 1) for v in always])[0]
+        if VARIANTS[layer].get("noCombo"):
+            return layer
         return combine_variant(layer, roll_variant(factor, [v for v in extra if not VARIANTS[v].get("layer")]))
     specials =[v for v in reversed(VARIANT_ORDER)  # najrzadsze najpierw
                 if v != "normal" and not VARIANTS[v].get("combo") and (not VARIANTS[v].get("exclusive") or v in extra)]

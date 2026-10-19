@@ -519,7 +519,7 @@ async function openTradeBuilder(username) {
   const draw = () => {
     const selMine = {};
     T.give.forEach(id => { const g = Object.values(mineGroups).find(x => x.ids.includes(id)); selMine[g.key] = (selMine[g.key] || 0) + 1; });
-    const match = (g, q) => !q || person(g.person).name.toLowerCase().includes(q);
+    const match = (g, q) => cardMatches(g, q);
     dlg.querySelector("#tbMine").innerHTML = sortG(Object.values(mineGroups), T.sortMine).filter(g => g.ids.length > (selMine[g.key] || 0) && match(g, T.qMine))
       .map(g => pickHTML({ id: g.key, person: g.person, variant: g.variant, value: g.value }, { extra: `<span class="pc">×${g.ids.length - (selMine[g.key] || 0)}</span>` })).join("")
       || '<div class="empty">Brak kart</div>';
@@ -541,7 +541,7 @@ async function openTradeBuilder(username) {
   draw();
 
   dlg.addEventListener("input", e => {
-    if (e.target.matches(".tb-search")) { T[e.target.dataset.side === "mine" ? "qMine" : "qTheirs"] = e.target.value.toLowerCase(); draw(); }
+    if (e.target.matches(".tb-search")) { T[e.target.dataset.side === "mine" ? "qMine" : "qTheirs"] = e.target.value; draw(); }
     if (e.target.matches("#tbMoneyGive, #tbMoneyWant")) draw();
   });
   dlg.addEventListener("change", e => {
@@ -788,7 +788,7 @@ function openAvatarPicker(tab = null) {
         const p = person(c.person), R = S.cfg.rarities[p.rarity];
         const active = c.person === S.me.avatarCard && c.variant === (S.me.avatarVariant || "normal");
         return `<button class="av-card-opt${active ? " active" : ""}${p.rarity === "secret" ? " av-secret" : ""}" data-card="${c.person}" data-variant="${c.variant}"
-            data-name="${esc(p.name.toLowerCase())}" style="--rc:${R.color}" title="${esc(p.name)} — ${variantName(c.variant)}">
+            data-search="${esc(cardSearchText(c.person, c.variant))}" style="--rc:${R.color}" title="${esc(p.name)} — ${variantName(c.variant)}">
           <span class="av-card ${vClass(c.variant, "avv-")}${p.rarity === "secret" ? " av-secret" : ""}" style="--rc:${R.color}"><img src="${imgUrl(c.person)}" alt="" loading="lazy" draggable="false"></span>
           <span>${esc(p.name)}</span>${isSpecial(c.variant) ? `<small class="av-vname ${vtClass(c.variant)}">${variantName(c.variant)}</small>` : ""}</button>`;
       }).join("") || '<div class="empty">Nie masz jeszcze żadnych kart — otwórz skrzynkę! 📦</div>'}</div>` : `
@@ -796,8 +796,8 @@ function openAvatarPicker(tab = null) {
     <div class="daily-actions"><button class="btn" data-close>Zamknij</button></div>`, "avatar-box");
   dlg.querySelector("[data-avsort]")?.addEventListener("change", e => { avatarSort = e.target.value; openAvatarPicker("cards"); });
   dlg.querySelector(".av-search")?.addEventListener("input", e => {
-    const q = e.target.value.toLowerCase();
-    dlg.querySelectorAll(".av-card-opt").forEach(b => { b.hidden = q && !b.dataset.name.includes(q); });
+    const q = e.target.value;
+    dlg.querySelectorAll(".av-card-opt").forEach(b => { b.hidden = !searchMatch(b.dataset.search, q); });
   });
   dlg.addEventListener("click", async e => {
     const t = e.target.closest("[data-tab]");

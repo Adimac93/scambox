@@ -75,7 +75,7 @@ function possibleVariants(p) {
   (p.crates || [p.crate]).forEach(c => { if (crateOf(c)) crateVariants(crateOf(c), p).forEach(v => extra.add(v)); });
   const V = S.cfg.variants;
   const base = S.cfg.variantOrder.filter(v => !V[v].combo && (!V[v].exclusive || extra.has(v)));
-  const combos = new Set(base.filter(l => V[l].layer).flatMap(l => base.filter(b => b !== "normal" && !V[b].layer).map(b => `${l}+${b}`)));
+  const combos = new Set(base.filter(l => V[l].layer && !V[l].noCombo).flatMap(l => base.filter(b => b !== "normal" && !V[b].layer).map(b => `${l}+${b}`)));
   return S.cfg.variantOrder.filter(v => base.includes(v) || combos.has(v));
 }
 // Warstwy wariantu: flaga leży na osobnej warstwie, więc karta może być np. "flag+gold" (Flagowa + Złota)
@@ -100,8 +100,10 @@ function variantChance(avail, v) {
   if (always.length) {
     const share = x => always.includes(x) ? (V[x].weight || 1) / always.reduce((a, y) => a + (V[y].weight || 1), 0) : 0;
     const bases = avail.filter(x => !V[x].layer), rest = 1 - bases.reduce((a, x) => a + V[x].chance, 0);
-    if (!isCombo(v)) return share(v) * rest;
-    return bases.includes(baseVariant(v)) ? share(variantParts(v)[0]) * V[baseVariant(v)].chance : 0;
+    // "noCombo" (Lampionowa, Diabelska): karta ma tylko ten wariant, bez zwykłego
+    if (!isCombo(v)) return share(v) * (V[v]?.noCombo ? 1 : rest);
+    const layer = variantParts(v)[0];
+    return bases.includes(baseVariant(v)) && !V[layer].noCombo ? share(layer) * V[baseVariant(v)].chance : 0;
   }
   if (!isSpecial(v)) return 1 - avail.reduce((a, x) => a + V[x].chance, 0);
   if (isCombo(v)) {
@@ -139,6 +141,15 @@ function sortSelectHTML(mode, attr, options = CARD_SORTS) {
   return `<select class="sort-sel" ${attr} title="Sortowanie">${options.map(([v, n]) =>
     `<option value="${v}"${v === mode ? " selected" : ""}>${n}</option>`).join("")}</select>`;
 }
+// Wyszukiwanie kart w listach do wyboru (kuźnia, kasyno, rynek, wymiany, ikona gracza): po nazwie, wariancie i rzadkości,
+// bez wielkich liter i polskich znaków ("zlota" znajdzie "Złota"); kilka słów = karta musi pasować do każdego
+function searchNorm(s) { return String(s || "").toLowerCase().replace(/ł/g, "l").normalize("NFD").replace(/[\u0300-\u036f]/g, ""); }
+function cardSearchText(pid, variant) {
+  const p = person(pid);
+  return p ? searchNorm(`${p.name} ${variantName(variant)} ${S.cfg.rarities[p.rarity].name}`) : "";
+}
+function searchMatch(text, q) { return searchNorm(q).split(/\s+/).filter(Boolean).every(w => text.includes(w)); }
+function cardMatches(x, q) { return !q || !q.trim() || searchMatch(cardSearchText(x.person, x.variant), q); }
 function flagUrl(country) { return `/flag/${encodeURIComponent(country)}.svg`; }
 function person(id) { return S.cfg.people[id]; }
 function crateOf(id) { return S.cfg.crates[id]; }
@@ -692,9 +703,10 @@ function renderCrates() {
   // warianty "always" (halloweenowe): każda karta ma jeden z nich - pokazujemy udział każdego
   const always = crateVariants(crate).filter(v => S.cfg.variants[v].always);
   const alwaysW = always.reduce((a, v) => a + (S.cfg.variants[v].weight || 1), 0);
+  const comboTxt = v => S.cfg.variants[v].noCombo ? "nie łączy się z innymi wariantami" : "łączy się z innymi wariantami";
   const alwaysTxt = v => always.length > 1
-    ? `${pctTxt((S.cfg.variants[v].weight || 1) / alwaysW)} kart (każda karta ma jeden z ${always.length} wariantów halloweenowych, łączy się z innymi)`
-    : "100% — każda karta (łączy się z innymi wariantami)";
+    ? `${pctTxt((S.cfg.variants[v].weight || 1) / alwaysW)} kart (każda karta ma jeden z ${always.length} wariantów halloweenowych, ${comboTxt(v)})`
+    : `100% — każda karta (${comboTxt(v)})`;
   $("#odds").innerHTML = rs.map(r => {
     const R = S.cfg.rarities[r];
     const n = crate.people.filter(id => person(id).rarity === r).length;

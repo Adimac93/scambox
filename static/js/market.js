@@ -32,7 +32,7 @@ function mkPrice(n) { return `<b class="mk-money">${fmt(n)}</b>`; }
 
 function mkMatchesFilter(x) {
   const f = MK.f, p = person(x.person);
-  if (f.q && !(p.masked ? "???" : p.name).toLowerCase().includes(f.q.toLowerCase())) return false;
+  if (f.q && !(p.masked ? searchMatch(searchNorm(`??? ${variantName(x.variant)} ${S.cfg.rarities[p.rarity].name}`), f.q) : cardMatches(x, f.q))) return false;
   if (f.rarity !== "all" && p.rarity !== f.rarity) return false;
   if (f.variant === "special" ? !isSpecial(x.variant) : f.variant !== "all" && x.variant !== f.variant) return false;
   if (f.crate !== "all" && !(p.crates || [p.crate]).includes(f.crate)) return false;
@@ -177,7 +177,7 @@ function mkSortOrders(list) {
 function mkWantedHTML() {
   const w = MK.want;
   const sel = w.person && person(w.person);
-  const found = w.q.trim() ? sortCards(Object.values(S.cfg.people).filter(p => !p.masked && p.name.toLowerCase().includes(w.q.trim().toLowerCase()))
+  const found = w.q.trim() ? sortCards(Object.values(S.cfg.people).filter(p => !p.masked && searchMatch(searchNorm(p.name), w.q))
     .map(p => ({ id: p.id, person: p.id, variant: "normal", value: cardValue(p.id) })), w.sortFound).slice(0, 30) : [];
   const orders = mkSortOrders(MK.data.wanted.filter(o => mkMatchesFilter(o) && (!w.onlyMine || (!o.mine && mkMyItemFor(o.person, o.variant)))));
   const value = sel ? cardValue(sel.id, w.variant) : 0;
@@ -228,8 +228,7 @@ function mkSellHTML() {
   const items = S.items.filter(i => !i.fav);
   const it = items.find(i => i.id === s.item);
   if (!it) s.item = null;
-  const q = s.q.trim().toLowerCase();
-  const list = sortCards(items.filter(i => !q || person(i.person).name.toLowerCase().includes(q)), s.sort);
+  const list = sortCards(items.filter(i => cardMatches(i, s.q)), s.sort);
   let form = '<div class="empty">Wybierz kartę z listy, aby ją wystawić.</div>';
   if (it) {
     const wanted = MK.data.wanted.filter(o => !o.mine && o.person === it.person && o.variant === it.variant).sort((a, b) => b.price - a.price);

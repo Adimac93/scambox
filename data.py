@@ -30,17 +30,18 @@ VARIANTS = {
                 "desc": "Karta w barwach flagi swojego kraju. Każda karta w skrzynce potrzebuje ustawionego kraju (np. PL). "
                         "40% flagowych kart ma dodatkowo inny wariant (np. Flagowa + Złota)."},
     # Halloweenowe (wyjątkowe, warstwowe, "always"): w skrzynce z nimi KAŻDA karta dostaje jeden z nich - losowany według
-    # "weight" spośród włączonych w skrzynce - a do tego normalnie losuje się zwykły wariant (np. Diabelska + Złota).
+    # "weight" spośród włączonych w skrzynce - a do tego normalnie losuje się zwykły wariant (np. Halloweenowa + Złota).
+    # "noCombo": ten wariant NIE łączy się z innymi (Lampionowa / Diabelska są zawsze same - tylko Halloweenowa łączy się).
     # "photo": karta może mieć własne zdjęcie w tym wariancie (panel admina); "photoFallback": gdy go brak - zdjęcie
     # z tamtego wariantu (Lampionowa / Diabelska -> Halloweenowa), a gdy i tego brak - zwykłe.
     "halloween": {"name": "Halloweenowa", "chance": 0.0, "mult": 3.0, "exclusive": True, "layer": True, "always": True,
                   "weight": 85, "photo": True,
                   "desc": "Noc z księżycem, dynie-lampiony, czaszka i nietoperze. Najczęstszy z wariantów halloweenowych."},
     "lantern":   {"name": "Lampionowa", "chance": 0.0, "mult": 6.0, "exclusive": True, "layer": True, "always": True,
-                  "weight": 12, "photo": True, "photoFallback": "halloween",
+                  "weight": 12, "photo": True, "photoFallback": "halloween", "noCombo": True,
                   "desc": "Karta w blasku świecy z dyni: zdjęcie w pomarańczowym świetle, migoczący blask, iskry."},
     "devil":     {"name": "Diabelska", "chance": 0.0, "mult": 15.0, "exclusive": True, "layer": True, "always": True,
-                  "weight": 3, "photo": True, "photoFallback": "halloween",
+                  "weight": 3, "photo": True, "photoFallback": "halloween", "noCombo": True,
                   "desc": "Najrzadszy wariant halloweenowy - piekielny ogień, rogi i czerwona poświata."},
     "clear":   {"name": "Przezroczysta", "chance": 0.006, "mult": 9.0},
     "sketch":  {"name": "Rysunkowa",    "chance": 0.004, "mult": 10.0,
@@ -63,6 +64,7 @@ VARIANTS = {
 # flagowa karta, z szansą "extraChance" dostaje jeszcze jeden wariant - losowany z tymi samymi szansami co zwykle
 # (spośród wariantów dostępnych w tej skrzynce). Taki wariant zapisujemy jako "flag+gold": wygląd obu wariantów,
 # nazwa "Flagowa + Złota", mnożnik wartości = iloczyn (×8 · ×7,5 = ×60). Tych połączeń nie losujemy osobno ("combo").
+# Połączenia warstw z "noCombo" (Lampionowa / Diabelska) też istnieją - tylko dla kart, które wypadły przed tą zmianą.
 for _layer in [v for v, x in VARIANTS.items() if x.get("layer")]:
     for _base, _x in list(VARIANTS.items()):
         if _base == "normal" or _x.get("layer") or _x.get("combo"):
@@ -504,6 +506,14 @@ JACKPOT = {"maxCards": 20, "expireHours": 24}
 # ============================================================ LISTA ZMIAN (pokazywana raz po aktualizacji)
 # Najnowsza na górze. "v" musi rosnąć z każdą nową wersją - gracz zobaczy wpisy nowsze niż ostatnio obejrzany.
 PATCH_NOTES = [
+    {"v": 6, "date": "2026-10-19", "title": "Wyszukiwanie kart",
+     "items": [
+         "🏮😈 Karty <b>Lampionowe</b> i <b>Diabelskie</b> nie łączą się już z innymi wariantami (np. Diabelska + Złota) — "
+         "to są osobne, rzadkie warianty. Łączyć się z innymi może tylko <b>Halloweenowa</b>. Karty, które już masz, zostają bez zmian.",
+         "🔍 <b>Wyszukiwanie kart</b> w kontrakcie i ulepszaczu w kuźni (w kasynie, na rynku i w wymianach już było).",
+         "🔍 Wyszukiwanie działa teraz także po wariancie i rzadkości (np. „złota”, „diabelska legendarna”) "
+         "i bez polskich znaków („zlota” znajdzie „Złota”).",
+     ]},
     {"v": 5, "date": "2026-10-19", "title": "Nowe warianty, grosze i sortowanie",
      "items": [
          "🎃 Nowa <b>Skrzynia Halloween</b> — każda karta z niej ma jeden z trzech wariantów halloweenowych: "
