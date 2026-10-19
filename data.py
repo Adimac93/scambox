@@ -29,18 +29,35 @@ VARIANTS = {
     "flag":    {"name": "Flagowa",      "chance": 0.008, "mult": 8.0, "exclusive": True, "layer": True, "extraChance": 0.4,
                 "desc": "Karta w barwach flagi swojego kraju. Każda karta w skrzynce potrzebuje ustawionego kraju (np. PL). "
                         "40% flagowych kart ma dodatkowo inny wariant (np. Flagowa + Złota)."},
+    # Halloweenowe (wyjątkowe, warstwowe, "always"): w skrzynce z nimi KAŻDA karta dostaje jeden z nich - losowany według
+    # "weight" spośród włączonych w skrzynce - a do tego normalnie losuje się zwykły wariant (np. Diabelska + Złota).
+    # "photo": karta może mieć własne zdjęcie w tym wariancie (panel admina); "photoFallback": gdy go brak - zdjęcie
+    # z tamtego wariantu (Lampionowa / Diabelska -> Halloweenowa), a gdy i tego brak - zwykłe.
+    "halloween": {"name": "Halloweenowa", "chance": 0.0, "mult": 3.0, "exclusive": True, "layer": True, "always": True,
+                  "weight": 85, "photo": True,
+                  "desc": "Noc z księżycem, dynie-lampiony, czaszka i nietoperze. Najczęstszy z wariantów halloweenowych."},
+    "lantern":   {"name": "Lampionowa", "chance": 0.0, "mult": 6.0, "exclusive": True, "layer": True, "always": True,
+                  "weight": 12, "photo": True, "photoFallback": "halloween",
+                  "desc": "Karta w blasku świecy z dyni: zdjęcie w pomarańczowym świetle, migoczący blask, iskry."},
+    "devil":     {"name": "Diabelska", "chance": 0.0, "mult": 15.0, "exclusive": True, "layer": True, "always": True,
+                  "weight": 3, "photo": True, "photoFallback": "halloween",
+                  "desc": "Najrzadszy wariant halloweenowy - piekielny ogień, rogi i czerwona poświata."},
     "clear":   {"name": "Przezroczysta", "chance": 0.006, "mult": 9.0},
+    "sketch":  {"name": "Rysunkowa",    "chance": 0.004, "mult": 10.0,
+                "desc": "Karta narysowana piórem i tuszem na starym papierze."},
     "emerald": {"name": "Szmaragdowa",  "chance": 0.005, "mult": 11.0},
     "ruby":    {"name": "Rubinowa",     "chance": 0.004, "mult": 14.0},
     "royal":   {"name": "Królewska",    "chance": 0.004, "mult": 15.0, "exclusive": True,   # wyjątkowy (Skrzynia Królów)
                 "desc": "Ozdobna złota rama z ornamentami i złota korona na górze."},
     "diamond": {"name": "Diamentowa",   "chance": 0.003, "mult": 18.0},
+    "galaxy":  {"name": "Galaktyczna",  "chance": 0.002, "mult": 20.0,
+                "desc": "Kosmiczna karta: mgławice, gwiazdy i świecąca ramka."},
     "negative": {"name": "Negatyw",     "chance": 0.001, "mult": 30.0},
     # wariant jednej karty (pole "cards"): Jan Paweł II. Tajna karta wypada raz na 2137 skrzynek, więc Negatyw JP2 to
     # 1 na 2 137 000 skrzynek - Rzulty ma być trochę rzadszy: 1 na 2 137 420 (szansa na wariant przy wypadnięciu JP2).
-    # Może mieć własne zdjęcie (panel admina, edycja karty); cała karta ma żółty filtr.
+    # Może mieć własne zdjęcie (panel admina, edycja karty).
     "rzulty":  {"name": "Rzulty",       "chance": 2137 / 2_137_420, "mult": 31.0, "exclusive": True, "cards": ["pl_secret"],
-                "desc": "Wariant tylko jednej karty - żółty filtr na całej karcie i własne zdjęcie."},   # najrzadszy
+                "desc": "Wariant tylko jednej karty (Jan Paweł II) - własne zdjęcie."},   # najrzadszy
 }
 # Warstwy (na razie tylko Flagowy): wszystkie warianty leżą na jednej warstwie, a flaga na osobnej. Gdy wypadnie
 # flagowa karta, z szansą "extraChance" dostaje jeszcze jeden wariant - losowany z tymi samymi szansami co zwykle
@@ -71,13 +88,17 @@ def card_variants(pid):
     """Warianty przypisane tylko do tej karty (np. Rzulty dla Jana Pawła II) - mogą mieć własne zdjęcie."""
     return [v for v, x in VARIANTS.items() if pid in (x.get("cards") or [])]
 # domyślne warianty wyjątkowe skrzynek - dopóki admin nie zapisze w panelu własnego wyboru
-DEFAULT_CRATE_VARIANTS = {"skrzynia_krolow": ["royal"]}
+DEFAULT_CRATE_VARIANTS = {"skrzynia_krolow": ["royal"], "halloween": ["halloween", "lantern", "devil"]}
+# wbudowane skrzynki dodane po tym, jak admini zaczęli edytować karty (catalog.rebuild dopisuje ich karty "shared"
+# także do kart zapisanych wcześniej w panelu)
+CRATES_ADDED_LATER = {"halloween"}
 
 # Kuźnia - kontrakt: ile kart danej rzadkości daje 1 kartę rzadkości wyższej
 # Liczby dobrane tak, żeby kontrakt NIE dawał zysku: średnio zwraca 81-87% wartości włożonych kart (jak ulepszacz <= 90%).
 # Wcześniej (3 karty, bonus 50%) zwracał 146-162% - dało się zarabiać bez końca: skrzynki -> kontrakty -> sprzedaż.
 # Przy zmianie wartości rzadkości / wariantów trzeba to przeliczyć.
-CONTRACT_SIZE = {"green": 5, "blue": 5, "purple": 6, "red": 6, "gold": 7}   # tajnych kart nie da się wytworzyć
+CONTRACT_SIZE = {"green": 5, "uncommon": 5, "blue": 5, "purple": 6, "red": 6, "gold": 7}   # tajnych kart nie da się wytworzyć
+# (wynikiem kontraktu jest następna rzadkość, która ma karty - pusta rzadkość, np. Niepospolita bez kart, jest pomijana)
 CONTRACT_VARIANT_BONUS = 0.1   # każda karta w specjalnym wariancie zwiększa szanse na wariant o 10%
 # Kuźnia - ulepszacz: szansa = wartość wkładu / wartość celu * UPGRADE_EDGE (max UPGRADE_MAX)
 UPGRADE_EDGE = 0.9
@@ -99,6 +120,8 @@ SHOWCASE_SIZE = 6         # ile kart mieści gablota na profilu
 # kolejność = od najpospolitszej do najrzadszej
 RARITIES = {
     "green":  {"name": "Zwykła",           "weight": 56.3, "value": 10,   "color": "#4fc34f"},
+    # Niepospolita: na razie bez kart (szansa liczy się tylko w skrzynkach, w których są karty tej rzadkości)
+    "uncommon": {"name": "Niepospolita",   "weight": 20.0, "value": 18,   "color": "#26c6b0"},
     "blue":   {"name": "Rzadka",           "weight": 25.0, "value": 30,   "color": "#4b8bff"},
     "purple": {"name": "Epicka",           "weight": 12.0, "value": 90,   "color": "#a35bff"},
     "red":    {"name": "Mityczna",         "weight": 5.5,  "value": 300,  "color": "#ff4040"},
@@ -335,6 +358,11 @@ CRATES = {
             "weights": {"green": 40.0, "blue": 30.0, "purple": 18.0, "red": 9.0, "gold": 3.0, "ultra": 0.5},
             "shared": ["pl_secret", "pl_walesa", "pl_krawczyk", "pl_rodowicz"],
             "people": PEOPLE_PRL},
+    # każda karta z tej skrzynki jest Halloweenowa (DEFAULT_CRATE_VARIANTS); na razie tylko Tusk jako karta próbna -
+    # kolejne karty admin dodaje w panelu (zaznaczając tę skrzynkę), tam też wgrywa halloweenowe zdjęcia
+    "halloween": {"name": "Skrzynia Halloween", "short": "Halloween", "code": "HW", "emoji": "🎃",
+                  "color1": "#ff7a00", "color2": "#2b0a3d", "price": 300, "shop": True, "restricted": False,
+                  "desc": "każda karta w wersji halloweenowej", "shared": ["pl_tusk"], "people": []},
 }
 
 # Drugie zdolności - mają je wszystkie karty legendarne, ULTRA i tajne
@@ -373,7 +401,7 @@ def card_value(person, variant="normal"):
 ARENA = {
     "deckSize": 8, "boardSlots": 4, "actions": 2, "maxCoins": 10,
     # koszt wystawienia karty z ławki na planszę (złote monety) - z rzadkości
-    "cardCost": {"green": 1, "blue": 2, "purple": 3, "red": 4, "gold": 5, "ultra": 6, "secret": 7},
+    "cardCost": {"green": 1, "uncommon": 1, "blue": 2, "purple": 3, "red": 4, "gold": 5, "ultra": 6, "secret": 7},
     # domyślny koszt zdolności (monety) z jej wartości: [(od wartości, koszt)] - słabe za darmo
     "abilityCost": [[0, 0], [150, 1], [250, 2]],
     # nagrody: skrzynka z pieniędzmi (MONEY_CHESTS) za 1., 3. i 9. wygraną dnia
@@ -469,12 +497,37 @@ ROULETTE_BETS = {
     "col3":   ("3. kolumna", list(range(3, 37, 3)), 2),
 }
 ROULETTE_BETS.update({f"n{n}": (f"Liczba {n}", [n], 35) for n in range(1, 37)})
-# Jackpot: dwóch graczy stawia karty, szansa na wygraną = wartość moich kart / wartość wszystkich; zwycięzca bierze wszystko
+# Jackpot: lobby dla 2 graczy (publiczne / prywatne z zaproszeniami), obaj wybierają karty i akceptują; szansa na wygraną
+# = wartość moich kart / wartość wszystkich, zwycięzca bierze wszystkie karty. Lobby bez ruchu przez expireHours się zamyka.
 JACKPOT = {"maxCards": 20, "expireHours": 24}
 
 # ============================================================ LISTA ZMIAN (pokazywana raz po aktualizacji)
 # Najnowsza na górze. "v" musi rosnąć z każdą nową wersją - gracz zobaczy wpisy nowsze niż ostatnio obejrzany.
 PATCH_NOTES = [
+    {"v": 5, "date": "2026-10-19", "title": "Nowe warianty, grosze i sortowanie",
+     "items": [
+         "🎃 Nowa <b>Skrzynia Halloween</b> — każda karta z niej ma jeden z trzech wariantów halloweenowych: "
+         "<b>Halloweenowa</b> (najczęstsza), <b>Lampionowa</b> 🏮 (rzadsza) albo <b>Diabelska</b> 😈 (najrzadsza) "
+         "i może dodatkowo trafić w inny wariant, np. Diabelska + Złota. Tylko z tej skrzynki!",
+         "✒️ Nowy wariant <b>Rysunkowa</b> — karta jak szkic ołówkiem. Może wypaść każda karta.",
+         "🌌 Nowy wariant <b>Galaktyczna</b> — ruchome mgławice i gwiazdy, a co jakiś czas przelatuje spadająca gwiazda.",
+         "💛 Wariant <b>Rzulty</b> nie ma już żółtego filtra (ma własne zdjęcie) i jest tylko dla Jana Pawła II.",
+         "🟢 Nowa rzadkość <b>Niepospolita</b> — między Zwykłą a Rzadką. Karty tej rzadkości pojawią się wkrótce.",
+         "🪙 Waluta gry to teraz <b>grosze</b> (gr) — zmienia się tylko nazwa, wartości zostają te same.",
+         "🔃 Sortowanie kart w kuźni, kasynie, na rynku, w wymianach i przy wyborze ikony.",
+         "🏳️ W podglądzie karty widać wszystkie możliwe połączenia z wariantem Flagowym (np. Flagowa + Złota).",
+         "🏆 Hall of Fame pokazuje tylko graczy widocznych w rankingu.",
+     ]},
+    {"v": 4, "date": "2026-10-19", "title": "Jackpot jako lobby",
+     "items": [
+         "💰 <b>Jackpot</b> działa teraz jak lobby: załóż je jako <b>publiczne</b> albo <b>prywatne</b> (możesz to zmienić później) "
+         "i zaproś graczy po nicku. Zaproszenia zobaczysz na zakładce 🎰 Kasyno.",
+         "🃏 Obaj gracze wybierają karty w lobby i mogą je zmieniać. Losowanie startuje dopiero, gdy <b>obaj zaakceptują</b> — "
+         "każda zmiana kart cofa akceptację.",
+         "🏆 Zwycięzca bierze wszystkie karty z lobby — swoje z powrotem i karty rywala. Wynik zobaczysz od razu, "
+         "nawet gdy jesteś w innej zakładce albo wrócisz do gry później.",
+         "🔄 Ekwipunek i saldo same się odświeżają, gdy ktoś kupi twoją kartę na rynku albo wygrasz licytację.",
+     ]},
     {"v": 3, "date": "2026-10-19", "title": "Rynek kart, Kasyno i flagowe karty z dodatkowym wariantem",
      "items": [
          "🏪 Nowa zakładka <b>Rynek</b> — wystawiaj karty za stałą cenę albo na <b>licytację</b> (cena wywoławcza i minimalne przebicie). "

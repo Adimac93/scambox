@@ -37,10 +37,11 @@ KEY_PATH = os.path.join(images.DATA_DIR, "secret_key.txt")
 STATE_KEYS = (("balance", STARTING_BALANCE), ("opened", 0), ("spent", 0), ("earned", 0), ("deposited", 0),
               ("contracts", 0), ("upgrades_won", 0), ("upgrades_lost", 0), ("feed_seen", 0), ("daily_total", 0),
               ("patch_seen", 0),  # patch_seen: ostatnia obejrzana lista zmian (PATCH_NOTES)
-              ("market_seen", 0))  # market_seen: kiedy gracz ostatnio oglądał rynek (znaczek z nowościami)
+              ("market_seen", 0),  # market_seen: kiedy gracz ostatnio oglądał rynek (znaczek z nowościami)
+              ("jackpot_seen", 0))  # jackpot_seen: koniec (ms) ostatniej gry w jackpot, której wynik gracz już widział
 ESCROW = 0  # "właściciel" kart wystawionych na rynek / postawionych w jackpocie (czekają na koniec transakcji)
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_.\-ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]{3,20}$")
-FEED_RARITY = 4  # od legendarnych w górę dropy trafiają automatycznie do aktywności znajomych
+FEED_RARITY = RARITY_ORDER.index("gold")  # od legendarnych w górę dropy trafiają automatycznie do aktywności znajomych
 MIN_PASSWORD = 8  # nowe hasła (stare, krótsze nadal działają przy logowaniu)
 PASSWORD_ERROR = f"Hasło musi mieć co najmniej {MIN_PASSWORD} znaków"
 LOGIN_WINDOW = 5 * 60                      # okno liczenia nieudanych logowań (sekundy)
@@ -112,9 +113,26 @@ def init_db():
                  "FROM items WHERE user_id > 0 ON CONFLICT DO NOTHING")   # 0 = karty na rynku / w jackpocie
     conn.execute("INSERT INTO user_collected (user_id, person_id, variant) SELECT DISTINCT author_id, person_id, variant "
                  "FROM feed WHERE author_id IS NOT NULL ON CONFLICT DO NOTHING")
+    # kiedy gracz pierwszy raz miał kartę (starsze wpisy bez czasu): najstarsza jego karta albo wpis w aktywności
+    conn.execute("UPDATE user_collected SET at = (SELECT MIN(i.created_at) FROM items i WHERE i.user_id = user_collected.user_id "
+                 "AND i.person_id = user_collected.person_id AND i.variant = user_collected.variant) WHERE at IS NULL")
+    conn.execute("UPDATE user_collected SET at = (SELECT MIN(f.created_at) FROM feed f WHERE f.author_id = user_collected.user_id "
+                 "AND f.person_id = user_collected.person_id AND f.variant = user_collected.variant AND f.kind != 'show') "
+                 "WHERE at IS NULL")
     # kto kiedykolwiek dostał pieniądze z bankomatu / od admina (statystyka "deposited") - poza rankingiem
     conn.execute("UPDATE users SET money_generated = 1 WHERE money_generated = 0 AND id IN "
                  "(SELECT user_id FROM user_state WHERE key = 'deposited' AND value > 0)")
+    # jackpot jako lobby nie blokuje kart - stoły z pierwszej wersji (karty założyciela w ESCROW) zamykamy, karty wracają
+    for jid, creator in conn.execute("SELECT id, creator_id FROM jackpots WHERE status = 'open'").fetchall():
+        held = [r[0] for r in conn.execute("SELECT ji.item_id FROM jackpot_items ji JOIN items i ON i.id = ji.item_id "
+                                           "WHERE ji.jackpot_id = ? AND i.user_id = ?", (jid, ESCROW))]
+        if held:
+            marks = ",".join("?" * len(held))
+            conn.execute(f"UPDATE items SET user_id = ? WHERE user_id = ? AND id IN ({marks})", [creator, ESCROW, *held])
+            conn.execute("UPDATE jackpots SET status = 'cancelled', finished_at = ? WHERE id = ?", (time.time(), jid))
+    # wyniki jackpota sprzed tej wersji uznajemy za obejrzane (nowi gracze dostają 0 przy rejestracji)
+    conn.execute("INSERT INTO user_state (user_id, key, value) SELECT id, 'jackpot_seen', ? FROM users WHERE id > 0 "
+                 "ON CONFLICT DO NOTHING", (int(time.time() * 1000),))   # WHERE: SQLite tego wymaga przy SELECT + ON CONFLICT
     conn.commit()
     if export_catalog.import_if_empty(conn):  # nowa instalacja: karty i skrzynki z catalog_export.json
         print("  Wczytano karty i skrzynki z catalog_export.json")
@@ -247,8 +265,12 @@ def init_sqlite(conn):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             creator_id INTEGER NOT NULL, invite_id INTEGER, joiner_id INTEGER,
             status TEXT NOT NULL DEFAULT 'open', value_a INTEGER NOT NULL DEFAULT 0, value_b INTEGER NOT NULL DEFAULT 0,
-            winner_id INTEGER, roll REAL, created_at REAL NOT NULL, finished_at REAL
+            winner_id INTEGER, roll REAL, created_at REAL NOT NULL, finished_at REAL,
+            is_public INTEGER NOT NULL DEFAULT 1, ready_a INTEGER NOT NULL DEFAULT 0, ready_b INTEGER NOT NULL DEFAULT 0,
+            updated_at REAL
         );
+        CREATE TABLE IF NOT EXISTS jackpot_invites (jackpot_id INTEGER NOT NULL, user_id INTEGER NOT NULL,
+                                                    PRIMARY KEY (jackpot_id, user_id));
         CREATE TABLE IF NOT EXISTS jackpot_items (
             jackpot_id INTEGER NOT NULL, side TEXT NOT NULL, item_id INTEGER NOT NULL,
             person_id TEXT NOT NULL, variant TEXT NOT NULL, value INTEGER NOT NULL
@@ -279,6 +301,15 @@ def init_sqlite(conn):
         conn.execute("ALTER TABLE users ADD COLUMN ranking_hidden INTEGER NOT NULL DEFAULT 0")
     if "money_generated" not in ucols:  # migracja: gracze, którzy dostali pieniądze od admina (poza rankingiem)
         conn.execute("ALTER TABLE users ADD COLUMN money_generated INTEGER NOT NULL DEFAULT 0")
+    ccols = [r[1] for r in conn.execute("PRAGMA table_info(user_collected)")]
+    if "at" not in ccols:  # migracja: kiedy i skąd gracz pierwszy raz zdobył kartę (Hall of Fame bez ukrytych graczy)
+        conn.execute("ALTER TABLE user_collected ADD COLUMN at REAL")
+        conn.execute("ALTER TABLE user_collected ADD COLUMN source TEXT")
+    jcols = [r[1] for r in conn.execute("PRAGMA table_info(jackpots)")]
+    for col, sql in (("is_public", "INTEGER NOT NULL DEFAULT 1"), ("ready_a", "INTEGER NOT NULL DEFAULT 0"),
+                     ("ready_b", "INTEGER NOT NULL DEFAULT 0"), ("updated_at", "REAL")):
+        if col not in jcols:  # migracja: jackpot jako lobby (publiczne/prywatne, akceptacja obu graczy)
+            conn.execute(f"ALTER TABLE jackpots ADD COLUMN {col} {sql}")
 
 
 def ensure_state(conn, uid):
@@ -563,10 +594,11 @@ def item_json(row):
             "value": card_value(person, variant), "created": row["created_at"], "fav": bool(row["favorite"])}
 
 
-def note_collected(user_id, person_id, variant):
-    """Karta trafia na stałe do klasera gracza (zostaje tam także po sprzedaży)."""
-    db().execute("INSERT INTO user_collected (user_id, person_id, variant) VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
-                 (user_id, person_id, variant))
+def note_collected(user_id, person_id, variant, source="transfer"):
+    """Karta trafia na stałe do klasera gracza (zostaje tam także po sprzedaży). Zapamiętujemy, kiedy i skąd gracz zdobył
+    ją pierwszy raz (drop / contract / upgrade / casino; transfer = rynek, jackpot; trade = wymiana) - do Hall of Fame."""
+    db().execute("INSERT INTO user_collected (user_id, person_id, variant, at, source) VALUES (?, ?, ?, ?, ?) "
+                 "ON CONFLICT DO NOTHING", (user_id, person_id, variant, time.time(), source))
 
 
 def collected_list(user_id):
@@ -577,7 +609,7 @@ def collected_list(user_id):
 def insert_item(person_id, variant, source="drop"):
     """Nowa karta gracza (source: drop = ze skrzynki, contract, upgrade - do Hall of Fame; casino - bez Hall of Fame)."""
     now = time.time()
-    note_collected(uid(), person_id, variant)
+    note_collected(uid(), person_id, variant, source)
     new_id = db().execute("INSERT INTO items (person_id, holo, variant, created_at, user_id) VALUES (?, ?, ?, ?, ?) "
                           "RETURNING id", (person_id, int(variant != "normal"), variant, now, uid())).fetchone()[0]
     return {"id": new_id, "person": person_id, "variant": variant,
@@ -585,14 +617,25 @@ def insert_item(person_id, variant, source="drop"):
             "first": note_hall_of_fame(person_id, variant, source, now) if source != "casino" else False}
 
 
+def hidden_from_ranking(u):
+    """Gracz poza rankingiem (zablokowany, ukryty przez admina, z pieniędzmi od admina) - nie pokazujemy go też w Hall of Fame."""
+    return bool(u["banned"] or u["ranking_hidden"] or u["money_generated"])
+
+
 def note_hall_of_fame(person_id, variant, source, now):
     """Hall of Fame: kto pierwszy zdobył tę kartę w tym wariancie (i kiedy) + ile ich w ogóle wypadło.
-    Zwraca True, gdy to pierwsza taka karta w grze."""
+    Zwraca True, gdy gracz trafia do Hall of Fame jako pierwszy (ukryci gracze się nie liczą - liczy się pierwszy widoczny)."""
     cur = db().execute("INSERT INTO hall_of_fame (person_id, variant, first_user_id, first_at, source, drops) "
                        "VALUES (?, ?, ?, ?, ?, 0) ON CONFLICT (person_id, variant) DO NOTHING",
                        (person_id, variant, uid(), now, source))
     db().execute("UPDATE hall_of_fame SET drops = drops + 1 WHERE person_id = ? AND variant = ?", (person_id, variant))
-    return cur.rowcount == 1
+    if hidden_from_ranking(current_user()):
+        return False
+    if cur.rowcount == 1:
+        return True
+    # pierwszy był gracz ukryty w rankingu - jestem pierwszym widocznym, jeśli nikt widoczny nie miał jej wcześniej
+    first = hof_first(person_id, variant)
+    return first is None or first[0] == uid()
 
 
 def note_drops(items, kind="drop"):
@@ -614,7 +657,7 @@ def note_drops(items, kind="drop"):
 def variant_photos(pid):
     """{wariant: wersja} - warianty tej karty, które mają własne zdjęcie (wersja = czas pliku, dla pamięci przeglądarki)."""
     out = {}
-    for v in card_variants(pid):
+    for v in catalog.photo_variants(pid):
         path = images.find(pid, v)
         if path:
             out[v] = int(os.path.getmtime(path)) % 100000
@@ -729,9 +772,13 @@ def image(person_id, kind="main"):
                   (u and jackpot_shows(request.args.get("jackpot"), person_id))
         if not allowed:
             return svg_response(MYSTERY_SVG)
-    kind = kind.split("+")[-1]  # połączony wariant (np. flag+rzulty) - zdjęcie wariantu z warstwy zwykłych wariantów
-    if kind in card_variants(person_id):  # własne zdjęcie wariantu (np. Rzulty), inaczej zwykłe
-        path = images.find(person_id, kind) or images.ensure(person_id)
+    # własne zdjęcie wariantu (Rzulty, Halloweenowa...; połączony wariant - ta część, która je ma), potem zdjęcie
+    # z "photoFallback" (Lampionowa / Diabelska -> Halloweenowa), na końcu zwykłe
+    photos = catalog.photo_variants(person_id)
+    parts = [v for v in kind.split("+") if v in photos]
+    if parts:
+        tries = parts + [VARIANTS[v]["photoFallback"] for v in parts if VARIANTS[v].get("photoFallback") in photos]
+        path = next((x for x in map(lambda v: images.find(person_id, v), tries) if x), None) or images.ensure(person_id)
     else:
         path = images.ensure(person_id, alt=(kind == "alt"))
     if path:
@@ -777,6 +824,7 @@ def config():
         "maxOpen": MAX_OPEN,
         "startingBalance": STARTING_BALANCE,
         "contractSize": CONTRACT_SIZE,
+        "contractNext": {r: next_rarity(r) for r in CONTRACT_SIZE},   # rzadkość wyniku (pusta rzadkość jest pomijana)
         "contractVariantBonus": CONTRACT_VARIANT_BONUS,
         "upgradeEdge": UPGRADE_EDGE,
         "upgradeMax": UPGRADE_MAX,
@@ -807,8 +855,14 @@ def state():
 
 def roll_variant(factor=1.0, extra=()):
     """Wariant karty. extra = warianty wyjątkowe dostępne w tej skrzynce (bez nich: tylko zwykłe warianty).
-    Wariant-warstwa (flaga) z szansą "extraChance" dostaje jeszcze jeden wariant - z tymi samymi szansami co zwykle."""
-    specials = [v for v in reversed(VARIANT_ORDER)  # najrzadsze najpierw
+    Wariant-warstwa (flaga) z szansą "extraChance" dostaje jeszcze jeden wariant - z tymi samymi szansami co zwykle.
+    Warianty "always" (Halloweenowa / Lampionowa / Diabelska): w tej skrzynce każda karta dostaje jeden z nich
+    (losowany według "weight"), a zwykły wariant losuje się normalnie."""
+    always = [v for v in extra if VARIANTS[v].get("always")]
+    if always:
+        layer = rng.choices(always, weights=[VARIANTS[v].get("weight", 1) for v in always])[0]
+        return combine_variant(layer, roll_variant(factor, [v for v in extra if not VARIANTS[v].get("layer")]))
+    specials =[v for v in reversed(VARIANT_ORDER)  # najrzadsze najpierw
                 if v != "normal" and not VARIANTS[v].get("combo") and (not VARIANTS[v].get("exclusive") or v in extra)]
     total = sum(VARIANTS[v]["chance"] for v in specials)
     factor = min(factor, 0.9 / total) if total else factor
@@ -969,7 +1023,7 @@ MAX_BULK_CONTRACTS = 50   # ile kontraktów naraz
 
 def contract_candidates(crate_id, target, max_mult):
     """Możliwe wyniki kontraktu ze skrzynki (None = ze wszystkich skrzynek w sklepie). Tylko karty ze skrzynek, które są
-    teraz w sklepie ("forge"); wynik nie może być "droższą" kartą (np. tylko ze skrzynek po 500 $) niż najtańsza z włożonych."""
+    teraz w sklepie ("forge"); wynik nie może być "droższą" kartą (np. tylko ze skrzynek po 500 gr) niż najtańsza z włożonych."""
     people = catalog.CRATES[crate_id]["people"] if crate_id else catalog.PEOPLE.values()
     return [p for p in people if p["rarity"] == target and p.get("valueMult", 1) <= max_mult and p.get("forge")]
 
@@ -978,6 +1032,12 @@ def contract_crate(p, target, max_mult):
     """Skrzynka, z której kontrakt losuje wynik za tę kartę: pierwsza skrzynka karty z kartami wyższej rzadkości
     w sklepie; karta tylko ze skrzynek spoza sklepu - None (wszystkie skrzynki w sklepie)."""
     return next((c for c in p["crates"] if contract_candidates(c, target, max_mult)), None)
+
+
+def next_rarity(rarity):
+    """Rzadkość wyniku kontraktu: następna, która ma karty w sklepie (pusta rzadkość, np. Niepospolita bez kart, jest pomijana)."""
+    present = {p["rarity"] for p in catalog.PEOPLE.values() if p.get("forge")}
+    return next((r for r in RARITY_ORDER[RARITY_ORDER.index(rarity) + 1:] if r in present and r != "secret"), None)
 
 
 def contract_check(ids):
@@ -995,7 +1055,9 @@ def contract_check(ids):
         raise ContractError("Wszystkie karty muszą mieć tę samą rzadkość")
     if len(rows) != CONTRACT_SIZE[rarity]:
         raise ContractError(f"Kontrakt wymaga {CONTRACT_SIZE[rarity]} kart")
-    target = RARITY_ORDER[RARITY_ORDER.index(rarity) + 1]
+    target = next_rarity(rarity)
+    if target is None:
+        raise ContractError("Nie ma kart wyższej rzadkości")
     max_mult = min(catalog.PEOPLE[r["person_id"]].get("valueMult", 1) for r in rows)
     pool = [c for c in (contract_crate(catalog.PEOPLE[r["person_id"]], target, max_mult) for r in rows)
             if contract_candidates(c, target, max_mult)]
@@ -1504,7 +1566,7 @@ def trade_accept(tid):
     for item_ids, user_id in ((give, t["to_id"]), (want, t["from_id"])):
         for item_id in item_ids:
             pid, var = conn.execute("SELECT person_id, variant FROM items WHERE id = ?", (item_id,)).fetchone()
-            note_collected(user_id, pid, var)
+            note_collected(user_id, pid, var, "trade")
             if catalog.PEOPLE.get(pid, {}).get("rarity") == "secret":
                 conn.execute("INSERT INTO user_discovered (user_id, person_id) VALUES (?, ?) ON CONFLICT DO NOTHING", (user_id, pid))
     conn.execute("UPDATE trades SET status = 'accepted', updated_at = ? WHERE id = ?", (time.time(), tid))
@@ -1662,9 +1724,19 @@ def me():
     unread = db().execute(f"SELECT COUNT(*) {visible_feed_sql()} AND f.author_id != :me AND f.id > :seen",
                           dict(params, seen=get_state()["feed_seen"])).fetchone()[0]
     trades_in = db().execute("SELECT COUNT(*) FROM trades WHERE to_id = ? AND status = 'pending'", (me_id,)).fetchone()[0]
-    seen = get_state()["patch_seen"]
+    st = get_state()
+    seen = st["patch_seen"]
+    # "odcisk" ekwipunku i saldo: przeglądarka porównuje je ze swoimi i pobiera świeży ekwipunek, gdy coś zmieniło się
+    # bez jej udziału (wygrana w jackpocie, wygrana licytacja, sprzedaż na rynku, przyjęta wymiana)
+    inv = db().execute("SELECT COUNT(*), COALESCE(SUM(id), 0) FROM items WHERE user_id = ?", (me_id,)).fetchone()
+    lobby = my_lobby(me_id)
+    invites = db().execute("SELECT COUNT(*) FROM jackpots j JOIN jackpot_invites i ON i.jackpot_id = j.id WHERE i.user_id = ? "
+                           "AND j.status = 'open' AND j.joiner_id IS NULL AND j.creator_id != ?", (me_id, me_id)).fetchone()[0]
     return jsonify({"user": user_json(u), "dailyClaimable": daily_info(me_id)["claimable"],
                     "incoming": incoming, "unread": unread, "trades": trades_in, "market": market_badge(me_id),
+                    "inv": [inv[0], inv[1]], "balance": st["balance"],
+                    "jackpot": jackpot_news(me_id, st["jackpot_seen"]),   # wynik gry w jackpot, którego jeszcze nie widział
+                    "jackpotLobby": lobby["id"] if lobby else None, "jackpotInvites": invites,
                     "patchNotes": [n for n in PATCH_NOTES if n["v"] > seen][:3]})  # nowości od ostatniej wizyty
 
 
@@ -1673,11 +1745,29 @@ def me():
 def hall_of_fame():
     """Hall of Fame: dla każdej karty i wariantu - kto pierwszy ją zdobył, kiedy, skąd i ile ich wypadło."""
     rows = [r for r in db().execute("SELECT * FROM hall_of_fame") if r["person_id"] in catalog.PEOPLE]
-    ids = {r["first_user_id"] for r in rows if r["first_user_id"]}
-    users = {u["id"]: user_json(u) for u in db().execute("SELECT * FROM users") if u["id"] in ids}
-    return jsonify({"rows": [{"p": r["person_id"], "v": r["variant"], "u": r["first_user_id"], "t": r["first_at"],
-                              "s": r["source"], "n": r["drops"]} for r in rows],
-                    "users": users})
+    all_users = {u["id"]: u for u in db().execute("SELECT * FROM users")}
+    hidden = {i for i, u in all_users.items() if hidden_from_ranking(u)}
+    out = []
+    for r in rows:
+        first = (r["first_user_id"], r["first_at"], r["source"])
+        if r["first_user_id"] in hidden:   # gracz poza rankingiem - pokazujemy pierwszego widocznego (albo nikogo)
+            first = hof_first(r["person_id"], r["variant"], hidden) or (None, r["first_at"], r["source"])
+        out.append({"p": r["person_id"], "v": r["variant"], "u": first[0], "t": first[1], "s": first[2], "n": r["drops"]})
+    ids = {r["u"] for r in out if r["u"]}
+    return jsonify({"rows": out, "users": {i: user_json(u) for i, u in all_users.items() if i in ids}})
+
+
+def hof_first(person_id, variant, hidden=None):
+    """Pierwszy widoczny gracz (nie ukryty w rankingu), który zdobył tę kartę z dropu, kontraktu albo ulepszacza:
+    (id, kiedy, skąd) albo None. Starsze wpisy bez źródła też się liczą (nieznane źródło = skrzynka)."""
+    if hidden is None:
+        hidden = {u["id"] for u in db().execute("SELECT * FROM users") if hidden_from_ranking(u)}
+    for c in db().execute("SELECT user_id, at, source FROM user_collected WHERE person_id = ? AND variant = ? AND at IS NOT NULL "
+                          "AND (source IS NULL OR source IN ('drop', 'contract', 'upgrade')) ORDER BY at",
+                          (person_id, variant)).fetchall():
+        if c["user_id"] not in hidden:
+            return c["user_id"], c["at"], c["source"] or "drop"
+    return None
 
 
 @app.get("/api/patchnotes")
@@ -1766,7 +1856,7 @@ def market_price(raw, lo=1):
 
 
 def price_error():
-    return f"Cena: od 1 do {MARKET['maxPrice']:,} $".replace(",", " ")
+    return f"Cena: od 1 do {MARKET['maxPrice']:,} gr".replace(",", " ")
 
 
 def after_fee(price):
@@ -1800,12 +1890,12 @@ def refund_offers(lid, now, status="lost"):
 
 
 def settle_market():
-    """Koniec licytacji i przeterminowane stoły jackpota. Nie ma osobnego zegara - sprawdzamy przy zapytaniach graczy
+    """Koniec licytacji i porzucone lobby jackpota. Nie ma osobnego zegara - sprawdzamy przy zapytaniach graczy
     (rynek, kasyno i /api/me, które każdy otwarty ekran gry odpytuje co 30 s)."""
     now = time.time()
     ended = [r[0] for r in db().execute("SELECT id FROM market_listings WHERE status = 'active' AND kind = 'auction' "
                                         "AND ends_at <= ?", (now,))]
-    old = [r[0] for r in db().execute("SELECT id FROM jackpots WHERE status = 'open' AND created_at <= ?",
+    old = [r[0] for r in db().execute("SELECT id FROM jackpots WHERE status = 'open' AND COALESCE(updated_at, created_at) <= ?",
                                       (now - JACKPOT["expireHours"] * 3600,))]
     if not ended and not old:
         return
@@ -1823,8 +1913,8 @@ def settle_market():
         else:     # nikt nie licytował - karta wraca
             db().execute("UPDATE market_listings SET status = 'expired', updated_at = ? WHERE id = ?", (now, lid))
             give_items([L["item_id"]], L["seller_id"])
-    for jid in old:
-        close_jackpot(jid, "expired")
+    for jid in old:   # karty w lobby nie są blokowane - wystarczy zamknąć lobby
+        db().execute("UPDATE jackpots SET status = 'expired', finished_at = ? WHERE id = ? AND status = 'open'", (now, jid))
     db().commit()
 
 
@@ -2121,6 +2211,8 @@ def market_wanted_create():
     variant = body.get("variant") or "normal"
     if p is None or variant not in VARIANTS:
         return bad("Wybierz kartę")
+    if variant not in catalog.possible_variants(p):   # np. Rzulty tylko dla Jana Pawła II, Królewska tylko ze Skrzyni Królów
+        return bad("Ta karta nie występuje w tym wariancie")
     if p["rarity"] == "secret" and p["id"] not in discovered():
         return bad("Tej tajnej karty jeszcze nie znasz")
     price = market_price(body.get("price"))
@@ -2183,7 +2275,7 @@ def market_wanted_fill(wid):
 
 
 def fmt_money(amount):
-    return f"{amount:,} $".replace(",", " ")
+    return f"{amount:,} gr".replace(",", " ")
 
 
 # ---------------------------------------------------------------- kasyno: ruletka
@@ -2239,68 +2331,90 @@ def casino_roulette():
     return jsonify(out)
 
 
-# ---------------------------------------------------------------- kasyno: jackpot (2 graczy)
+# ---------------------------------------------------------------- kasyno: jackpot (lobby dla 2 graczy)
+# Gracz zakłada lobby: publiczne (każdy może dołączyć) albo prywatne (tylko zaproszeni po nicku) - założyciel może to
+# później zmienić i zapraszać kolejnych graczy. Obaj gracze wybierają karty w lobby i mogą je zmieniać (każda zmiana
+# cofa akceptację obu - zmieniły się szanse). Gdy obaj zaakceptują, serwer od razu losuje zwycięzcę (szansa = wartość
+# moich kart / wartość wszystkich kart), a zwycięzca bierze wszystkie karty - swoje i rywala.
+# Karty w lobby NIE są blokowane: przy losowaniu sprawdzamy, czy gracze nadal je mają.
+
+JACKPOT_GONE = "To lobby jest już nieaktualne"
+
 
 def jackpot_cards(jid):
     return db().execute("SELECT * FROM jackpot_items WHERE jackpot_id = ?", (jid,)).fetchall()
 
 
-def close_jackpot(jid, status):
-    """Stół bez drugiego gracza: wycofany (cancelled) albo przeterminowany (expired) - karty wracają do właściciela."""
-    J = db().execute("SELECT * FROM jackpots WHERE id = ?", (jid,)).fetchone()
-    if J and db().execute("UPDATE jackpots SET status = ?, finished_at = ? WHERE id = ? AND status = 'open'",
-                          (status, time.time(), jid)).rowcount:
-        give_items([r["item_id"] for r in jackpot_cards(jid)], J["creator_id"])
-        return True
-    return False
+def get_jackpot(jid):
+    return db().execute("SELECT * FROM jackpots WHERE id = ?", (jid,)).fetchone()
+
+
+def jackpot_invited(jid):
+    return [r[0] for r in db().execute("SELECT user_id FROM jackpot_invites WHERE jackpot_id = ?", (jid,))]
+
+
+def my_lobby(user_id):
+    """Otwarte lobby, w którym siedzi gracz (najwyżej jedno naraz), albo None."""
+    return db().execute("SELECT * FROM jackpots WHERE status = 'open' AND (creator_id = ? OR joiner_id = ?) "
+                        "ORDER BY id DESC LIMIT 1", (user_id, user_id)).fetchone()
+
+
+def jackpot_side(J, user_id):
+    """Miejsce gracza w lobby: "a" (założyciel), "b" (drugi gracz) albo None."""
+    return "a" if J["creator_id"] == user_id else "b" if J["joiner_id"] == user_id else None
+
+
+def jackpot_can_see(J, user_id):
+    return bool(J["is_public"] or jackpot_side(J, user_id) or user_id in jackpot_invited(J["id"]))
 
 
 def jackpot_shows(jid, person_id):
-    """Tajna karta na stole jackpota - jej zdjęcie widać (otwarty stół, moja gra albo gra z ostatniej doby)."""
+    """Tajna karta w lobby jackpota - jej zdjęcie widać (lobby, które widzę, moja gra albo gra z ostatniej doby)."""
     try:
-        J = db().execute("SELECT * FROM jackpots WHERE id = ?", (int(jid),)).fetchone()
+        J = get_jackpot(int(jid))
     except (TypeError, ValueError):
         return False
     if J is None or not any(r["person_id"] == person_id for r in jackpot_cards(J["id"])):
         return False
-    return J["status"] == "open" or uid() in (J["creator_id"], J["joiner_id"]) or (J["finished_at"] or 0) > time.time() - 86400
+    if J["status"] == "open":
+        return jackpot_can_see(J, uid())
+    return bool(jackpot_side(J, uid())) or (J["finished_at"] or 0) > time.time() - 86400
 
 
-def jackpot_json(J, users, found):
-    cards = {"a": [], "b": []}
-    for r in jackpot_cards(J["id"]):
-        if r["person_id"] in catalog.PEOPLE:
-            cards[r["side"]].append(dict(card_json(r["person_id"], r["variant"], found), value=r["value"]))
-    winner = None if J["winner_id"] is None else ("a" if J["winner_id"] == J["creator_id"] else "b")
-    return {"id": J["id"], "status": J["status"], "creator": users.get(J["creator_id"]), "joiner": users.get(J["joiner_id"]),
-            "invite": users.get(J["invite_id"]), "a": cards["a"], "b": cards["b"], "valueA": J["value_a"],
-            "valueB": J["value_b"], "winner": winner, "roll": J["roll"], "created": J["created_at"], "finished": J["finished_at"],
-            "mine": uid() in (J["creator_id"], J["joiner_id"])}
+def jackpots_json(rows):
+    """Lobby / gry dla przeglądarki: gracze, zaproszeni, karty i wartość obu stron, akceptacje, wynik."""
+    rows = [J for J in rows if J is not None]
+    invited = {J["id"]: jackpot_invited(J["id"]) for J in rows}
+    users = users_by_id([x for J in rows for x in (J["creator_id"], J["joiner_id"], J["winner_id"])]
+                        + [i for ids in invited.values() for i in ids])
+    me, found, out = uid(), discovered(), []
+    for J in rows:
+        cards, value = {"a": [], "b": []}, {"a": 0, "b": 0}
+        for r in jackpot_cards(J["id"]):
+            value[r["side"]] += r["value"]
+            if r["person_id"] in catalog.PEOPLE:
+                cards[r["side"]].append(dict(card_json(r["person_id"], r["variant"], found), id=r["item_id"], value=r["value"]))
+        out.append({
+            "id": J["id"], "status": J["status"], "public": bool(J["is_public"]),
+            "creator": users.get(J["creator_id"]), "joiner": users.get(J["joiner_id"]),
+            "invites": [users[i] for i in invited[J["id"]] if i in users], "invited": me in invited[J["id"]],
+            "side": jackpot_side(J, me), "a": cards["a"], "b": cards["b"], "valueA": value["a"], "valueB": value["b"],
+            "readyA": bool(J["ready_a"]), "readyB": bool(J["ready_b"]),
+            "winner": None if J["winner_id"] is None else ("a" if J["winner_id"] == J["creator_id"] else "b"),
+            "roll": J["roll"], "created": J["created_at"], "finished": J["finished_at"],
+        })
+    return out
 
 
-@app.get("/api/casino/jackpot")
-@login_required
-def casino_jackpot():
-    """Stoły czekające na drugiego gracza (otwarte dla wszystkich albo z zaproszeniem dla mnie) i ostatnie gry."""
-    settle_market()
-    me, found = uid(), discovered()
-    tables = db().execute("SELECT * FROM jackpots WHERE status = 'open' AND (invite_id IS NULL OR invite_id = ? OR "
-                          "creator_id = ?) ORDER BY id DESC LIMIT 50", (me, me)).fetchall()
-    recent = db().execute("SELECT * FROM jackpots WHERE status = 'done' ORDER BY finished_at DESC LIMIT 12").fetchall()
-    mine = db().execute("SELECT * FROM jackpots WHERE status != 'open' AND (creator_id = ? OR joiner_id = ?) "
-                        "ORDER BY finished_at DESC LIMIT 12", (me, me)).fetchall()
-    users = users_by_id([x for J in list(tables) + list(recent) + list(mine)
-                         for x in (J["creator_id"], J["joiner_id"], J["invite_id"])])
-    return jsonify({"tables": [jackpot_json(J, users, found) for J in tables],
-                    "recent": [jackpot_json(J, users, found) for J in recent],
-                    "mine": [jackpot_json(J, users, found) for J in mine]})
+def lobby_reply(jid, **extra):
+    return jsonify(dict(extra, jackpot=jackpots_json([get_jackpot(jid)])[0]))
 
 
-def jackpot_stake(ids):
-    """Moje karty na stół jackpota: (wiersze, None) albo (None, błąd)."""
-    if not 1 <= len(ids) <= JACKPOT["maxCards"]:
-        return None, f"Postaw od 1 do {JACKPOT['maxCards']} kart"
-    return take_my_items(ids)
+def jackpot_news(me, seen_ms):
+    """Ostatnia rozstrzygnięta gra gracza, której wyniku jeszcze nie widział (np. był w innej zakładce albo poza grą)."""
+    J = db().execute("SELECT * FROM jackpots WHERE status = 'done' AND (creator_id = ? OR joiner_id = ?) AND finished_at > ? "
+                     "ORDER BY finished_at DESC LIMIT 1", (me, me, seen_ms / 1000)).fetchone()
+    return jackpots_json([J])[0] if J else None
 
 
 def int_ids(raw):
@@ -2310,84 +2424,256 @@ def int_ids(raw):
         return []
 
 
+def jackpot_invite_ids(raw):
+    """Nicki do zaproszenia ("ala, bartek" albo lista) -> (lista id, None) albo (None, błąd)."""
+    names = raw if isinstance(raw, list) else re.split(r"[,;\s]+", str(raw or ""))
+    out = []
+    for name in [n.strip() for n in names if str(n).strip()][:10]:
+        u = find_user(name)
+        if u is None or u["banned"]:
+            return None, f"Nie ma gracza „{name}”"
+        if u["id"] == uid():
+            return None, "Nie możesz zaprosić samego siebie 🙂"
+        out.append(u["id"])
+    return list(dict.fromkeys(out)), None
+
+
+def open_lobby(jid, side_needed=True):
+    """Moje otwarte lobby o tym id (świeży wiersz) albo None."""
+    J = get_jackpot(jid)
+    if J is None or J["status"] != "open" or (side_needed and not jackpot_side(J, uid())):
+        return None
+    return J
+
+
+@app.get("/api/casino/jackpot")
+@login_required
+def casino_jackpot():
+    """Lobby, które widzę (publiczne, z zaproszeniem dla mnie, moje), moje lobby, ostatnie gry i moja historia."""
+    settle_market()
+    me = uid()
+    lobbies = db().execute("SELECT * FROM jackpots j WHERE status = 'open' AND (is_public = 1 OR creator_id = ? OR joiner_id = ? "
+                           "OR EXISTS (SELECT 1 FROM jackpot_invites i WHERE i.jackpot_id = j.id AND i.user_id = ?)) "
+                           "ORDER BY id DESC LIMIT 60", (me, me, me)).fetchall()
+    recent = db().execute("SELECT * FROM jackpots WHERE status = 'done' ORDER BY finished_at DESC LIMIT 12").fetchall()
+    mine = db().execute("SELECT * FROM jackpots WHERE status != 'open' AND (creator_id = ? OR joiner_id = ?) "
+                        "ORDER BY COALESCE(finished_at, created_at) DESC LIMIT 12", (me, me)).fetchall()
+    current = my_lobby(me)
+    return jsonify({"lobbies": jackpots_json(lobbies), "current": jackpots_json([current])[0] if current else None,
+                    "recent": jackpots_json(recent), "mine": jackpots_json(mine)})
+
+
 @app.post("/api/casino/jackpot")
 @login_required
 def casino_jackpot_create():
+    """Nowe lobby: public (bool) i invites (nicki graczy). Karty wybiera się już w lobby."""
     settle_market()
     lock_me()
     body = request.get_json(force=True)
-    ids = int_ids(body.get("ids"))
-    rows, err = jackpot_stake(ids)
+    if my_lobby(uid()):
+        return bad("Jesteś już w lobby — najpierw je opuść")
+    invites, err = jackpot_invite_ids(body.get("invites"))
     if err:
         return bad(err)
-    invite = None
-    if (body.get("invite") or "").strip():
-        invite = find_user(body["invite"])
-        if invite is None or invite["banned"]:
-            return bad("Nie ma takiego gracza", 404)
-        if invite["id"] == uid():
-            return bad("Nie możesz zaprosić samego siebie 🙂")
-    if db().execute("SELECT 1 FROM jackpots WHERE creator_id = ? AND status = 'open'", (uid(),)).fetchone():
-        return bad("Masz już otwarty stół — poczekaj na rywala albo go zamknij")
     now = time.time()
-    jid = db().execute("INSERT INTO jackpots (creator_id, invite_id, value_a, created_at) VALUES (?, ?, ?, ?) RETURNING id",
-                       (uid(), invite["id"] if invite else None, sum(row_value(r) for r in rows), now)).fetchone()[0]
-    for r in rows:
-        db().execute("INSERT INTO jackpot_items (jackpot_id, side, item_id, person_id, variant, value) VALUES (?, 'a', ?, ?, ?, ?)",
-                     (jid, r["id"], r["person_id"], r["variant"], row_value(r)))
-    escrow_items(ids)
+    jid = db().execute("INSERT INTO jackpots (creator_id, is_public, created_at, updated_at) VALUES (?, ?, ?, ?) RETURNING id",
+                       (uid(), int(bool(body.get("public", True))), now, now)).fetchone()[0]
+    for user_id in invites:
+        db().execute("INSERT INTO jackpot_invites (jackpot_id, user_id) VALUES (?, ?) ON CONFLICT DO NOTHING", (jid, user_id))
     db().commit()
-    return jsonify({"ok": True, "id": jid, "consumed": ids})
+    return lobby_reply(jid)
 
 
 @app.post("/api/casino/jackpot/<int:jid>/join")
 @login_required
 def casino_jackpot_join(jid):
-    """Drugi gracz dokłada karty - od razu losujemy zwycięzcę (szansa = wartość jego kart / wartość wszystkich kart)."""
+    """Zajęcie wolnego miejsca w lobby (publicznym albo z zaproszeniem dla mnie)."""
     settle_market()
-    me = uid()
-    J = db().execute("SELECT * FROM jackpots WHERE id = ?", (jid,)).fetchone()
-    if J is None or J["status"] != "open":
-        return bad("Ten stół jest już nieaktualny")
-    if J["creator_id"] == me:
-        return bad("To twój stół — poczekaj na rywala")
-    if J["invite_id"] and J["invite_id"] != me:
-        return bad("Ten stół jest dla innego gracza")
-    db().lock_users(me, J["creator_id"])
+    lock_me()
+    J = open_lobby(jid, side_needed=False)
+    if J is None:
+        return bad(JACKPOT_GONE)
+    if jackpot_side(J, uid()):
+        return lobby_reply(jid)
+    if not jackpot_can_see(J, uid()):
+        return bad("To lobby jest prywatne — potrzebujesz zaproszenia", 403)
+    if my_lobby(uid()):
+        return bad("Jesteś już w innym lobby — najpierw je opuść")
+    if not db().execute("UPDATE jackpots SET joiner_id = ?, ready_a = 0, ready_b = 0, updated_at = ? WHERE id = ? "
+                        "AND status = 'open' AND joiner_id IS NULL", (uid(), time.time(), jid)).rowcount:
+        return bad("Ktoś był szybszy — w tym lobby nie ma już miejsca")
+    db().commit()
+    return lobby_reply(jid)
+
+
+def free_seat(jid):
+    """Drugi gracz wychodzi (albo założyciel go wyprasza): jego karty znikają z lobby, akceptacje się cofają."""
+    db().execute("DELETE FROM jackpot_items WHERE jackpot_id = ? AND side = 'b'", (jid,))
+    db().execute("UPDATE jackpots SET joiner_id = NULL, ready_a = 0, ready_b = 0, updated_at = ? WHERE id = ?",
+                 (time.time(), jid))
+
+
+@app.post("/api/casino/jackpot/<int:jid>/leave")
+@login_required
+def casino_jackpot_leave(jid):
+    """Wyjście z lobby - założyciel zamyka całe lobby (karty niczyje nie były zablokowane)."""
+    settle_market()
+    lock_me()
+    J = open_lobby(jid)
+    if J is None:
+        return bad(JACKPOT_GONE)
+    if jackpot_side(J, uid()) == "a":
+        db().execute("UPDATE jackpots SET status = 'cancelled', finished_at = ?, updated_at = ? WHERE id = ? AND status = 'open'",
+                     (time.time(), time.time(), jid))
+    else:
+        free_seat(jid)
+    db().commit()
+    return jsonify({"ok": True})
+
+
+@app.post("/api/casino/jackpot/<int:jid>/kick")
+@login_required
+def casino_jackpot_kick(jid):
+    settle_market()
+    lock_me()
+    J = open_lobby(jid)
+    if J is None or jackpot_side(J, uid()) != "a":
+        return bad(JACKPOT_GONE)
+    if J["joiner_id"]:
+        free_seat(jid)
+    db().commit()
+    return lobby_reply(jid)
+
+
+@app.post("/api/casino/jackpot/<int:jid>/settings")
+@login_required
+def casino_jackpot_settings(jid):
+    """Założyciel: public (bool), invite (nicki do zaproszenia), uninvite (id gracza do usunięcia z zaproszonych)."""
+    settle_market()
+    lock_me()
+    body = request.get_json(force=True)
+    J = open_lobby(jid)
+    if J is None or jackpot_side(J, uid()) != "a":
+        return bad(JACKPOT_GONE)
+    if "public" in body:
+        db().execute("UPDATE jackpots SET is_public = ? WHERE id = ?", (int(bool(body["public"])), jid))
+    if body.get("invite"):
+        invites, err = jackpot_invite_ids(body["invite"])
+        if err:
+            return bad(err)
+        for user_id in invites:
+            db().execute("INSERT INTO jackpot_invites (jackpot_id, user_id) VALUES (?, ?) ON CONFLICT DO NOTHING", (jid, user_id))
+    if body.get("uninvite"):
+        db().execute("DELETE FROM jackpot_invites WHERE jackpot_id = ? AND user_id = ?", (jid, int(body["uninvite"])))
+    db().execute("UPDATE jackpots SET updated_at = ? WHERE id = ?", (time.time(), jid))
+    db().commit()
+    return lobby_reply(jid)
+
+
+def lock_lobby(jid):
+    """Blokuje obu graczy lobby (zawsze w tej samej kolejności) i zwraca świeży wiersz mojego otwartego lobby albo None."""
+    J = open_lobby(jid)
+    if J is None:
+        return None
+    db().lock_users(J["creator_id"], J["joiner_id"])
+    return open_lobby(jid)
+
+
+@app.post("/api/casino/jackpot/<int:jid>/cards")
+@login_required
+def casino_jackpot_cards(jid):
+    """Moje karty w lobby (cała nowa lista). Każda zmiana cofa akceptację obu graczy."""
+    settle_market()
+    J = lock_lobby(jid)
+    if J is None:
+        return bad(JACKPOT_GONE)
+    side = jackpot_side(J, uid())
     ids = int_ids(request.get_json(force=True).get("ids"))
-    rows, err = jackpot_stake(ids)
+    if len(ids) > JACKPOT["maxCards"]:
+        return bad(f"Najwyżej {JACKPOT['maxCards']} kart")
+    rows, err = take_my_items(ids) if ids else ([], None)
     if err:
         return bad(err)
-    value_b = sum(row_value(r) for r in rows)
-    roll = rng.random()
-    winner = J["creator_id"] if roll < J["value_a"] / (J["value_a"] + value_b) else me
-    now = time.time()
-    if not db().execute("UPDATE jackpots SET status = 'done', joiner_id = ?, value_b = ?, winner_id = ?, roll = ?, "
-                        "finished_at = ? WHERE id = ? AND status = 'open'", (me, value_b, winner, roll, now, jid)).rowcount:
-        return bad("Ten stół jest już nieaktualny")
+    db().execute("DELETE FROM jackpot_items WHERE jackpot_id = ? AND side = ?", (jid, side))
     for r in rows:
-        db().execute("INSERT INTO jackpot_items (jackpot_id, side, item_id, person_id, variant, value) VALUES (?, 'b', ?, ?, ?, ?)",
-                     (jid, r["id"], r["person_id"], r["variant"], row_value(r)))
-    give_items([r["item_id"] for r in jackpot_cards(jid)], winner)
+        db().execute("INSERT INTO jackpot_items (jackpot_id, side, item_id, person_id, variant, value) VALUES (?, ?, ?, ?, ?, ?)",
+                     (jid, side, r["id"], r["person_id"], r["variant"], row_value(r)))
+    db().execute("UPDATE jackpots SET ready_a = 0, ready_b = 0, updated_at = ? WHERE id = ?", (time.time(), jid))
     db().commit()
-    J = db().execute("SELECT * FROM jackpots WHERE id = ?", (jid,)).fetchone()
-    users = users_by_id([J["creator_id"], J["joiner_id"], J["invite_id"]])
-    return jsonify({"jackpot": jackpot_json(J, users, discovered()), "items": my_items(), "state": get_state()})
+    return lobby_reply(jid)
 
 
-@app.post("/api/casino/jackpot/<int:jid>/cancel")
+def jackpot_play(J):
+    """Obaj zaakceptowali: sprawdzamy, czy gracze nadal mają swoje karty, losujemy zwycięzcę i dajemy mu wszystkie karty.
+    Zwraca komunikat błędu (wtedy brakujące karty znikają z lobby, a akceptacje się cofają) albo None."""
+    now = time.time()
+    owners = {"a": J["creator_id"], "b": J["joiner_id"]}
+    rows, gone, values = jackpot_cards(J["id"]), [], {"a": 0, "b": 0}
+    for r in rows:
+        it = db().execute("SELECT * FROM items WHERE id = ? AND user_id = ? AND favorite = 0",
+                          (r["item_id"], owners[r["side"]])).fetchone()
+        if it is None or it["person_id"] not in catalog.PEOPLE:
+            gone.append(r["item_id"])
+            continue
+        values[r["side"]] += row_value(it)
+        db().execute("UPDATE jackpot_items SET value = ? WHERE jackpot_id = ? AND item_id = ?", (row_value(it), J["id"], it["id"]))
+    if gone or not values["a"] or not values["b"]:
+        for item_id in gone:
+            db().execute("DELETE FROM jackpot_items WHERE jackpot_id = ? AND item_id = ?", (J["id"], item_id))
+        db().execute("UPDATE jackpots SET ready_a = 0, ready_b = 0, updated_at = ? WHERE id = ?", (now, J["id"]))
+        return ("Część kart z lobby nie jest już u graczy (sprzedane, oznaczone ⭐ albo użyte gdzie indziej) — usunęliśmy je, "
+                "zaakceptujcie jeszcze raz") if gone else "Obaj gracze muszą postawić karty"
+    roll = rng.random()
+    winner = J["creator_id"] if roll < values["a"] / (values["a"] + values["b"]) else J["joiner_id"]
+    if not db().execute("UPDATE jackpots SET status = 'done', value_a = ?, value_b = ?, winner_id = ?, roll = ?, finished_at = ?, "
+                        "updated_at = ? WHERE id = ? AND status = 'open'",
+                        (values["a"], values["b"], winner, roll, now, now, J["id"])).rowcount:
+        return JACKPOT_GONE
+    give_items([r["item_id"] for r in rows], winner)   # zwycięzca: swoje karty z powrotem + karty rywala
+    return None
+
+
+@app.post("/api/casino/jackpot/<int:jid>/ready")
 @login_required
-def casino_jackpot_cancel(jid):
-    lock_me()
-    J = db().execute("SELECT * FROM jackpots WHERE id = ? AND creator_id = ?", (jid, uid())).fetchone()
-    if J is None or not close_jackpot(jid, "cancelled"):
-        return bad("Ten stół jest już nieaktualny")
+def casino_jackpot_ready(jid):
+    """Akceptacja (ready: true / false). Gdy zaakceptują obaj - od razu losowanie."""
+    settle_market()
+    J = lock_lobby(jid)
+    if J is None:
+        return bad(JACKPOT_GONE)
+    side = jackpot_side(J, uid())
+    want = bool(request.get_json(force=True).get("ready", True))
+    if want and not J["joiner_id"]:
+        return bad("Poczekaj na drugiego gracza")
+    if want and not any(r["side"] == side for r in jackpot_cards(jid)):
+        return bad("Najpierw wybierz swoje karty")
+    db().execute(f"UPDATE jackpots SET ready_{side} = ?, updated_at = ? WHERE id = ?", (int(want), time.time(), jid))
+    J = get_jackpot(jid)
+    if J["ready_a"] and J["ready_b"]:
+        err = jackpot_play(J)
+        db().commit()
+        if err:
+            return lobby_reply(jid, error=err), 409
+        return lobby_reply(jid, items=my_items(), state=get_state())
     db().commit()
-    return jsonify({"ok": True, "items": my_items()})
+    return lobby_reply(jid)
+
+
+@app.post("/api/casino/jackpot/<int:jid>/seen")
+@login_required
+def casino_jackpot_seen(jid):
+    """Gracz obejrzał wynik gry - nie pokazujemy go ponownie (zapamiętany koniec gry w ms)."""
+    J = get_jackpot(jid)
+    if J and J["status"] == "done" and jackpot_side(J, uid()):
+        ms = int(J["finished_at"] * 1000) + 1
+        if ms > get_state()["jackpot_seen"]:
+            set_state("jackpot_seen", ms)
+            db().commit()
+    return jsonify({"ok": True})
 
 
 def market_forget_user(user_id):
-    """Usuwany gracz: jego karty z rynku / ze stołu znikają razem z nim, pieniądze innych graczy wracają,
+    """Usuwany gracz: jego karty z rynku znikają razem z nim, pieniądze innych graczy wracają,
     jego własne propozycje, licytacje i zlecenia przepadają (pieniądze były już zabrane z jego konta)."""
     now = time.time()
     for L in db().execute("SELECT * FROM market_listings WHERE seller_id = ? AND status = 'active'", (user_id,)).fetchall():
@@ -2403,10 +2689,12 @@ def market_forget_user(user_id):
                  (now, user_id))
     db().execute("UPDATE market_wanted SET status = 'cancelled', updated_at = ? WHERE buyer_id = ? AND status = 'active'",
                  (now, user_id))
-    for J in db().execute("SELECT * FROM jackpots WHERE creator_id = ? AND status = 'open'", (user_id,)).fetchall():
-        db().execute("UPDATE jackpots SET status = 'cancelled', finished_at = ? WHERE id = ?", (now, J["id"]))
-        for r in jackpot_cards(J["id"]):
-            db().execute("DELETE FROM items WHERE id = ? AND user_id = ?", (r["item_id"], ESCROW))
+    # jego lobby jackpota: założone - zamykamy, w cudzym - zwalniamy miejsce; znika też z zaproszeń
+    db().execute("UPDATE jackpots SET status = 'cancelled', finished_at = ? WHERE creator_id = ? AND status = 'open'",
+                 (now, user_id))
+    for J in db().execute("SELECT id FROM jackpots WHERE joiner_id = ? AND status = 'open'", (user_id,)).fetchall():
+        free_seat(J["id"])
+    db().execute("DELETE FROM jackpot_invites WHERE user_id = ?", (user_id,))
 
 
 # ---------------------------------------------------------------- arena (wersja testowa - TYLKO DLA ADMINÓW)
@@ -2695,7 +2983,7 @@ def admin_card_json(p):
                                        "crate", "crates", "number", "builtin", "modified")},
                 wiki=list(p["wiki"]) if p.get("wiki") else None,
                 hasImage=bool(images.find(p["id"])), hasAlt=bool(images.find(p["id"], True)),
-                cardVariants=card_variants(p["id"]), variantPhotos=variant_photos(p["id"]),
+                cardVariants=catalog.photo_variants(p["id"]), variantPhotos=variant_photos(p["id"]),
                 imgv=img_version(p["id"]))
 
 
@@ -2719,7 +3007,7 @@ def mark_money_generated(user_id):
 
 
 def money_txt(amount):
-    return f"{amount:+,} $".replace(",", " ")
+    return f"{amount:+,} gr".replace(",", " ")
 
 
 def chest_name(kind):
@@ -2872,6 +3160,8 @@ def admin_save_card():
         "abilities": catalog.clean_abilities([{"name": n, "kind": k, "value": v} for n, k, v in
                                               zip(f.getlist("ab_name"), f.getlist("ab_kind"), f.getlist("ab_value"))]),
         "country": catalog.clean_country(f.get("country")),   # kod kraju do wariantu flagowego (np. PL)
+        # skrzynki istniejące w chwili zapisu - nowe wbudowane skrzynki dodane później dopiszą tę kartę (catalog.rebuild)
+        "crates_seen": sorted(set(catalog.CRATES) | set(catalog.HIDDEN_CRATES)),
     }
     try:  # Arena: animacja, koszt, cel i efekty każdej zdolności (z panelu admina jako JSON)
         fields["arena"] = catalog.clean_arena(json.loads(f.get("arena_json") or "[]"))
@@ -2916,7 +3206,7 @@ def admin_save_card():
                     warnings.append("Nie znaleziono zdjęcia w artykule Wikipedii")
         except Exception as e:
             warnings.append(f"Zdjęcie{' alt' if alt else ''}: {e}")
-    for v in card_variants(pid):  # własne zdjęcie wariantu tej karty (np. Rzulty)
+    for v in catalog.photo_variants(pid):  # własne zdjęcie wariantu tej karty (Rzulty, Halloweenowa...)
         try:
             upload = request.files.get("image_v_" + v)
             url = (f.get("image_url_v_" + v) or "").strip()

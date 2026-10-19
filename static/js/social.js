@@ -69,20 +69,32 @@ function applyBadges(me) {
   const mb = $("#marketBadge");
   mb.textContent = me.market || 0;
   mb.hidden = !me.market || currentView() === "market";
+  // kasyno: zaproszenia do lobby jackpota (z wolnym miejscem)
+  const cb = $("#casinoBadge");
+  cb.textContent = me.jackpotInvites || 0;
+  cb.hidden = !me.jackpotInvites;
   if (me.user) S.me = me.user;
 }
 
 function startPolling() {
+  // co 30 s, a gdy siedzę w lobby jackpota - co 5 s (wynik od razu, gdziekolwiek w grze jestem)
+  let last = Date.now(), running = false;
   setInterval(async () => {
-    if (document.hidden) return;
+    if (document.hidden || running || Date.now() - last < (S.jpLobby ? 4500 : 29500)) return;
+    last = Date.now();
+    running = true;
     try {
       const me = await api("/api/me");
       const hadNew = me.unread > 0 || me.incoming > 0 || me.trades > 0;
       applyBadges(me);
       if (hadNew && currentView() === "friends" && !S.opening) renderFriends();
       if (me.market && currentView() === "market" && !S.opening && !dialogOpen()) renderMarket(true);
+      S.jpLobby = me.jackpotLobby;
+      await syncInventory(me);                          // karty / pieniądze zmienione przez innych graczy
+      if (me.jackpot) showJackpotResult(me.jackpot);    // wynik gry w jackpot, którego jeszcze nie widziałem
     } catch (_) { /* serwer chwilowo niedostępny */ }
-  }, 30000);
+    finally { running = false; }
+  }, 5000);
 }
 
 // ================================================================ LISTA ZMIAN (raz po aktualizacji)
@@ -118,7 +130,7 @@ async function openDaily() {
   renderDaily(d, openDialog("", "daily-box"));
 }
 
-function kRange(m) { return `${(m.min / 1000).toLocaleString("pl-PL")}k–${(m.max / 1000).toLocaleString("pl-PL")}k $`; }
+function kRange(m) { return `${(m.min / 1000).toLocaleString("pl-PL")}k–${(m.max / 1000).toLocaleString("pl-PL")}k gr`; }
 
 function moneyChestArt(kind, extra = "") {
   const m = S.cfg.moneyChests[kind];
@@ -273,7 +285,7 @@ async function openMoneyChest(kind) {
   const more = S.chests["money_" + kind] || 0;
   box.innerHTML = `
     <div class="ms-label">${f >= 0.85 ? "🤑 MEGA WYGRANA!" : f >= 0.6 ? "💰 Świetnie!" : f >= 0.35 ? "Nieźle!" : "Wygrywasz"}</div>
-    <div class="ms-amount" style="--rc:${color}">+<span id="msCount">0</span> $</div>
+    <div class="ms-amount" style="--rc:${color}">+<span id="msCount">0</span> gr</div>
     <div class="fa-result-btns">
       ${more ? `<button class="btn primary" data-act="again">🔁 Otwórz kolejną (${more})</button>` : ""}
       <button class="btn sell" data-act="ok">✔ Odbierz</button>
@@ -464,7 +476,7 @@ async function openTradeBuilder(username) {
   try { prof = await api(`/api/users/${encodeURIComponent(username)}`); } catch (e) { return toast(e.message, true); }
   if (prof.relation !== "friend") return toast("Wymieniać się możesz tylko ze znajomymi", true);
   const reveal = prof.reveal || {}, imgq = `owner=${encodeURIComponent(username)}`;
-  const T = { give: [], want: {}, qMine: "", qTheirs: "" };
+  const T = { give: [], want: {}, qMine: "", qTheirs: "", sortMine: "rarity", sortTheirs: "rarity" };
   const showIds = new Set(S.showcase);
 
   const mineGroups = {};
@@ -478,8 +490,8 @@ async function openTradeBuilder(username) {
     const k = `${c.person}|${c.variant}`;
     theirGroups[k] = { key: k, person: c.person, variant: c.variant, count: c.count, value: cardValue(c.person, c.variant) };
   });
-  const sortG = list => list.sort((a, b) => rarityIdx(person(b.person).rarity) - rarityIdx(person(a.person).rarity) ||
-    varRank(b.variant) - varRank(a.variant) || person(a.person).name.localeCompare(person(b.person).name, "pl"));
+  const sortG = (list, mode) => sortCards(list, mode);
+  const TRADE_SORTS = CARD_SORTS.filter(([k]) => k !== "new");
 
   const dlg = openDialog(`
     <h3>🔄 Wymiana z ${esc(username)}</h3>
@@ -488,14 +500,14 @@ async function openTradeBuilder(username) {
         <div class="tb-head"><b>Dajesz</b><span class="muted" id="tbGiveVal"></span></div>
         <div class="tb-sel" id="tbGiveSel"></div>
         <label class="tb-money">+ pieniądze <input type="number" id="tbMoneyGive" min="0" max="${S.state.balance}" value="0"></label>
-        <input type="text" class="tb-search" data-side="mine" placeholder="Szukaj w swoich kartach…">
+        <div class="tb-row"><input type="text" class="tb-search" data-side="mine" placeholder="Szukaj w swoich kartach…">${sortSelectHTML(T.sortMine, 'data-tbsort="mine"', TRADE_SORTS)}</div>
         <div class="pick-grid tb-grid" id="tbMine"></div>
       </div>
       <div class="tb-col">
         <div class="tb-head"><b>Chcesz od ${esc(username)}</b><span class="muted" id="tbWantVal"></span></div>
         <div class="tb-sel" id="tbWantSel"></div>
         <label class="tb-money">+ pieniądze <input type="number" id="tbMoneyWant" min="0" value="0"></label>
-        <input type="text" class="tb-search" data-side="theirs" placeholder="Szukaj w kartach znajomego…">
+        <div class="tb-row"><input type="text" class="tb-search" data-side="theirs" placeholder="Szukaj w kartach znajomego…">${sortSelectHTML(T.sortTheirs, 'data-tbsort="theirs"', TRADE_SORTS)}</div>
         <div class="pick-grid tb-grid" id="tbTheirs"></div>
       </div>
     </div>
@@ -508,10 +520,10 @@ async function openTradeBuilder(username) {
     const selMine = {};
     T.give.forEach(id => { const g = Object.values(mineGroups).find(x => x.ids.includes(id)); selMine[g.key] = (selMine[g.key] || 0) + 1; });
     const match = (g, q) => !q || person(g.person).name.toLowerCase().includes(q);
-    dlg.querySelector("#tbMine").innerHTML = sortG(Object.values(mineGroups)).filter(g => g.ids.length > (selMine[g.key] || 0) && match(g, T.qMine))
+    dlg.querySelector("#tbMine").innerHTML = sortG(Object.values(mineGroups), T.sortMine).filter(g => g.ids.length > (selMine[g.key] || 0) && match(g, T.qMine))
       .map(g => pickHTML({ id: g.key, person: g.person, variant: g.variant, value: g.value }, { extra: `<span class="pc">×${g.ids.length - (selMine[g.key] || 0)}</span>` })).join("")
       || '<div class="empty">Brak kart</div>';
-    dlg.querySelector("#tbTheirs").innerHTML = sortG(Object.values(theirGroups)).filter(g => g.count > (T.want[g.key] || 0) &&
+    dlg.querySelector("#tbTheirs").innerHTML = withRevealMap(reveal, imgq, () => sortG(Object.values(theirGroups), T.sortTheirs)).filter(g => g.count > (T.want[g.key] || 0) &&
       withRevealMap(reveal, imgq, () => match(g, T.qTheirs))).map(tileTheirs).join("") || '<div class="empty">Brak kart</div>';
     dlg.querySelector("#tbGiveSel").innerHTML = Object.entries(selMine).map(([k, n]) => {
       const g = mineGroups[k];
@@ -531,6 +543,10 @@ async function openTradeBuilder(username) {
   dlg.addEventListener("input", e => {
     if (e.target.matches(".tb-search")) { T[e.target.dataset.side === "mine" ? "qMine" : "qTheirs"] = e.target.value.toLowerCase(); draw(); }
     if (e.target.matches("#tbMoneyGive, #tbMoneyWant")) draw();
+  });
+  dlg.addEventListener("change", e => {
+    const side = e.target.dataset.tbsort;
+    if (side) { T[side === "mine" ? "sortMine" : "sortTheirs"] = e.target.value; draw(); }
   });
   dlg.addEventListener("click", async e => {
     const pick = e.target.closest(".pick");
@@ -752,12 +768,12 @@ function renderProfileBinder(flip = 0) {
   }
 }
 
+let avatarSort = "rarity";
 function openAvatarPicker(tab = null) {
-  // karty, które mam - każdy wariant osobno (np. Małysz złota, Małysz diamentowa), od najrzadszych
+  // karty, które mam - każdy wariant osobno (np. Małysz złota, Małysz diamentowa), domyślnie od najrzadszych
   const combos = {};
-  S.items.forEach(i => { if (person(i.person)) combos[`${i.person}|${i.variant}`] ||= { person: i.person, variant: i.variant }; });
-  const mine = Object.values(combos).sort((a, b) => rarityIdx(person(b.person).rarity) - rarityIdx(person(a.person).rarity) ||
-    varRank(b.variant) - varRank(a.variant) || person(a.person).name.localeCompare(person(b.person).name, "pl"));
+  S.items.forEach(i => { if (person(i.person)) combos[`${i.person}|${i.variant}`] ||= { person: i.person, variant: i.variant, value: i.value }; });
+  const mine = sortCards(Object.values(combos), avatarSort);
   tab = tab || (mine.length ? "cards" : "emoji");
   const dlg = openDialog(`
     <h3>🎭 Ikona gracza</h3>
@@ -767,7 +783,7 @@ function openAvatarPicker(tab = null) {
     </div>
     ${tab === "cards" ? `
       <p class="muted small">Ikoną może być każda karta, którą masz — w każdym wariancie, który masz (złota, diamentowa, holo…).</p>
-      <input type="text" class="av-search" placeholder="Szukaj…">
+      <div class="tb-row"><input type="text" class="av-search" placeholder="Szukaj…">${sortSelectHTML(avatarSort, "data-avsort", CARD_SORTS.filter(([k]) => k !== "new"))}</div>
       <div class="avatar-cards">${mine.map(c => {
         const p = person(c.person), R = S.cfg.rarities[p.rarity];
         const active = c.person === S.me.avatarCard && c.variant === (S.me.avatarVariant || "normal");
@@ -778,6 +794,7 @@ function openAvatarPicker(tab = null) {
       }).join("") || '<div class="empty">Nie masz jeszcze żadnych kart — otwórz skrzynkę! 📦</div>'}</div>` : `
       <div class="avatar-grid">${AVATARS.map(a => `<button class="av-opt${!S.me.avatarCard && a === S.me.avatar ? " active" : ""}" data-av="${a}">${a}</button>`).join("")}</div>`}
     <div class="daily-actions"><button class="btn" data-close>Zamknij</button></div>`, "avatar-box");
+  dlg.querySelector("[data-avsort]")?.addEventListener("change", e => { avatarSort = e.target.value; openAvatarPicker("cards"); });
   dlg.querySelector(".av-search")?.addEventListener("input", e => {
     const q = e.target.value.toLowerCase();
     dlg.querySelectorAll(".av-card-opt").forEach(b => { b.hidden = q && !b.dataset.name.includes(q); });

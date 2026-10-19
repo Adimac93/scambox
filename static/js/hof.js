@@ -18,6 +18,7 @@ function announceFirsts(items) {
 
 function hofDate(t) { return new Date(t * 1000).toLocaleDateString("pl-PL"); }
 function hofUser(id) {
+  if (!id) return '<span class="muted">—</span>';   // zdobyli ją tylko gracze ukryci w rankingu
   const u = HOF.data.users[id];
   return u ? userLink(u) : '<span class="muted">usunięty gracz</span>';
 }

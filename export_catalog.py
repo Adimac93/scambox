@@ -43,8 +43,10 @@ def export(db_path=os.path.join(BASE_DIR, "game.db")):
             shutil.copy2(path, os.path.join(IMAGES_DIR, os.path.basename(path)))
             copied += 1
     # zdjęcia wariantów przypisanych do kart (np. Rzulty Jana Pawła II)
+    # i własne zdjęcia wariantów z polem "photo" (np. Halloweenowa) - dowolnej karty
+    all_ids = {p["id"] for c in game_data.CRATES.values() for p in c["people"]} | {c["id"] for c in out["cards"]}
     for v, info in game_data.VARIANTS.items():
-        for pid in info.get("cards") or []:
+        for pid in info.get("cards") or (sorted(all_ids) if info.get("photo") else []):
             path = images.find(pid, v)
             if path:
                 shutil.copy2(path, os.path.join(IMAGES_DIR, os.path.basename(path)))

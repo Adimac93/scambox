@@ -6,8 +6,8 @@ const MK = {
   tab: "buy",         // buy / wanted / sell / mine
   data: null,
   f: { q: "", rarity: "all", variant: "all", kind: "all", sort: "new", crate: "all" },
-  sell: { item: null, kind: "fixed", price: "", step: "", hours: 24, q: "" },
-  want: { q: "", person: null, variant: "normal", price: "", onlyMine: false },
+  sell: { item: null, kind: "fixed", price: "", step: "", hours: 24, q: "", sort: "value" },
+  want: { q: "", person: null, variant: "normal", price: "", onlyMine: false, sortFound: "rarity", sortOrders: "new" },
   timer: null,
 };
 const MK_PICK_LIMIT = 240;
@@ -165,25 +165,34 @@ function mkBuyHTML() {
 }
 
 // ---------------------------------------------------------------- SZUKAM (zlecenia kupna)
+const MK_ORDER_SORTS = [["new", "🕒 Najnowsze"], ["priceDesc", "💰 Najwyższa cena"], ["priceAsc", "💰 Najniższa cena"],
+                        ["rarity", "💎 Rzadkość"], ["name", "🔤 Nazwa"]];
+function mkSortOrders(list) {
+  const mode = MK.want.sortOrders;
+  if (mode === "new") return list.slice().sort((a, b) => b.id - a.id);
+  if (mode === "priceDesc") return list.slice().sort((a, b) => b.price - a.price || b.id - a.id);
+  if (mode === "priceAsc") return list.slice().sort((a, b) => a.price - b.price || b.id - a.id);
+  return sortCards(list, mode);
+}
 function mkWantedHTML() {
   const w = MK.want;
   const sel = w.person && person(w.person);
-  const found = w.q.trim() ? Object.values(S.cfg.people).filter(p => !p.masked && p.name.toLowerCase().includes(w.q.trim().toLowerCase()))
-    .sort((a, b) => rarityIdx(b.rarity) - rarityIdx(a.rarity) || a.name.localeCompare(b.name, "pl")).slice(0, 30) : [];
-  const orders = MK.data.wanted.filter(o => mkMatchesFilter(o) && (!w.onlyMine || (!o.mine && mkMyItemFor(o.person, o.variant))));
+  const found = w.q.trim() ? sortCards(Object.values(S.cfg.people).filter(p => !p.masked && p.name.toLowerCase().includes(w.q.trim().toLowerCase()))
+    .map(p => ({ id: p.id, person: p.id, variant: "normal", value: cardValue(p.id) })), w.sortFound).slice(0, 30) : [];
+  const orders = mkSortOrders(MK.data.wanted.filter(o => mkMatchesFilter(o) && (!w.onlyMine || (!o.mine && mkMyItemFor(o.person, o.variant)))));
   const value = sel ? cardValue(sel.id, w.variant) : 0;
   const listed = sel ? MK.data.listings.filter(l => l.person === sel.id && l.variant === w.variant && !l.mine) : [];
   return `<div class="mk-cols">
     <div class="panel mk-new-want">
       <h3>📢 Szukam karty</h3>
       <p class="muted small">Ustal cenę, za którą kupisz kartę. Pieniądze są blokowane, a każdy, kto ma tę kartę, może ci ją od razu sprzedać.</p>
-      <input type="text" data-want="q" placeholder="Wpisz nazwę karty…" value="${esc(w.q)}">
-      ${found.length ? `<div class="pick-grid mk-pick">${found.map(p => pickHTML({ id: p.id, person: p.id, variant: "normal", value: cardValue(p.id) },
-        { sel: p.id === w.person })).join("")}</div>` : ""}
+      <div class="mk-row"><input type="text" data-want="q" placeholder="Wpisz nazwę karty…" value="${esc(w.q)}">
+        ${sortSelectHTML(w.sortFound, 'data-msort="found"', CARD_SORTS.filter(([k]) => k !== "new" && k !== "variant"))}</div>
+      ${found.length ? `<div class="pick-grid mk-pick">${found.map(c => pickHTML(c, { sel: c.person === w.person })).join("")}</div>` : ""}
       ${sel ? `<div class="mk-want-form">
         <div class="mk-want-card">${cardHTML(sel.id, w.variant)}</div>
         <div class="mk-form">
-          <label>Wariant<select data-want="variant">${S.cfg.variantOrder.map(v =>
+          <label>Wariant<select data-want="variant">${possibleVariants(sel).map(v =>
             `<option value="${v}"${w.variant === v ? " selected" : ""}>${variantName(v)} (${fmt(cardValue(sel.id, v))})</option>`).join("")}</select></label>
           <label>Zapłacę<input type="number" data-want="price" min="1" value="${esc(w.price || value)}"></label>
           <div class="muted small">Wartość karty: ${fmt(value)}${listed.length ? ` · na rynku od ${fmt(Math.min(...listed.map(l => l.kind === "auction" ? l.topBid || l.price : l.price)))}` : ""}</div>
@@ -193,7 +202,8 @@ function mkWantedHTML() {
     </div>
     <div class="mk-want-list">
       ${mkFiltersHTML({ listings: false })}
-      <label class="chk"><input type="checkbox" data-want-only ${w.onlyMine ? "checked" : ""}> tylko te, które mogę od razu sprzedać</label>
+      <div class="mk-row"><label class="chk"><input type="checkbox" data-want-only ${w.onlyMine ? "checked" : ""}> tylko te, które mogę od razu sprzedać</label>
+        ${sortSelectHTML(w.sortOrders, 'data-msort="orders"', MK_ORDER_SORTS)}</div>
       <div class="mk-wanted">${orders.map(o => {
         const mine = mkMyItemFor(o.person, o.variant);
         return `<div class="mk-want${o.mine ? " mine" : ""}${mine && !o.mine ? " can" : ""}">
@@ -219,7 +229,7 @@ function mkSellHTML() {
   const it = items.find(i => i.id === s.item);
   if (!it) s.item = null;
   const q = s.q.trim().toLowerCase();
-  const list = items.filter(i => !q || person(i.person).name.toLowerCase().includes(q)).sort((a, b) => b.value - a.value || b.id - a.id);
+  const list = sortCards(items.filter(i => !q || person(i.person).name.toLowerCase().includes(q)), s.sort);
   let form = '<div class="empty">Wybierz kartę z listy, aby ją wystawić.</div>';
   if (it) {
     const wanted = MK.data.wanted.filter(o => !o.mine && o.person === it.person && o.variant === it.variant).sort((a, b) => b.price - a.price);
@@ -247,7 +257,7 @@ function mkSellHTML() {
   return `<div class="mk-cols">
     <div class="panel mk-sell-pick">
       <h3>Twoje karty <small class="muted">(bez ulubionych ⭐)</small></h3>
-      <input type="text" data-sf="q" placeholder="Szukaj…" value="${esc(s.q)}">
+      <div class="mk-row"><input type="text" data-sf="q" placeholder="Szukaj…" value="${esc(s.q)}">${sortSelectHTML(s.sort, 'data-msort="sell"')}</div>
       <div class="pick-grid">${list.slice(0, MK_PICK_LIMIT).map(i => pickHTML(i, { sel: i.id === s.item })).join("") || '<div class="empty">Nie masz kart do sprzedania.</div>'}</div>
     </div>
     <div class="panel mk-sell-side">${form}</div>
@@ -437,5 +447,12 @@ function bindMarket() {
     if (t.dataset.sf === "hours") MK.sell.hours = +t.value;
     if (t.dataset.want === "variant") { MK.want.variant = t.value; MK.want.price = ""; return drawMarket(); }
     if (t.matches("[data-want-only]")) { MK.want.onlyMine = t.checked; return drawMarket(); }
+    const ms = t.dataset.msort;
+    if (ms) {
+      if (ms === "sell") MK.sell.sort = t.value;
+      if (ms === "found") MK.want.sortFound = t.value;
+      if (ms === "orders") MK.want.sortOrders = t.value;
+      return drawMarket();
+    }
   });
 }

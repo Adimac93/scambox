@@ -245,11 +245,14 @@ function openViewer(pid, variant = "normal") {
     const R = S.cfg.rarities[p.rarity];
     const type = S.cfg.types[p.type];
     const crate = crateOf(p.crate);
-    const avail = crateVariants(crate, p);  // warianty możliwe w skrzynce głównej (wyjątkowe tylko, gdy są w niej włączone)
-    const chance = rarityShare(p.crate, p.rarity) * variantChance(avail, variant);
-    // wyjątkowe warianty pokazujemy tylko tam, gdzie da się je zdobyć (albo gdy już je masz)
-    const possible = new Set((p.crates || [p.crate]).flatMap(c => crateVariants(crateOf(c), p)));
+    // szansa z 1 skrzynki: najlepsza ze skrzynek karty (wyjątkowe warianty tylko tam, gdzie są włączone)
+    const chance = Math.max(0, ...(p.crates || [p.crate]).filter(crateOf).map(c => rarityShare(c, p.rarity) * variantChance(crateVariants(crateOf(c), p), variant)));
+    // warianty, w których karta może istnieć (np. Rzulty tylko JP2), osobno połączenia z flagą; plus te, które już masz
     const mine = S.items.filter(i => i.person === pid);
+    const shown = new Set([...possibleVariants(p), variant, ...mine.map(i => i.variant)]);
+    const chip = v => `<button class="vchip ${vtClass(v)}${v === variant ? " active" : ""}" data-var="${v}">${isCombo(v) ? "+ " + variantName(baseVariant(v)) : variantName(v)}</button>`;
+    const combos = S.cfg.variantOrder.filter(v => shown.has(v) && isCombo(v));
+    const layers = [...new Set(combos.map(v => variantParts(v)[0]))];   // osobny wiersz dla każdej warstwy (flaga, Halloween)
     const owned = S.cfg.variantOrder.filter(v => mine.some(i => i.variant === v))
       .map(v => `${variantName(v)} ×${mine.filter(i => i.variant === v).length}`).join(", ");
     el.innerHTML = `${stage}
@@ -266,8 +269,9 @@ function openViewer(pid, variant = "normal") {
           ${cratesRow}
           <tr><td>Posiadasz</td><td>${owned || '<span class="muted">brak</span>'}</td></tr>
         </table>
-        <div class="vi-variants">${S.cfg.variantOrder.filter(v => !isExclusive(v) || v === variant || possible.has(v) || mine.some(i => i.variant === v)).map(v =>
-          `<button class="vchip ${vtClass(v)}${v === variant ? " active" : ""}" data-var="${v}">${variantName(v)}</button>`).join("")}</div>
+        <div class="vi-variants">${S.cfg.variantOrder.filter(v => shown.has(v) && !isCombo(v)).map(chip).join("")}</div>
+        ${layers.map(l => `<div class="vi-variants vi-combos"><span class="vi-combo-lbl">${LAYER_ICONS[l] || "✨"} ${variantName(l)} +</span>${
+          combos.filter(v => variantParts(v)[0] === l).map(chip).join("")}</div>`).join("")}
         <div class="vi-actions">
           <button class="btn" data-act="flip">🔄 Obróć</button>
           <button class="btn" data-act="close">✕ Zamknij</button>

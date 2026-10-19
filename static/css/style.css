@@ -10,6 +10,7 @@
   --bad: #ff5468;
 
   --c-green: #4fc34f;
+  --c-uncommon: #26c6b0;
   --c-blue: #4b8bff;
   --c-purple: #a35bff;
   --c-red: #ff4040;
@@ -248,6 +249,7 @@ main { max-width: 1400px; margin: 0 auto; padding: 24px 20px 120px; }
 
 /* rzadkości - ramka i wnętrze */
 .card.r-green  { --rc: var(--c-green);  --frame: linear-gradient(145deg, #a4e89a, #2f8f3a 50%, #a4e89a); --inner: linear-gradient(170deg, #f0faea, #cfeac4); }
+.card.r-uncommon { --rc: var(--c-uncommon); --frame: linear-gradient(145deg, #9ff0e2, #138a7b 50%, #9ff0e2); --inner: linear-gradient(170deg, #ecfbf8, #c2ebe2); }
 .card.r-blue   { --rc: var(--c-blue);   --frame: linear-gradient(145deg, #a8c8ff, #2453c7 50%, #a8c8ff); --inner: linear-gradient(170deg, #eef4ff, #c8dafc); }
 .card.r-purple { --rc: var(--c-purple); --frame: linear-gradient(145deg, #d7b5ff, #6a20c9 50%, #d7b5ff); --inner: linear-gradient(170deg, #f6efff, #dccaf7); }
 .card.r-red    { --rc: var(--c-red);    --frame: linear-gradient(145deg, #ffb0b0, #b3121f 50%, #ffb0b0); --inner: linear-gradient(170deg, #fff0ee, #f7cdc8); }
@@ -637,3 +639,10 @@ select { background: var(--panel); color: var(--text); border: 1px solid var(--l
 :is(.hof-ri-text, .hof-first) .ulink { display: inline-flex; vertical-align: middle; gap: 4px; font-size: 13px; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 :is(.hof-ri-text, .hof-first) .ulink .av { font-size: 15px; width: 18px; height: 18px; flex: none; }
 :is(.hof-ri-text, .hof-first) .ulink .av img { width: 18px; height: 18px; }
+
+/* sortowanie kart w listach do wyboru (kuźnia, kasyno, rynek, wymiany, ikona gracza) */
+.sort-sel { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 7px 8px; font: inherit; font-size: 13px; max-width: 100%; }
+.mk-row, .tb-row, .forge-pick-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.mk-row > input, .tb-row > input { flex: 1 1 160px; min-width: 0; }
+.forge-pick-head { justify-content: space-between; }
+.upg-sum .sort-sel { margin-left: auto; }

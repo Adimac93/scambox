@@ -5,11 +5,11 @@ const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const rand = (a, b) => a + Math.random() * (b - a);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const fmt = n => Math.round(n).toLocaleString("pl-PL") + " $";
+const fmt = n => Math.round(n).toLocaleString("pl-PL") + " gr";   // waluta gry: grosze
 
 const COUNT_CHIPS = [1, 2, 3, 5, 10, 15, 20];
 const INV_PAGE = 120;
-const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", silver: "SILVER", holo: "HOLO", gold: "GOLDEN", flag: "FLAG", clear: "🫧 CLEAR", emerald: "💚 EMERALD", ruby: "❤️ RUBY", royal: "👑 ROYAL", diamond: "💎 DIAMOND", negative: "◐ NEGATIVE", rzulty: "💛 RZULTY" };
+const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", silver: "SILVER", holo: "HOLO", gold: "GOLDEN", flag: "FLAG", halloween: "🎃 HALLOWEEN", lantern: "🏮 LAMPION", devil: "😈 DEVIL", clear: "🫧 CLEAR", sketch: "✒️ SKETCH", emerald: "💚 EMERALD", ruby: "❤️ RUBY", royal: "👑 ROYAL", diamond: "💎 DIAMOND", galaxy: "🌌 GALAXY", negative: "◐ NEGATIVE", rzulty: "💛 RZULTY" };
 const GEMS = ["emerald", "ruby", "diamond"];  // warianty z kamieniami szlachetnymi - wspólny wygląd, inne kolory
 
 const S = {
@@ -33,7 +33,11 @@ const S = {
 
 async function api(path, body) {
   const opts = body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
-  const res = await fetch(path, opts);
+  // zmiany (POST) liczymy - syncInventory nie nadpisze ekwipunku w trakcie mojej własnej akcji
+  if (body !== undefined) { S.inflight = (S.inflight || 0) + 1; S.mutations = (S.mutations || 0) + 1; }
+  let res;
+  try { res = await fetch(path, opts); }
+  finally { if (body !== undefined) S.inflight--; }
   const data = await res.json().catch(() => ({}));
   if (res.status === 401 && data.login) { location.href = "/login"; throw new Error("Zaloguj się"); }
   if (!res.ok) throw new Error(data.error || "Błąd serwera");
@@ -64,6 +68,16 @@ function crateVariants(crate, p = null) {
     return (crate?.variants || []).includes(v) && (v !== "flag" || !p || p.country);
   });
 }
+// Warianty, w których ta karta może istnieć (jak catalog.possible_variants): zwykłe zawsze, wyjątkowe tylko z jej skrzynek,
+// własne warianty karty (Rzulty - tylko Jan Paweł II) i połączenia flagi z każdym z nich
+function possibleVariants(p) {
+  const extra = new Set();
+  (p.crates || [p.crate]).forEach(c => { if (crateOf(c)) crateVariants(crateOf(c), p).forEach(v => extra.add(v)); });
+  const V = S.cfg.variants;
+  const base = S.cfg.variantOrder.filter(v => !V[v].combo && (!V[v].exclusive || extra.has(v)));
+  const combos = new Set(base.filter(l => V[l].layer).flatMap(l => base.filter(b => b !== "normal" && !V[b].layer).map(b => `${l}+${b}`)));
+  return S.cfg.variantOrder.filter(v => base.includes(v) || combos.has(v));
+}
 // Warstwy wariantu: flaga leży na osobnej warstwie, więc karta może być np. "flag+gold" (Flagowa + Złota)
 function variantParts(v) { return S.cfg.variants[v || "normal"]?.layers || [v || "normal"]; }
 function isCombo(v) { return !!S.cfg.variants[v]?.combo; }
@@ -75,10 +89,20 @@ function vClass(v, prefix = "v-") {
   return parts.map(x => prefix + x).join(" ") + (parts.length > 1 ? ` ${prefix}combo` : "");
 }
 // klasa koloru (kropki, plakietki, przyciski): połączony wariant = kolor zwykłego wariantu z obwódką flagi
-function vtClass(v) { return isCombo(v) ? `vt-${baseVariant(v)} vt-combo` : `vt-${v || "normal"}`; }
+function vtClass(v) { return isCombo(v) ? `vt-${baseVariant(v)} vt-combo vt-l-${variantParts(v)[0]}` : `vt-${v || "normal"}`; }
+// ikony warstw (przy połączonych wariantach)
+const LAYER_ICONS = { flag: "🏳️", halloween: "🎃", lantern: "🏮", devil: "😈" };
 // szansa na wariant przy wypadnięciu karty (avail = warianty możliwe w skrzynce, z crateVariants)
 function variantChance(avail, v) {
   const V = S.cfg.variants;
+  // warianty "always" (halloweenowe): w tej skrzynce każda karta ma jeden z nich (wg "weight"), zwykły losuje się normalnie
+  const always = avail.filter(x => V[x].always);
+  if (always.length) {
+    const share = x => always.includes(x) ? (V[x].weight || 1) / always.reduce((a, y) => a + (V[y].weight || 1), 0) : 0;
+    const bases = avail.filter(x => !V[x].layer), rest = 1 - bases.reduce((a, x) => a + V[x].chance, 0);
+    if (!isCombo(v)) return share(v) * rest;
+    return bases.includes(baseVariant(v)) ? share(variantParts(v)[0]) * V[baseVariant(v)].chance : 0;
+  }
   if (!isSpecial(v)) return 1 - avail.reduce((a, x) => a + V[x].chance, 0);
   if (isCombo(v)) {
     const [layer, base] = variantParts(v);
@@ -92,6 +116,29 @@ function variantChance(avail, v) {
 const KIND_ICONS = { off: "⚔", def: "🛡", heal: "💚", eco: "🪙" };
 const KIND_LABELS = { off: "Atak", def: "Obrona", heal: "Leczenie", eco: "Ekonomia" };
 function kindIcon(k) { return KIND_ICONS[k] || KIND_ICONS.off; }
+
+// Sortowanie kart w listach do wyboru (kuźnia, kasyno, rynek, wymiany, ikona gracza): elementy { person, variant, value, id? }
+const CARD_SORTS = [["value", "💰 Najdroższe"], ["valueAsc", "💰 Najtańsze"], ["rarity", "💎 Rzadkość"],
+                    ["variant", "✨ Wariant"], ["name", "🔤 Nazwa"], ["new", "🕒 Najnowsze"]];
+function sortCards(list, mode = "value") {
+  const name = x => { const p = person(x.person); return !p || p.masked ? "￿" : p.name; };
+  const byName = (a, b) => name(a).localeCompare(name(b), "pl");
+  const num = x => (typeof x.id === "number" ? x.id : 0);
+  const cmp = {
+    value: (a, b) => b.value - a.value || byName(a, b),
+    valueAsc: (a, b) => a.value - b.value || byName(a, b),
+    rarity: (a, b) => rarityIdx(person(b.person).rarity) - rarityIdx(person(a.person).rarity) || varRank(b.variant) - varRank(a.variant) || byName(a, b),
+    variant: (a, b) => varRank(b.variant) - varRank(a.variant) || b.value - a.value || byName(a, b),
+    name: (a, b) => byName(a, b) || varRank(b.variant) - varRank(a.variant),
+    new: (a, b) => num(b) - num(a) || b.value - a.value,
+  }[mode] || ((a, b) => b.value - a.value);
+  return list.slice().sort(cmp);
+}
+// lista wyboru sortowania; attr - atrybut, po którym widok rozpozna zmianę (np. 'data-cssort="rl"')
+function sortSelectHTML(mode, attr, options = CARD_SORTS) {
+  return `<select class="sort-sel" ${attr} title="Sortowanie">${options.map(([v, n]) =>
+    `<option value="${v}"${v === mode ? " selected" : ""}>${n}</option>`).join("")}</select>`;
+}
 function flagUrl(country) { return `/flag/${encodeURIComponent(country)}.svg`; }
 function person(id) { return S.cfg.people[id]; }
 function crateOf(id) { return S.cfg.crates[id]; }
@@ -103,9 +150,13 @@ function cardValue(pid, v = "normal") {
   return Math.round(S.cfg.rarities[p.rarity].value * (p.valueMult || 1) * S.cfg.variants[v || "normal"].mult);
 }
 // zdjęcie karty; wariant z własnym zdjęciem (np. Rzulty Jana Pawła II) -> /img/<id>/<wariant>
+// (połączony wariant, np. halloween+gold: zdjęcie tej warstwy, która ma własne zdjęcie)
 function imgUrl(pid, variant = null) {
-  const p = person(pid), base = variant && baseVariant(variant), vv = base && p.variantPhotos?.[base];
-  return `/img/${pid}${vv != null ? "/" + base : ""}?v=${vv ?? (p.imgv || 0)}${p.imgq ? "&" + p.imgq : ""}`;
+  // część wariantu z własnym zdjęciem, a gdy brak - zdjęcie z "photoFallback" (Lampionowa -> Halloweenowa)
+  const p = person(pid), has = x => x && p.variantPhotos?.[x] != null, parts = variant ? variantParts(variant) : [];
+  const part = parts.find(has) || parts.map(x => S.cfg?.variants[x]?.photoFallback).find(has);
+  const vv = part ? p.variantPhotos[part] : null;
+  return `/img/${pid}${vv != null ? "/" + part : ""}?v=${vv ?? (p.imgv || 0)}${p.imgq ? "&" + p.imgq : ""}`;
 }
 // ikona gracza: zdjęcie wybranej karty albo emoji
 function avatarHTML(u, cls = "av") {
@@ -128,11 +179,15 @@ function variantLayers(v, p = null) {
   let html = "";
   for (const x of parts) {
     if (x === "royal") html += '<div class="gold-sheen"></div><div class="royal-border"></div><div class="royal-crown"></div>';
-    if (x === "rzulty") html += '<div class="rzulty-tint"></div>';  // żółty filtr na całej karcie
     if (x === "flag") html += '<div class="flag-tint"></div><div class="flag-wave"></div>';
+    if (x === "halloween") html += halloweenDeco();
+    if (x === "lantern") html += lanternDeco();
+    if (x === "devil") html += devilDeco();
     if (x === "holo") html += '<div class="holo-layer"></div>';
     if (x === "gold" || x === "silver") html += '<div class="gold-sheen"></div>';
     if (x === "clear") html += '<div class="clear-sheen"></div>';
+    // nad kartą: migoczące gwiazdy i co jakiś czas spadająca gwiazda (każda karta w innym momencie i miejscu)
+    if (x === "galaxy") html += `<div class="galaxy-stars"></div><div class="galaxy-shoot" style="--sd:-${rand(0, 11).toFixed(1)}s;--st:${Math.round(rand(4, 50))}%;--sl:${Math.round(rand(-30, 10))}%"><i></i></div>`;
     if (x === "negative") html += '<div class="neg-grain"></div>';
     if (GEMS.includes(x)) html += '<div class="diamond-layer"></div><div class="diamond-glints"><i></i><i></i><i></i><i></i><i></i></div>';
   }
@@ -144,6 +199,67 @@ function variantLayers(v, p = null) {
   });
   return html;
 }
+
+// Galaktyczna: ruchome tło kosmosu w środku karty (pod napisami i zdjęciem) - trzy mgławice i dwie warstwy gwiazd
+// Losowe gwiazdy (SVG, za każdym razem inne): pojedyncze w różnych miejscach, gromady wokół kilku punktów i kilka
+// jaśniejszych "iskier" z promieniami; część gwiazd migocze (klasy tw1-tw3), w = szerokość, h = wysokość pola
+function galaxyStars(w, h, solo, clumps, sparkles, size = 1) {
+  const tint = () => ["#ffffff", "#ffffff", "#ffe3f6", "#dcecff"][Math.floor(Math.random() * 4)];
+  const tw = () => (Math.random() < 0.4 ? ` class="tw${1 + Math.floor(Math.random() * 3)}"` : "");
+  const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
+  let out = "";
+  const star = (x, y, r, o) => { out += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(r * size).toFixed(2)}" fill="${tint()}" opacity="${o.toFixed(2)}"${tw()}/>`; };
+  for (let i = 0; i < solo; i++) star(rand(0, w), rand(0, h), rand(0.25, 0.75) ** 1.6 + 0.12, rand(0.35, 1));
+  for (let c = 0; c < clumps; c++) {
+    const cx = rand(0, w), cy = rand(0, h), spread = rand(3, 9), n = 7 + Math.floor(rand(0, 12));
+    for (let i = 0; i < n; i++) star(cx + gauss() * spread, cy + gauss() * spread * rand(0.5, 1.2), rand(0.12, 0.4), rand(0.4, 0.95));
+  }
+  for (let i = 0; i < sparkles; i++) {
+    const x = rand(5, w - 5), y = rand(5, h - 5), l = rand(1.8, 3.4) * size, t = 0.22 * size;
+    out += `<g class="tw${1 + (i % 3)} gx-spark" opacity="0.95"><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(0.55 * size).toFixed(2)}" fill="#fff"/>` +
+      `<path d="M${x} ${y - l}L${x + t} ${y}L${x} ${y + l}L${x - t} ${y}Z M${x - l} ${y}L${x} ${y - t}L${x + l} ${y}L${x} ${y + t}Z" fill="#fff"/></g>`;
+  }
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${out}</svg>`;
+}
+
+// Galaktyczna: ruchome tło kosmosu w środku karty (pod napisami i zdjęciem) - mgławice w różu, magencie i fiolecie
+// z niebieską poświatą + dwie warstwy losowych gwiazd (dalsza wolniej, bliższa szybciej)
+function galaxyBG(variant) {
+  if (!variantParts(variant).includes("galaxy")) return "";
+  return `<div class="galaxy-bg"><i class="gx-neb n1"></i><i class="gx-neb n2"></i><i class="gx-neb n3"></i><i class="gx-neb n4"></i>` +
+    `<i class="gx-stars s1">${galaxyStars(100, 140, 55, 3, 0, 0.9)}</i><i class="gx-stars s2">${galaxyStars(100, 140, 14, 1, 3, 1.2)}</i></div>`;
+}
+// ...i ta sama galaktyka na zdjęciu: kosmiczne zabarwienie, mgławica i gwiazdy na postaci (jak skórka Galaxy)
+function galaxyPhoto(variant) {
+  if (!variantParts(variant).includes("galaxy")) return "";
+  return `<i class="gx-photo"><i class="gx-neb n1"></i><i class="gx-neb n3"></i><i class="gx-stars s1">${galaxyStars(100, 100, 28, 2, 2, 1)}</i></i>`;
+}
+
+// Halloweenowa (symbole SVG #hw-* z templates/index.html): nietoperze przelatujące nad kartą...
+const hwUse = (id, cls, style = "") => `<svg class="${cls}" style="${style}" aria-hidden="true"><use href="#${id}"/></svg>`;
+function halloweenDeco() {
+  const bat = (k, d) => `<i class="hw-bat b${k}" style="animation-delay:-${d.toFixed(1)}s">${hwUse("hw-bat", "hw-bat-svg")}</i>`;
+  return `<div class="hw-deco">${bat(1, rand(0, 9))}${bat(2, rand(0, 12))}${bat(3, rand(0, 15))}</div>`;
+}
+// ...a na zdjęciu: księżyc w rogu, migoczące dynie-lampiony na dole i czaszka
+function halloweenPhoto(variant) {
+  if (!variantParts(variant).includes("halloween")) return "";
+  return `<i class="hw-photo"><i class="hw-moon"></i><span class="hw-pumpkins">${hwUse("hw-pumpkin", "hw-p1")}${hwUse("hw-pumpkin", "hw-p2")}${
+    hwUse("hw-pumpkin", "hw-p3")}</span>${hwUse("hw-skull", "hw-skull")}</i>`;
+}
+// Lampionowa: karta w blasku świecy - iskry unoszące się z dołu i dwie migoczące dynie w dolnych rogach
+const embersHTML = (n, cls) => Array.from({ length: n }, () =>
+  `<i class="${cls}" style="left:${rand(5, 90).toFixed(0)}%;animation-delay:-${rand(0, 5).toFixed(1)}s;animation-duration:${rand(3.5, 6.5).toFixed(1)}s"></i>`).join("");
+function lanternDeco() {
+  return `<div class="hw-deco lt-deco">${embersHTML(9, "lt-ember")}${hwUse("hw-pumpkin", "lt-cp l")}${hwUse("hw-pumpkin", "lt-cp r")}</div>`;
+}
+// Diabelska: płomienie od dołu karty (pod napisami) i rogi wystające nad kartę
+function devilBG(variant) {
+  if (!variantParts(variant).includes("devil")) return "";
+  return `<div class="dv-bg">${[6, 20, 34, 48, 62, 76].map((x, k) =>
+    `<i class="dv-flame" style="left:${x}%;animation-delay:-${(k * .37).toFixed(2)}s;animation-duration:${rand(.8, 1.4).toFixed(2)}s"></i>`).join("")}</div>`;
+}
+function devilDeco() { return `<div class="dv-out">${hwUse("dv-horn", "dv-horn l")}${hwUse("dv-horn", "dv-horn r")}</div>`; }
 
 // wszystkie zdolności karty po kolei: [{ name, kind: "off" | "def" | "heal" | "eco", value }]
 function abilitiesOf(p) {
@@ -169,12 +285,13 @@ function cardHTML(pid, variant = "normal") {
   <div class="card r-${p.rarity} ${vClass(variant)}${abils.length > 1 ? " two-atk" : ""}${abils.length > 2 ? ` atk-${abils.length}` : ""}" data-pid="${p.id}" data-variant="${variant}"${flagStyle(p, variant)}>
     <div class="card-inner">
       ${baseVariant(variant) === "reverse" ? '<div class="rev-foil"></div>' : ""}
+      ${galaxyBG(variant)}${devilBG(variant)}
       <div class="card-head">
         <span class="card-name">${esc(p.name)}</span>
         <span class="card-hp"><small>HP</small>${p.hp}</span>
         <span class="card-type">${type.icon}</span>
       </div>
-      <div class="card-photo"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false"></div>
+      <div class="card-photo"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false">${galaxyPhoto(variant)}${halloweenPhoto(variant)}</div>
       <div class="card-sub">${type.name} · ${esc(crate.short)}</div>
       ${abils.map((a, i) => `<div class="card-attack${i ? " atk2" : ""}${a.kind !== "off" ? " " + a.kind : ""}">
         <span class="atk-cost">${a.kind === "off" ? cost + (i ? type.icon : "") : S.cfg.abilityKinds[a.kind]?.icon || ""}</span>
@@ -205,6 +322,7 @@ function secretCardHTML(p, variant) {
   <div class="card r-secret ${vClass(variant)}" data-pid="${p.id}" data-variant="${variant}"${flagStyle(p, variant)}>
     <div class="sc">
       <div class="sc-art"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false"></div>
+      ${galaxyBG(variant)}${devilBG(variant)}${halloweenPhoto(variant)}
       <div class="sc-halo"></div>
       <div class="sc-stars"></div>
       ${baseVariant(variant) === "reverse" ? '<div class="rev-foil"></div>' : ""}
@@ -278,7 +396,7 @@ document.addEventListener("pointermove", e => {
   const b = zone ? zone.getBoundingClientRect() : flatRect(card);
   const px = Math.min(1, Math.max(0, (e.clientX - b.left) / b.width));
   const py = Math.min(1, Math.max(0, (e.clientY - b.top) / b.height));
-  const fancy = card.matches(".r-secret, .v-holo, .v-reverse, .v-gold, .v-silver, .v-diamond, .v-emerald, .v-ruby, .v-bw, .v-clear, .v-negative");
+  const fancy = card.matches(".r-secret, .v-holo, .v-reverse, .v-gold, .v-silver, .v-diamond, .v-emerald, .v-ruby, .v-bw, .v-clear, .v-negative, .v-sketch, .v-galaxy");
   const strength = card.closest(".viewer") ? 1.5 : fancy || card.closest(".modal") ? 1 : 0.6;
   card.classList.add("tilting");
   card.style.setProperty("--rx", ((0.5 - py) * 16 * strength).toFixed(2) + "deg");
@@ -334,6 +452,31 @@ function toast(msg, err = false) {
 function applyState(state) {
   S.state = state;
   renderHeader();
+}
+
+// Ekwipunek zmieniony bez udziału tej karty przeglądarki (wygrana w jackpocie, wygrana licytacja, sprzedaż na rynku,
+// przyjęta wymiana): /api/me podaje "odcisk" ekwipunku (liczba kart, suma id) i saldo - gdy się różnią, pobieramy świeży stan.
+// force = bez porównywania. Pomijamy w trakcie własnych akcji i animacji (one same aktualizują ekwipunek).
+async function syncInventory(me = null, force = false) {
+  if (!S.items || !S.state) return;
+  if (!force) {
+    if (!me?.inv) return;
+    const sum = S.items.reduce((a, i) => a + i.id, 0);
+    if (S.items.length === me.inv[0] && sum === me.inv[1] && S.state.balance === me.balance) return;
+  }
+  const busy = () => S.inflight > 0 || S.opening || FORGE.busy || CS.spinning;
+  if (busy()) return;
+  const m = S.mutations;
+  let st;
+  try { st = await api("/api/state"); } catch (_) { return; }
+  if (m !== S.mutations || busy()) return;
+  S.items = st.items;
+  S.showcase = st.showcase || [];
+  S.chests = st.chests || S.chests;
+  noteCollected(S.items);
+  if (S.items.some(i => !person(i.person) || person(i.person).masked)) await refreshConfig();   // nowe (tajne) karty
+  applyState(st.state);
+  if (["inventory", "binder"].includes(currentView()) && !dialogOpen() && !viewerOpen()) rerenderCurrent();
 }
 
 // klaser pamięta każdą kartę, którą gracz kiedykolwiek miał ("osoba|wariant")
@@ -546,6 +689,12 @@ function renderCrates() {
   const rs = crateRarities(crate);
   const totalW = rs.reduce((a, r) => a + crate.weights[r], 0);
   const pctTxt = x => (x * 100).toLocaleString("pl-PL", { maximumFractionDigits: x < 0.001 ? 3 : 2 }) + "%";
+  // warianty "always" (halloweenowe): każda karta ma jeden z nich - pokazujemy udział każdego
+  const always = crateVariants(crate).filter(v => S.cfg.variants[v].always);
+  const alwaysW = always.reduce((a, v) => a + (S.cfg.variants[v].weight || 1), 0);
+  const alwaysTxt = v => always.length > 1
+    ? `${pctTxt((S.cfg.variants[v].weight || 1) / alwaysW)} kart (każda karta ma jeden z ${always.length} wariantów halloweenowych, łączy się z innymi)`
+    : "100% — każda karta (łączy się z innymi wariantami)";
   $("#odds").innerHTML = rs.map(r => {
     const R = S.cfg.rarities[r];
     const n = crate.people.filter(id => person(id).rarity === r).length;
@@ -553,7 +702,7 @@ function renderCrates() {
   }).join("") + `<div class="odds-variants">${crateVariants(crate).map(v => {
     const V = S.cfg.variants[v];
     const flags = v === "flag" ? crate.people.filter(id => person(id).country).length : null;
-    return `<span class="odd odd-v vt-${v}"><b>${isExclusive(v) ? "✨ " : ""}${V.name}</b> ${pctTxt(V.chance)} · wartość ×${String(V.mult).replace(".", ",")}${
+    return `<span class="odd odd-v vt-${v}"><b>${isExclusive(v) ? "✨ " : ""}${V.name}</b> ${V.always ? alwaysTxt(v) : pctTxt(V.chance)} · wartość ×${String(V.mult).replace(".", ",")}${
       flags !== null ? ` · ${flags} ${plural(flags, "karta", "karty", "kart")} z flagą` : ""}${
       V.extraChance ? ` · ${Math.round(V.extraChance * 100)}% z dodatkowym wariantem (wartości się mnożą)` : ""}${isExclusive(v) ? " · tylko w tej skrzynce" : ""}</span>`;
   }).join("")}</div>`;
@@ -746,7 +895,7 @@ function runStage() {
   const rh = Math.round(mw * 1.05 + (mw >= 70 ? 22 : 18) + 5 + 18);
 
   const STRIP = 54, WIN = 46;
-  const rare = crateOf(o.crate).people.filter(id => rarityIdx(person(id).rarity) >= 4);
+  const rare = crateOf(o.crate).people.filter(id => rarityIdx(person(id).rarity) >= rarityIdx("gold"));
   reels.innerHTML = "";
   const now = performance.now();
   o.reels = o.drops.map((drop, i) => {
@@ -792,7 +941,7 @@ function runStage() {
         r.done = true;
         const rar = person(r.drop.person).rarity;
         r.el.classList.add("landed", "r-" + rar);
-        if (rarityIdx(rar) >= 4) r.el.classList.add("jackpot");
+        if (rarityIdx(rar) >= rarityIdx("gold")) r.el.classList.add("jackpot");
         r.el.style.setProperty("--rc", S.cfg.rarities[rar].color);
         if (ts - lastLand > 60) { Sound.land(rar === "secret" ? "ultra" : rar); lastLand = ts; }
       } else all = false;
@@ -812,7 +961,7 @@ async function afterSpin(o) {
   // tajna karta przerywa autootwieranie - żeby jej nie przegapić
   if (S.autoRun && o.drops.some(d => person(d.person).rarity === "secret")) stopAuto("★ TAJNA KARTA! Auto zatrzymane");
   // legendarne, ultra i tajne dostają własne, wielkie odsłonięcie
-  const epics = o.drops.filter(d => rarityIdx(person(d.person).rarity) >= 4)
+  const epics = o.drops.filter(d => rarityIdx(person(d.person).rarity) >= rarityIdx("gold"))
     .sort((a, b) => rarityIdx(person(b.person).rarity) - rarityIdx(person(a.person).rarity) || varRank(b.variant) - varRank(a.variant));
   for (const d of epics) {
     await epicReveal(d, { fast: o.fast, auto: !!S.autoRun });
@@ -848,7 +997,7 @@ function showResults(afterEpic = false) {
     const p = person(d.person);
     const isNew = !o.ownedBefore.has(d.person) && !seenNew.has(d.person);
     if (isNew) seenNew.add(d.person);
-    const big = rarityIdx(p.rarity) >= 4;
+    const big = rarityIdx(p.rarity) >= rarityIdx("gold");
     return `<div class="result r-${p.rarity}${big ? " big" : ""}" data-id="${d.id}"
               style="--rc:${S.cfg.rarities[p.rarity].color}; animation-delay:${i * (o.fast ? 25 : 70)}ms">
       ${isNew ? '<span class="new-badge">NOWA!</span>' : ""}
@@ -881,7 +1030,9 @@ function showResults(afterEpic = false) {
       ruby: ["#ff1744", "#ff8a9c", "#ffd0d8", "#ffffff"], clear: ["#ffffff", "#e0f7ff", "#bfefff"],
       negative: ["#000000", "#ffffff", "#7a7a7a", "#00e5ff"], gold: ["#ffc531", "#fff3b0", "#fff"], holo: ["#9ff6ff", "#ff9ff3", "#fff"],
       silver: ["#e6ebf2", "#b8c2d0", "#ffffff"], reverse: ["#c9d6ff", "#ffffff", "#9ff6ff"], bw: ["#ffffff", "#111111", "#888888"],
-      rzulty: ["#ffe600", "#fff6a0", "#ffffff"], flag: ["#ffffff", "#dc143c", "#ffcf3f"],
+      rzulty: ["#ffe600", "#fff6a0", "#ffffff"], flag: ["#ffffff", "#dc143c", "#ffcf3f"], halloween: ["#ff7a00", "#1a0a12", "#8a2be2", "#ffd84a"],
+      lantern: ["#ffb347", "#ff7a00", "#fff1c1", "#3a1a06"], devil: ["#ff1a1a", "#b3001b", "#ffcf5a", "#120002"],
+      sketch: ["#1b1712", "#f4ecd8", "#6b5d4a"], galaxy: ["#7b4dff", "#1fb6ff", "#ff4fd8", "#ffffff"],
     }[topBase] || GOLDS;
     const rare = varRank(top.variant) >= varRank("gold");
     setTimeout(() => confetti(colors, topBase === "negative" ? 360 : varRank(top.variant) > varRank("gold") ? 260 : rare ? 140 : 60), 300);
@@ -910,7 +1061,7 @@ function updateStageBar() {
 
 async function sellResult(ids) {
   const o = S.opening;
-  const rare = o.drops.filter(d => ids.includes(d.id) && rarityIdx(person(d.person).rarity) >= 4);
+  const rare = o.drops.filter(d => ids.includes(d.id) && rarityIdx(person(d.person).rarity) >= rarityIdx("gold"));
   if (rare.length && !confirm(`Na pewno sprzedać ${rare.length > 1 ? "legendarne karty" : person(rare[0].person).name}?`)) return;
   try {
     await sellIds(ids);
@@ -972,7 +1123,7 @@ function drawCoin(ctx, p) {
   g.addColorStop(0, "#fff6c2"); g.addColorStop(0.5, "#ffc531"); g.addColorStop(1, "#b37a00");
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, 6.283); ctx.fill();
   ctx.strokeStyle = "#8a5d00"; ctx.lineWidth = 2; ctx.stroke();
-  if (sx > 0.5) { ctx.fillStyle = "#8a5d00"; ctx.font = `bold ${r}px Rubik, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("$", 0, 1); }
+  if (sx > 0.5) { ctx.fillStyle = "#8a5d00"; ctx.font = `bold ${r * 0.8}px Rubik, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("gr", 0, 1); }
   ctx.restore();
 }
 function confettiFrame() {
@@ -1154,7 +1305,7 @@ function chestTileHTML(kind, n) {
     ${art}
     <span class="chest-count">×${n}</span>
     <div class="chest-name">${esc(c.name)}</div>
-    <div class="chest-sub">${money ? `${k(money.min)}–${k(money.max)} $` : `${c.people.length} kart`}</div>
+    <div class="chest-sub">${money ? `${k(money.min)}–${k(money.max)} gr` : `${c.people.length} kart`}</div>
     <div class="chest-btns">${money
       ? `<button class="btn primary" data-open-money="${kind.slice(6)}">Otwórz</button>`
       : `<button class="btn primary" data-open-crate="${kind}" data-n="1">Otwórz</button>${n > 1 ? `<button class="btn" data-open-crate="${kind}" data-n="${Math.min(n, S.cfg.maxOpen)}">×${Math.min(n, S.cfg.maxOpen)}</button>` : ""}`}</div>
@@ -1215,7 +1366,7 @@ async function sellSelected() {
   const sel = S.items.filter(i => S.inv.selected.has(i.id) && !i.fav);
   if (!sel.length) { toast("⭐ Zaznaczone karty są ulubione — nie da się ich sprzedać"); return; }
   const value = sel.reduce((a, i) => a + i.value, 0);
-  const rare = sel.filter(i => rarityIdx(person(i.person).rarity) >= 4);
+  const rare = sel.filter(i => rarityIdx(person(i.person).rarity) >= rarityIdx("gold"));
   if ((rare.length || value >= 1000) &&
       !confirm(`Sprzedać ${sel.length} ${plural(sel.length, "kartę", "karty", "kart")} za ${fmt(value)}?` +
                (rare.length ? `\nW tym ${rare.length} legendarnych lub lepszych!` : ""))) return;
@@ -1306,7 +1457,7 @@ function bind() {
     const ids = b.dataset.sell.split(",").map(Number);
     const pid = $("#modal").dataset.pid;
     const r = person(pid).rarity;
-    if (rarityIdx(r) >= 4 && !confirm(`Na pewno sprzedać ${person(pid).name} (${S.cfg.rarities[r].name})?`)) return;
+    if (rarityIdx(r) >= rarityIdx("gold") && !confirm(`Na pewno sprzedać ${person(pid).name} (${S.cfg.rarities[r].name})?`)) return;
     try { await sellIds(ids); } catch (err) { Sound.error(); toast(err.message, true); return; }
     openModal(pid);
     rerenderCurrent();
@@ -1424,7 +1575,9 @@ function bind() {
   setupInstall();
   updateSellbar();
   applyBadges(me);
+  S.jpLobby = me.jackpotLobby;
   startPolling();
   if (me.patchNotes?.length) setTimeout(() => showPatchNotes(me.patchNotes), 500);  // nowa aktualizacja: co się zmieniło
+  else if (me.jackpot) setTimeout(() => showJackpotResult(me.jackpot), 600);  // gra w jackpot skończyła się, gdy mnie nie było
   else if (me.dailyClaimable) setTimeout(openDaily, 600);
 })();

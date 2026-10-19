@@ -6,14 +6,15 @@ const FORGE = {
   tier: "green",
   slots: [],
   busy: false,
-  upg: { inputs: new Set(), target: null, variant: "all", search: "", angle: 0 },
+  sort: "valueAsc",       // sortowanie kart do kontraktu
+  upg: { inputs: new Set(), target: null, variant: "all", search: "", angle: 0, sortMine: "value", sortTarget: "valueAsc" },
   bulk: { n: 1, dupes: true, keepSpecial: true },   // wiele kontraktów naraz
 };
 const MAX_BULK_CONTRACTS = 50;  // tyle przyjmie serwer w jednym zapytaniu
 const PICK_LIMIT = 300;
 // ulubione karty (⭐) nie trafiają do kuźni
 const forgeItems = () => S.items.filter(i => !i.fav);
-const PICK_TAGS = { bw: "B&W", reverse: "REV", silver: "SILV", holo: "HOLO", gold: "GOLD", flag: "🏳️", clear: "🫧", emerald: "💚", ruby: "❤️", royal: "👑", diamond: "💎", negative: "◐", rzulty: "💛" };
+const PICK_TAGS = { bw: "B&W", reverse: "REV", silver: "SILV", holo: "HOLO", gold: "GOLD", flag: "🏳️", halloween: "🎃", lantern: "🏮", devil: "😈", clear: "🫧", sketch: "✒️", emerald: "💚", ruby: "❤️", royal: "👑", diamond: "💎", galaxy: "🌌", negative: "◐", rzulty: "💛" };
 
 function pickHTML(item, { sel = false, extra = "" } = {}) {
   const p = person(item.person);
@@ -21,7 +22,7 @@ function pickHTML(item, { sel = false, extra = "" } = {}) {
   const img = p.rarity === "secret" && p.masked ? `/img/${p.id}` : imgUrl(p.id, v);
   return `<div class="pick r-${p.rarity} ${vClass(v)}${sel ? " sel" : ""}" data-id="${item.id}" style="--rc:${S.cfg.rarities[p.rarity].color}">
     <img src="${img}" alt="" loading="lazy" draggable="false">
-    ${isSpecial(v) ? `<span class="ph ${vtClass(v)}">${isCombo(v) ? PICK_TAGS.flag : ""}${PICK_TAGS[baseVariant(v)]}</span>` : ""}
+    ${isSpecial(v) ? `<span class="ph ${vtClass(v)}">${isCombo(v) ? PICK_TAGS[variantParts(v)[0]] : ""}${PICK_TAGS[baseVariant(v)]}</span>` : ""}
     <span class="pn">${esc(p.name)}</span>
     <span class="pv">${fmt(item.value)}</span>${extra}
   </div>`;
@@ -59,18 +60,19 @@ function contractCrate(p, target, maxMult) {
 
 function renderContract() {
   const order = S.cfg.rarityOrder;
-  const tiers = order.filter(r => r in S.cfg.contractSize);
+  // rzadkości bez kart (np. nowa Niepospolita) pomijamy; wynik kontraktu = następna rzadkość, która ma karty
+  const tiers = order.filter(r => r in S.cfg.contractSize && S.cfg.contractNext[r] && Object.values(S.cfg.people).some(p => p.rarity === r));
+  if (!tiers.includes(FORGE.tier)) FORGE.tier = tiers[0] || FORGE.tier;
   const tier = FORGE.tier;
   const need = S.cfg.contractSize[tier];
-  const next = order[order.indexOf(tier) + 1];
+  const next = S.cfg.contractNext[tier];
   const R = S.cfg.rarities[tier], NR = S.cfg.rarities[next];
 
   const byId = new Map(forgeItems().map(i => [i.id, i]));
   FORGE.slots = FORGE.slots.filter(id => byId.has(id) && person(byId.get(id).person).rarity === tier).slice(0, need);
   const slotItems = FORGE.slots.map(id => byId.get(id));
   const inSlots = new Set(FORGE.slots);
-  const eligible = forgeItems().filter(i => person(i.person).rarity === tier && !inSlots.has(i.id))
-    .sort((a, b) => varRank(a.variant) - varRank(b.variant) || person(a.person).name.localeCompare(person(b.person).name, "pl"));
+  const eligible = sortCards(forgeItems().filter(i => person(i.person).rarity === tier && !inSlots.has(i.id)), FORGE.sort);
 
   const specials = slotItems.filter(i => isSpecial(i.variant)).length;
   const stake = slotItems.reduce((a, i) => a + i.value, 0);
@@ -99,7 +101,7 @@ function renderContract() {
         const n = forgeItems().filter(i => person(i.person).rarity === t).length;
         return `<button class="rf rf-${t}${t === tier ? " active" : ""}" data-tier="${t}" style="--rc:${S.cfg.rarities[t].color}"><i></i>${S.cfg.rarities[t].name} <small>${n}</small></button>`;
       }).join("")}</div>
-      <div class="muted small">Kliknij kartę, aby dodać ją do kontraktu.</div>
+      <div class="forge-pick-head"><span class="muted small">Kliknij kartę, aby dodać ją do kontraktu.</span>${sortSelectHTML(FORGE.sort, 'data-fsort="contract"')}</div>
       <div class="pick-grid">${eligible.length ? eligible.slice(0, PICK_LIMIT).map(i => pickHTML(i)).join("") :
         `<div class="empty">Nie masz więcej kart rzadkości „${R.name}”.</div>`}</div>
     </div>
@@ -177,7 +179,7 @@ async function runBulkContracts() {
   const tier = FORGE.tier, plan = bulkPlan(tier);
   if (!plan.n) return;
   const value = plan.items.reduce((a, i) => a + i.value, 0);
-  const legendary = rarityIdx(tier) >= 4 ? "\nUwaga: to karty legendarne!" : "";
+  const legendary = rarityIdx(tier) >= rarityIdx("gold") ? "\nUwaga: to karty legendarne!" : "";
   if (!confirm(`Wykonać ${plan.n} ${plural(plan.n, "kontrakt", "kontrakty", "kontraktów")}? Zużyjesz ${plan.items.length} kart o wartości ${fmt(value)}.${legendary}`)) return;
   FORGE.busy = true;
   let res;
@@ -209,10 +211,10 @@ function showBulkResults(got, stake) {
         <button class="btn primary" data-close>✔ Odbierz</button></div>
     </div>`, "bulk-box");
   Sound.reveal(best);
-  if (rarityIdx(best) >= 4 || got.some(i => isSpecial(i.variant))) confetti(GOLDS.concat(RAINBOW), 160);
+  if (rarityIdx(best) >= rarityIdx("gold") || got.some(i => isSpecial(i.variant))) confetti(GOLDS.concat(RAINBOW), 160);
   announceFirsts(got);
   dlg.querySelector("[data-bulk-sell]").addEventListener("click", async () => {
-    if (got.some(i => rarityIdx(person(i.person).rarity) >= 4) && !confirm("Wśród nich są karty legendarne lub lepsze. Sprzedać wszystkie?")) return;
+    if (got.some(i => rarityIdx(person(i.person).rarity) >= rarityIdx("gold")) && !confirm("Wśród nich są karty legendarne lub lepsze. Sprzedać wszystkie?")) return;
     try { await sellIds(got.map(i => i.id)); } catch (e) { return toast(e.message, true); }
     closeDialogs();
     renderForge();
@@ -246,12 +248,12 @@ async function runContract() {
   const need = S.cfg.contractSize[FORGE.tier];
   const items = FORGE.slots.map(id => S.items.find(i => i.id === id)).filter(Boolean);
   if (items.length !== need) return;
-  if (items.some(i => rarityIdx(person(i.person).rarity) >= 4) &&
+  if (items.some(i => rarityIdx(person(i.person).rarity) >= rarityIdx("gold")) &&
       !confirm("W kontrakcie są karty legendarne. Na pewno?")) return;
   FORGE.busy = true;
   Sound.unlock();
   const fast = S.fast;
-  const next = S.cfg.rarityOrder[S.cfg.rarityOrder.indexOf(FORGE.tier) + 1];
+  const next = S.cfg.contractNext[FORGE.tier];
   const NR = S.cfg.rarities[next];
   const resP = api("/api/contract", { ids: FORGE.slots }).catch(e => ({ error: e.message }));
 
@@ -276,7 +278,7 @@ async function runContract() {
 
   // faza 1: karty krążą i zlewają się w kulę energii
   const D1 = fast ? 1000 : 2300;
-  Sound.charge(D1 / 1000, rarityIdx(next) >= 5);
+  Sound.charge(D1 / 1000, rarityIdx(next) >= rarityIdx("ultra"));
   const t0 = performance.now();
   await new Promise(done => {
     const R0 = Math.min(innerWidth, innerHeight) * 0.32;
@@ -358,7 +360,7 @@ async function runContract() {
   await sleep(fast ? 200 : 500);
 
   // faza 3: odsłonięcie
-  if (rarityIdx(next) >= 4) await epicReveal(res.item, { fast });
+  if (rarityIdx(next) >= rarityIdx("gold")) await epicReveal(res.item, { fast });
   else {
     Sound.reveal(next);
     P.burst(innerWidth / 2, innerHeight / 2, 120, colors, { speed: 12 });
@@ -381,7 +383,7 @@ async function runContract() {
     const act = e.target.closest("[data-act]")?.dataset.act;
     if (!act) return;
     if (act === "sell") {
-      if (rarityIdx(next) >= 4 && !confirm(`Na pewno sprzedać ${person(res.item.person).name}?`)) return;
+      if (rarityIdx(next) >= rarityIdx("gold") && !confirm(`Na pewno sprzedać ${person(res.item.person).name}?`)) return;
       try { await sellIds([res.item.id]); } catch (err) { toast(err.message, true); return; }
     }
     P.stop(); el.remove(); document.body.style.overflow = "";
@@ -423,14 +425,14 @@ function renderUpgrader() {
   let target = u.target ? everything.find(t => t.key === u.target) : null;
   if (target && target.value <= stake) { target = null; u.target = null; }
   const chance = target ? upgChance(stake, target.value) : 0;
-  const mine = forgeItems().sort((a, b) => b.value - a.value || b.id - a.id);
+  const mine = sortCards(forgeItems(), u.sortMine);
 
   $("#forgeBody").innerHTML = `
   <div class="upg-cols">
     <div class="panel upg-side">
       <h3>Twoje karty <small class="muted">(max ${S.cfg.upgradeMaxItems})</small></h3>
       <div class="upg-sum">Wkład: <b>${fmt(stake)}</b> · ${u.inputs.size} ${plural(u.inputs.size, "karta", "karty", "kart")}
-        ${u.inputs.size ? '<button class="btn tiny" id="uClear">Wyczyść</button>' : ""}</div>
+        ${u.inputs.size ? '<button class="btn tiny" id="uClear">Wyczyść</button>' : ""}${sortSelectHTML(u.sortMine, 'data-fsort="mine"')}</div>
       <div class="pick-grid">${mine.length ? mine.slice(0, PICK_LIMIT).map(i => pickHTML(i, { sel: u.inputs.has(i.id) })).join("")
         : '<div class="empty">Nie masz kart.</div>'}</div>
     </div>
@@ -468,8 +470,9 @@ function renderUpgrader() {
         <input type="text" id="uSearch" placeholder="Szukaj…" value="${esc(u.search)}">
         <select id="uVariant">${[["all", "Wszystkie"], ...S.cfg.variantOrder.filter(v => !isExclusive(v)).map(v => [v, variantName(v)])].map(([v, n]) =>
           `<option value="${v}"${u.variant === v ? " selected" : ""}>${n}</option>`).join("")}</select>
+        ${sortSelectHTML(u.sortTarget, 'data-fsort="target"', CARD_SORTS.filter(([k]) => k !== "new"))}
       </div>
-      <div class="pick-grid">${targets.length ? targets.slice(0, PICK_LIMIT).map(t => pickHTML({ id: t.key, person: t.person, variant: t.variant, value: t.value },
+      <div class="pick-grid">${targets.length ? sortCards(targets, u.sortTarget).slice(0, PICK_LIMIT).map(t => pickHTML({ id: t.key, person: t.person, variant: t.variant, value: t.value },
         { sel: t.key === u.target, extra: stake ? `<span class="pc">${pct(upgChance(stake, t.value))}</span>` : "" })).join("")
         : '<div class="empty">Brak celów — twój wkład jest już wart więcej niż każda karta!</div>'}</div>
     </div>
@@ -506,7 +509,7 @@ async function runUpgrade() {
   const target = allTargets().find(t => t.key === u.target);
   const ids = [...u.inputs];
   const stake = upgStake();
-  if (ids.some(id => rarityIdx(person(S.items.find(i => i.id === id).person).rarity) >= 4) &&
+  if (ids.some(id => rarityIdx(person(S.items.find(i => i.id === id).person).rarity) >= rarityIdx("gold")) &&
       !confirm(`Stawiasz karty legendarne (${fmt(stake)}). Na pewno?`)) return;
   FORGE.busy = true;
   Sound.unlock();
@@ -561,7 +564,7 @@ async function runUpgrade() {
     Sound.win();
     const rr = person(res.item.person).rarity;
     fx().burst(cx, cy, 180, rr === "ultra" ? RAINBOW : ["#3ddc84", "#b6ff5c", "#ffffff", S.cfg.rarities[rr].color], { speed: 14 });
-    if (rarityIdx(rr) >= 4) { await sleep(600); await epicReveal(res.item, { fast }); }
+    if (rarityIdx(rr) >= rarityIdx("gold")) { await sleep(600); await epicReveal(res.item, { fast }); }
     else confetti(["#3ddc84", "#b6ff5c", "#fff", S.cfg.rarities[rr].color], 120);
     announceFirsts([res.item]);
     box.innerHTML = `<div class="upg-res-label win">WYGRANA!</div>${cardHTML(res.item.person, res.item.variant)}<div class="muted small">kliknij kartę, aby ją obejrzeć</div>`;
@@ -659,5 +662,9 @@ function bindForge() {
   });
   $("#forgeBody").addEventListener("change", e => {
     if (e.target.id === "uVariant") { FORGE.upg.variant = e.target.value; renderUpgrader(); }
+    const fs = e.target.dataset.fsort;
+    if (fs === "contract") { FORGE.sort = e.target.value; renderContract(); }
+    if (fs === "mine") { FORGE.upg.sortMine = e.target.value; renderUpgrader(); }
+    if (fs === "target") { FORGE.upg.sortTarget = e.target.value; renderUpgrader(); }
   });
 }

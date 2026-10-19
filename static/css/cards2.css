@@ -188,6 +188,8 @@
 .vdot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; background: #8c97b2; }
 .vdot.vt-reverse { background: #c9d6ff; } .vdot.vt-holo { background: var(--rainbow); } .vdot.vt-alt { background: #ff5468; } .vdot.vt-gold { background: #ffcf3f; }
 .vi-variants { display: flex; gap: 6px; flex-wrap: wrap; }
+.vi-combos { align-items: center; padding-top: 8px; border-top: 1px dashed var(--line); }
+.vi-combo-lbl { font-size: 13px; font-weight: 700; color: var(--muted); margin-right: 2px; }
 .vchip {
   border: 1px solid var(--line); background: var(--panel2); color: var(--text); padding: 6px 10px; border-radius: 9px;
   font-size: 13px; font-weight: 700; transform: none !important; box-shadow: none; text-shadow: none;
@@ -594,13 +596,275 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 .pick.v-flag.v-combo { box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 4px #dc143c, 0 0 8px #ffffff88, inset 0 -26px 26px -18px var(--rc); }
 
 /* ============================================================ RZULTY (wariant jednej karty - Jan Paweł II)
-   cała karta (ramka, zdjęcie, napisy) przez żółty filtr */
-.rzulty-tint { position: absolute; inset: 0; z-index: 4; border-radius: inherit; pointer-events: none;
-  background: linear-gradient(160deg, #fff200, #ffd000); mix-blend-mode: multiply; opacity: .78; }
+   zwykły wygląd karty z własnym zdjęciem (panel admina), żółta poświata i plakietka */
 .card.v-rzulty { box-shadow: 0 6px 18px #000a, 0 0 22px #ffe600aa; }
 .var-tag.vt-rzulty, .ph.vt-rzulty { background: #ffe600; color: #3a2f00; text-shadow: none; z-index: 5; }
 .pick.v-rzulty { box-shadow: inset 0 0 0 2px #ffe600, inset 0 -26px 26px -18px var(--rc); }
-.pick.v-rzulty img { filter: sepia(1) saturate(3.2) hue-rotate(5deg) brightness(1.05); }
 .vdot.vt-rzulty { background: #ffe600; box-shadow: 0 0 0 1px #6b5a00, 0 0 6px #ffe600; }
 .odd.odd-v.vt-rzulty { border-left-color: #ffe600; }
 .vchip.vt-rzulty.active { background: #ffe600; color: #3a2f00; }
+
+/* ============================================================ RYSUNKOWA - szkic ołówkiem
+   zdjęcie przez filtr SVG #inkSketch (szkic ołówkiem, templates/index.html), biały papier, podwójna linia, odręczny podpis (Caveat) */
+.card.v-sketch {
+  --frame: linear-gradient(160deg, #f2f0ea, #dcd8cc 60%, #f2f0ea);
+  box-shadow: 0 6px 18px #000a, 0 0 0 1px #2a2420;
+}
+.card.v-sketch .card-inner {
+  background: radial-gradient(#00000008 1px, transparent 1.3px) 0 0 / 5px 5px, linear-gradient(170deg, #ffffff, #f4f2ec);
+  color: #1b1712;
+  box-shadow: inset 0 0 0 .1em #1b1712, inset 0 0 0 .3em #fbf5e4, inset 0 0 0 .38em #1b1712;
+}
+.card.v-sketch :is(.card-sub, .card-stats, .card-stats b, .card-foot, .card-value, .card-hp, .atk-dmg) { color: #1b1712; }
+.card.v-sketch .card-name { font-family: Caveat, "Segoe Print", cursive; font-weight: 700; font-size: 1.3em; line-height: .9; }
+.card.v-sketch .card-sub { background: none; border-top: 1px dashed #1b171288; border-bottom: 1px dashed #1b171288; }
+.card.v-sketch .card-attack { border-top: 1px dashed #1b171299; border-bottom: none; }
+.card.v-sketch .atk-name { font-family: Caveat, "Segoe Print", cursive; font-size: .85em; }
+.card.v-sketch .card-type { background: #fdf8ea; box-shadow: 0 0 0 .1em #1b1712; filter: grayscale(1); }
+.card.v-sketch .gem { background: #fdf8ea; box-shadow: 0 0 0 .12em #1b1712; }
+.card.v-sketch .card-photo { border-image: none; border: .16em solid #1b1712; background: #fff; box-shadow: .25em .25em 0 #1b171222; }
+.card.v-sketch .card-photo img, .r-secret.v-sketch .sc-art img, .pick.v-sketch img { filter: url(#inkSketch); }
+.r-secret.v-sketch, .r-secret.v-sketch .sc { background: #f7f6f2; }
+.r-secret.v-sketch .sc { color: #1b1712; }
+.r-secret.v-sketch .sc-art::after { background: linear-gradient(180deg, #f7f6f2dd 0%, transparent 22%, transparent 52%, #f7f6f2ee 78%, #f7f6f2 100%); }
+.r-secret.v-sketch :is(.sc-name, .secret-text) { background: none; color: #1b1712 !important; filter: none; font-family: Caveat, cursive; font-size: 1.25em; }
+.r-secret.v-sketch :is(.sc-hp, .sc-attack b, .sc-foot) { color: #1b1712; text-shadow: none; }
+.r-secret.v-sketch .sc-panel { background: #fbf5e4cc; border-color: #1b1712; box-shadow: none; backdrop-filter: none; }
+.r-secret.v-sketch :is(.sc-halo, .sc-stars) { display: none; }
+.r-secret.v-sketch .sc-border { background: #1b1712; animation: none; padding: 1.2%; }
+.r-secret.v-sketch .sc-frame { border-color: #1b1712; }
+.var-tag.vt-sketch, .ph.vt-sketch { background: #fdf8ea; color: #1b1712; text-shadow: none; border: 1px solid #1b1712; font-family: Caveat, cursive; font-size: 3.6cqw; transform: rotate(-3deg); }
+.ph.vt-sketch { font-size: 11px; }
+.pick.v-sketch { box-shadow: inset 0 0 0 2px #1b1712, inset 0 -26px 26px -18px var(--rc); }
+.vdot.vt-sketch { background: repeating-linear-gradient(45deg, #fdf8ea 0 2px, #1b1712 2px 3px); box-shadow: 0 0 0 1px #1b1712; }
+.odd.odd-v.vt-sketch { border-left-color: #efe4c8; }
+.vchip.vt-sketch.active { background: #fdf8ea; color: #1b1712; }
+
+/* ============================================================ GALAKTYCZNA - jak skórka "Galaxy": głęboki fiolet przechodzący
+   w magentę i róż, niebieska poświata, losowe gwiazdy (pojedyncze, gromady, iskry), ta sama galaktyka na zdjęciu;
+   cała karta półprzezroczysta; co jakiś czas spadająca gwiazda */
+.card.v-galaxy {
+  --frame: conic-gradient(from var(--ang, 0deg), #1a0640, #6a1fb8, #ff5fc8, #4a8cff, #8a2be2, #1a0640);
+  animation: ultraSpin 7s linear infinite;
+  box-shadow: 0 6px 18px #000a, 0 0 26px #b03cffaa, 0 0 60px #ff5fc855;
+  opacity: .88;   /* cała karta półprzezroczysta */
+}
+.card.v-galaxy .card-inner {
+  background:
+    radial-gradient(ellipse at 12% 8%, #ff5fc855, transparent 40%),
+    radial-gradient(ellipse at 92% 45%, #3f8cff38, transparent 38%),
+    radial-gradient(ellipse at 25% 95%, #ff3d9a50, transparent 46%),
+    linear-gradient(165deg, #1a0640dc, #36106ad2 45%, #5e157ccc 75%, #160536e0);
+  backdrop-filter: blur(3px);
+  color: #f6eaff;
+}
+.card.v-galaxy .card-inner > :not(.galaxy-bg, .dv-bg) { position: relative; z-index: 1; }
+.card.v-galaxy :is(.card-sub, .card-stats, .card-stats b, .card-foot, .atk-name, .atk-dmg, .card-hp) { color: #f6eaff; }
+.card.v-galaxy .card-value { color: #7dffb0; }
+.card.v-galaxy .card-sub { background: linear-gradient(90deg, transparent, #ff5fc833, transparent); }
+.card.v-galaxy .card-attack { border-color: #ffffff26; }
+.card.v-galaxy .card-name { background: linear-gradient(90deg, #ffc2ea, #e2b8ff 50%, #9fd4ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.card.v-galaxy .card-type { background: #3a0f6e; box-shadow: 0 0 0 .1em #ffb8f288, 0 0 .5em #ff5fc8; }
+.card.v-galaxy .card-photo {
+  border-image: linear-gradient(135deg, #9fd4ff, #b03cff, #ff5fc8, #6fb8ff) 1;
+  box-shadow: inset 0 0 1.4em #ff5fc866, 0 0 1em #b03cff88;
+}
+/* zdjęcie: lekko przezroczyste, zabarwione na kosmiczny fiolet i róż, z mgławicą i gwiazdami */
+.card.v-galaxy .card-photo img { filter: saturate(1.15) contrast(1.08) brightness(.95); opacity: .9; }
+.r-secret.v-galaxy .sc-art img { filter: saturate(1.15) contrast(1.08); }
+:is(.card, .r-secret).v-galaxy :is(.card-photo, .sc-art)::before {
+  content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; mix-blend-mode: color; opacity: .55;
+  background: linear-gradient(160deg, #7b3cff, #c23ad6 45%, #ff5fc8 75%, #6fb8ff);
+}
+.gx-photo { position: absolute; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; mix-blend-mode: screen; opacity: .8; }
+.gx-photo .gx-neb { opacity: .55; }
+
+.galaxy-bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; border-radius: inherit; }
+.r-secret .galaxy-bg { z-index: 1; mix-blend-mode: screen; opacity: .7; }
+.gx-neb { position: absolute; width: 95%; aspect-ratio: 1; border-radius: 50%; filter: blur(12px); mix-blend-mode: screen; opacity: .85; }
+.gx-neb.n1 { left: -30%; top: -15%; background: radial-gradient(circle, #ff5fc8b8, #c23ad660 42%, transparent 70%); animation: gxNebA 19s ease-in-out infinite alternate; }
+.gx-neb.n2 { right: -35%; top: 30%; background: radial-gradient(circle, #6fb8ff90, #7b3cff60 45%, transparent 70%); animation: gxNebB 26s ease-in-out infinite alternate; }
+.gx-neb.n3 { left: 5%; bottom: -40%; background: radial-gradient(circle, #e04bd8a8, #8a2be260 45%, transparent 70%); animation: gxNebC 31s ease-in-out infinite alternate; }
+.gx-neb.n4 { left: 25%; top: 20%; width: 60%; background: radial-gradient(circle, #ff8fd470, #b03cff30 50%, transparent 70%); animation: gxNebB 23s ease-in-out infinite alternate-reverse; }
+@keyframes gxNebA { 0% { transform: translate(0, 0) scale(1) rotate(0); } 50% { transform: translate(30%, 20%) scale(1.25) rotate(35deg); } 100% { transform: translate(55%, 45%) scale(.9) rotate(70deg); } }
+@keyframes gxNebB { 0% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-35%, -25%) scale(.8); } 100% { transform: translate(-60%, 10%) scale(1.2); } }
+@keyframes gxNebC { 0% { transform: translate(0, 0) scale(1.1) rotate(0); } 100% { transform: translate(25%, -45%) scale(.85) rotate(-50deg); } }
+/* losowe gwiazdy: warstwa dalsza dryfuje wolno, bliższa szybciej; część migocze, iskry pulsują */
+.gx-stars { position: absolute; inset: -12%; }
+.gx-stars svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.gx-stars.s1 { animation: gxDriftFar 34s ease-in-out infinite alternate; }
+.gx-stars.s2 { animation: gxDriftNear 19s ease-in-out infinite alternate; filter: drop-shadow(0 0 1.2cqw #ffd6f5); }
+@keyframes gxDriftFar { to { transform: translate(-6%, 5%); } }
+@keyframes gxDriftNear { to { transform: translate(-9%, 8%) rotate(2deg); } }
+.gx-stars .tw1 { animation: gxTw 2.3s ease-in-out infinite alternate; }
+.gx-stars .tw2 { animation: gxTw 3.1s ease-in-out .7s infinite alternate; }
+.gx-stars .tw3 { animation: gxTw 1.7s ease-in-out 1.3s infinite alternate; }
+@keyframes gxTw { from { opacity: 1; } to { opacity: .15; } }
+.gx-spark { transform-box: fill-box; transform-origin: center; }
+.gx-spark.tw1, .gx-spark.tw2, .gx-spark.tw3 { animation-name: gxSpark; }
+@keyframes gxSpark { from { opacity: 1; transform: scale(1); } to { opacity: .35; transform: scale(.55) rotate(20deg); } }
+/* nad kartą: delikatne migotanie */
+.galaxy-stars {
+  position: absolute; inset: 0; z-index: 3; border-radius: inherit; pointer-events: none; mix-blend-mode: screen; opacity: .35;
+  background-image: radial-gradient(#fff 1px, transparent 1.4px), radial-gradient(#ffd6f5 .8px, transparent 1.2px);
+  background-size: 47px 43px, 71px 61px; background-position: 9px 5px, 31px 27px;
+  animation: twinkle 3s ease-in-out infinite alternate;
+}
+/* spadająca gwiazda: przez większość cyklu niewidoczna, co ~11 s przelatuje przez kartę (każda karta w innym momencie) */
+.galaxy-shoot { position: absolute; inset: 0; z-index: 4; pointer-events: none; overflow: hidden; border-radius: inherit; }
+.galaxy-shoot i {
+  position: absolute; top: var(--st, 20%); left: var(--sl, -20%); width: 36%; height: 1.2cqw; min-height: 2px; border-radius: 99px;
+  background: linear-gradient(90deg, transparent, #8fe9ff40 35%, #cfeeffcc 80%, #ffffff 96%);
+  filter: drop-shadow(0 0 1.2cqw #ffffff) drop-shadow(0 0 3cqw #8fe9ff); opacity: 0;
+  animation: gxShoot 11s linear infinite; animation-delay: var(--sd, 0s);
+}
+/* lot trwa ~2 s (78% -> 97% cyklu): wlatuje zza lewej krawędzi, przelatuje przez całą kartę i znika za prawą */
+@keyframes gxShoot {
+  0%, 78% { opacity: 0; transform: translate(-40cqw, -18cqw) rotate(24deg); }
+  81% { opacity: 1; }
+  93% { opacity: 1; }
+  97%, 100% { opacity: 0; transform: translate(125cqw, 56cqw) rotate(24deg); }
+}
+.r-secret.v-galaxy .sc { background: #2a0b5c; }
+.r-secret.v-galaxy :is(.sc-name, .secret-text) { background: linear-gradient(180deg, #ffffff, #ffc2ea 55%, #c9a0ff); -webkit-background-clip: text; background-clip: text; }
+.r-secret.v-galaxy .sc-border { background: conic-gradient(from var(--ang, 0deg), #2a0b5c, #8a2be2, #ff5fc8, #6fb8ff, #b03cff, #2a0b5c); }
+.r-secret.v-galaxy .sc-attack b { color: #ffc2ea; }
+.r-secret.v-galaxy { opacity: .88; box-shadow: 0 6px 18px #000c, 0 0 26px #b03cffaa, 0 0 60px #ff5fc855; }
+.var-tag.vt-galaxy, .ph.vt-galaxy {
+  background: linear-gradient(90deg, #2a0b5c, #8a2be2, #ff5fc8, #6fb8ff, #2a0b5c); background-size: 200% 100%; color: #fff;
+  box-shadow: 0 0 .7em #7b4dff, 0 0 1.4em #1fb6ff66; animation: rainbowSlide 4s linear infinite;
+}
+.pick.v-galaxy { box-shadow: inset 0 0 0 2px #b03cff, 0 0 10px #ff5fc888, inset 0 -26px 26px -18px var(--rc); }
+.pick.v-galaxy img { filter: saturate(1.2) contrast(1.1) sepia(.25) hue-rotate(250deg); }
+.pick.v-galaxy::after { content: ""; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen; opacity: .7;
+  background-image: radial-gradient(#fff 1px, transparent 1.4px), radial-gradient(#cfe9ff .8px, transparent 1.2px); background-size: 23px 19px, 17px 21px; }
+.vdot.vt-galaxy { background: radial-gradient(circle at 35% 35%, #ff5fc8, #8a2be2 50%, #2a0b5c); box-shadow: 0 0 6px #7b4dff; }
+.odd.odd-v.vt-galaxy { border-left-color: #ff5fc8; }
+.vchip.vt-galaxy.active { background: linear-gradient(90deg, #2a0b5c, #8a2be2, #ff5fc8); color: #fff; }
+
+/* ============================================================ HALLOWEENOWA (wariant warstwowy - Skrzynia Halloween)
+   noc z pomarańczowym księżycem, ramka pomarańcz + fiolet, migoczące dynie-lampiony i czaszka przy zdjęciu,
+   nietoperze przelatujące nad kartą (symbole SVG #hw-* z templates/index.html). W połączeniu z innym wariantem
+   (np. halloween+gold) środek karty wygląda jak tamten wariant, a Halloween dodaje ramkę i ozdoby. */
+.card.v-halloween {
+  --frame: linear-gradient(145deg, #ffb347, #ff7a00 30%, #5a1a7a 65%, #ff7a00 90%);
+  box-shadow: 0 6px 18px #000a, 0 0 22px #ff7a00aa, 0 0 50px #8a2be244;
+}
+.card.v-halloween:not(.v-combo) .card-inner {
+  background:
+    radial-gradient(circle at 82% 13%, #ffe7a8 0 6%, #ffb34788 7.5%, transparent 18%),
+    radial-gradient(ellipse at 50% 105%, #ff7a0066, transparent 55%),
+    linear-gradient(170deg, #2a1240, #170a24 55%, #2b0f14);
+  color: #ffe2c2;
+}
+.card.v-halloween:not(.v-combo) :is(.card-sub, .card-stats, .card-stats b, .card-foot, .atk-name, .atk-dmg, .card-hp) { color: #ffd9b0; }
+.card.v-halloween:not(.v-combo) .card-name { background: linear-gradient(180deg, #ffd27a, #ff7a00); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.card.v-halloween:not(.v-combo) .card-sub { background: linear-gradient(90deg, transparent, #ff7a0033, transparent); }
+.card.v-halloween:not(.v-combo) .card-attack { border-color: #ff7a0040; }
+.card.v-halloween:not(.v-combo) .card-value { color: #ffd84a; }
+.card.v-halloween:not(.v-combo) .card-type { background: #2a1240; box-shadow: 0 0 0 .1em #ff7a00; }
+.card.v-halloween .card-photo { border-image: repeating-linear-gradient(45deg, #ff7a00 0 .5em, #1a0a12 .5em 1em) 1; }
+.card.v-halloween:not(.v-combo) .card-photo img { filter: sepia(.3) saturate(1.25) contrast(1.05); }
+.card.v-halloween:not(.v-combo) .card-photo::after {
+  content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 40%, transparent 55%, #2b0f14b0 100%);
+}
+.hw-deco { position: absolute; inset: 0; z-index: 5; pointer-events: none; overflow: hidden; border-radius: inherit; }
+.hw-deco svg { position: absolute; overflow: visible; }
+.hw-bat { position: absolute; left: 0; top: 18%; width: 15cqw; height: 7.5cqw; color: #12060f; animation: hwFly 10s linear infinite; }
+.hw-bat .hw-bat-svg { position: static; width: 100%; height: 100%; filter: drop-shadow(0 0 .5cqw #ff8a1f) drop-shadow(0 0 1.5cqw #ff7a00aa); transform-origin: 50% 40%; animation: hwFlap .32s ease-in-out infinite alternate; }
+.hw-bat.b2 { top: 28%; width: 11cqw; height: 5.5cqw; animation-duration: 13s; }
+.hw-bat.b3 { top: 37%; width: 8cqw; height: 4cqw; animation-duration: 16s; }
+@keyframes hwFly { 0% { transform: translate(-20cqw, 0); } 25% { transform: translate(20cqw, 4cqw); } 50% { transform: translate(55cqw, -2cqw); } 75% { transform: translate(85cqw, 3cqw); } 100% { transform: translate(120cqw, 0); } }
+@keyframes hwFlap { from { transform: scaleY(1); } to { transform: scaleY(.35); } }
+/* na zdjęciu (wewnątrz .card-photo): księżyc w rogu, dynie na dole po lewej, czaszka po prawej */
+.hw-photo { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.r-secret .hw-photo { inset: 16% 6% 38% 6%; z-index: 1; }
+.hw-photo svg { position: absolute; overflow: visible; }
+.hw-moon { position: absolute; right: 5%; top: 5%; width: 20%; aspect-ratio: 1; border-radius: 50%; mix-blend-mode: screen; opacity: .8;
+  background: radial-gradient(circle at 38% 38%, #fff6d6, #ffcf6a 55%, #ff9a2e); box-shadow: 0 0 1.4em #ffb347cc, 0 0 3em #ff7a0066; }
+.hw-pumpkins { position: absolute; left: 2%; bottom: 0; display: flex; align-items: flex-end; }
+.hw-pumpkins svg { position: static; animation: hwFlicker 2.4s ease-in-out infinite alternate; }
+.hw-p1 { width: 20cqw; height: 19cqw; }
+.hw-p2 { width: 15cqw; height: 14cqw; margin-left: -3cqw; animation-delay: .6s !important; }
+.hw-p3 { width: 11cqw; height: 10cqw; margin-left: -2cqw; animation-delay: 1.1s !important; }
+@keyframes hwFlicker {
+  0%, 100% { filter: drop-shadow(0 0 1.2cqw #ff7a00cc) brightness(1); }
+  40% { filter: drop-shadow(0 0 2.4cqw #ffb347) brightness(1.15); }
+  60% { filter: drop-shadow(0 0 .8cqw #ff7a0099) brightness(.92); }
+}
+.hw-skull { right: 4%; bottom: 3%; width: 11cqw; height: 12cqw; color: #f3ead7; filter: drop-shadow(0 0 1cqw #000c); transform: rotate(10deg); }
+.r-secret.v-halloween { box-shadow: 0 6px 18px #000c, 0 0 26px #ff7a00cc; }
+.var-tag.vt-halloween, .ph.vt-halloween { background: linear-gradient(90deg, #1a0a12, #ff7a00, #1a0a12); color: #ffe7c2; box-shadow: 0 0 .7em #ff7a00; }
+.pick.v-halloween { box-shadow: inset 0 0 0 2px #ff7a00, 0 0 10px #ff7a0088, inset 0 -26px 26px -18px var(--rc); }
+.pick.v-halloween img { filter: sepia(.35) saturate(1.3); }
+.vdot.vt-halloween { background: radial-gradient(circle at 40% 40%, #ffb347, #ff7a00 55%, #5a1a7a); }
+.odd.odd-v.vt-halloween { border-left-color: #ff7a00; }
+.vchip.vt-halloween.active { background: linear-gradient(90deg, #ff7a00, #5a1a7a); color: #fff; }
+:is(.vdot, .vchip, .hof-vtag).vt-combo.vt-l-halloween { box-shadow: 0 0 0 2px #1a0a12, 0 0 0 3.5px #ff7a00; }
+.ph.vt-combo.vt-l-halloween { box-shadow: 0 0 0 1.5px #1a0a12, 0 0 0 3px #ff7a00; }
+.avv-halloween img { filter: sepia(.35) saturate(1.3); box-shadow: 0 0 0 2px #ff7a00, 0 0 12px #ff7a00 !important; }
+
+/* ============================================================ LAMPIONOWA (rzadszy wariant halloweenowy)
+   czarna karta oświetlona migoczącą świecą, zdjęcie w blasku dyni, iskry i dwie dynie w dolnych rogach.
+   W połączeniu (lantern+gold) środek wygląda jak tamten wariant, a Lampionowa dodaje ramkę, blask, iskry i dynie. */
+.card.v-lantern { --frame: linear-gradient(145deg, #2a160a, #0c0705 50%, #2a160a); box-shadow: 0 6px 18px #000a, 0 0 26px #ff7a00aa; }
+.card.v-lantern.v-combo { --frame: linear-gradient(145deg, #ffb347, #3a1a06 50%, #ffb347); }
+.card.v-lantern:not(.v-combo) .card-inner { background: radial-gradient(ellipse at 50% 100%, #ff7a0088, transparent 60%), #0e0806; color: #ffd9a0; animation: hwGlow 1.8s ease-in-out infinite alternate; }
+.card.v-lantern:not(.v-combo) :is(.card-sub, .card-stats, .card-stats b, .card-foot, .atk-name, .card-hp) { color: #ffcf8a; }
+.card.v-lantern:not(.v-combo) :is(.atk-dmg, .card-value) { color: #ffd84a; text-shadow: 0 0 .6em #ff7a00; }
+.card.v-lantern:not(.v-combo) .card-name { color: #ffb347; text-shadow: 0 0 .5em #ff7a00, 0 0 1em #ff3d00; }
+.card.v-lantern:not(.v-combo) .card-attack { border-color: #ff7a0040; }
+.card.v-lantern:not(.v-combo) .card-type { background: #2a160a; box-shadow: 0 0 0 .1em #ff7a00; }
+.card.v-lantern .card-photo { border-image: none; border-color: #3a1f0c; box-shadow: 0 0 1.4em #ff7a0088; }
+.card.v-lantern:not(.v-combo) .card-photo img, .r-secret.v-lantern:not(.v-combo) .sc-art img { filter: url(#hwLantern); }
+.r-secret.v-lantern { box-shadow: 0 6px 18px #000c, 0 0 26px #ff7a00cc; }
+@keyframes hwGlow { 0% { box-shadow: inset 0 -3em 3em -1em #ff7a0055; } 50% { box-shadow: inset 0 -4em 4em -1em #ff9a2e77; } 100% { box-shadow: inset 0 -2.5em 3em -1em #ff6a0044; } }
+.lt-ember { position: absolute; bottom: -2%; width: 1.2cqw; height: 1.2cqw; border-radius: 50%; background: #ffcf5a; box-shadow: 0 0 1.4cqw #ff7a00, 0 0 3cqw #ff3d00; animation: hwEmber 5s linear infinite; }
+@keyframes hwEmber { 0% { transform: translate(0, 0); opacity: 0; } 15% { opacity: 1; } 100% { transform: translate(6cqw, -120cqw); opacity: 0; } }
+.lt-deco .lt-cp { bottom: 1%; width: 22cqw; height: 21cqw; animation: hwFlicker 1.6s ease-in-out infinite alternate; }
+.lt-deco .lt-cp.l { left: 1%; } .lt-deco .lt-cp.r { right: 1%; animation-delay: .5s; }
+.var-tag.vt-lantern, .ph.vt-lantern { background: linear-gradient(90deg, #2a160a, #ff9a2e, #2a160a); color: #fff1c1; box-shadow: 0 0 .8em #ff9a2e; }
+.pick.v-lantern { box-shadow: inset 0 0 0 2px #ffb347, 0 0 12px #ff9a2eaa, inset 0 -26px 26px -18px var(--rc); }
+.pick.v-lantern img, .avv-lantern img { filter: url(#hwLantern); }
+.avv-lantern img { box-shadow: 0 0 0 2px #ffb347, 0 0 12px #ff9a2e !important; }
+.vdot.vt-lantern { background: radial-gradient(circle at 50% 60%, #fff1c1, #ffb347 35%, #ff7a00 60%, #2a160a); }
+.odd.odd-v.vt-lantern { border-left-color: #ffb347; }
+.vchip.vt-lantern.active { background: linear-gradient(90deg, #2a160a, #ff9a2e); color: #fff; }
+:is(.vdot, .vchip, .hof-vtag).vt-combo.vt-l-lantern { box-shadow: 0 0 0 2px #2a160a, 0 0 0 3.5px #ffb347; }
+.ph.vt-combo.vt-l-lantern { box-shadow: 0 0 0 1.5px #2a160a, 0 0 0 3px #ffb347; }
+
+/* ============================================================ DIABELSKA (najrzadszy wariant halloweenowy)
+   czerń przechodząca w karmazyn, płomienie od dołu (pod napisami), rogi wystające nad kartę, zdjęcie w krwistej czerwieni.
+   W połączeniu (devil+gold) środek wygląda jak tamten wariant, a Diabelska dodaje ramkę, płomienie i rogi. */
+.card.v-devil { --frame: linear-gradient(160deg, #3a0006, #b3001b 45%, #ff5a1a 80%, #3a0006); box-shadow: 0 6px 18px #000a, 0 0 26px #ff1a1aaa, 0 0 60px #ff5a1a55; }
+.card.v-devil .card-inner > :is(.card-head, .card-photo, .card-sub, .card-attack, .card-stats, .card-foot) { position: relative; z-index: 1; }
+.card.v-devil:not(.v-combo) .card-inner { background: linear-gradient(180deg, #120002, #2a0207 50%, #5a0a0a); color: #ffd9cc; }
+.card.v-devil:not(.v-combo) :is(.card-sub, .card-stats, .card-stats b, .card-foot, .atk-name, .card-hp) { color: #ffd9cc; }
+.card.v-devil:not(.v-combo) :is(.atk-dmg, .card-value) { color: #ffcf5a; text-shadow: 0 0 .5em #ff5a1a; }
+.card.v-devil:not(.v-combo) .card-name { color: #ff5a3a; text-shadow: 0 0 .5em #ff1a1a; font-family: Creepster, Rubik, sans-serif; font-weight: 400; letter-spacing: .05em; }
+.card.v-devil:not(.v-combo) .card-attack { border-color: #ff1a1a40; }
+.card.v-devil:not(.v-combo) .card-type { background: #2a0207; box-shadow: 0 0 0 .1em #ff1a1a; }
+.card.v-devil .card-photo { border-image: linear-gradient(180deg, #ffcf5a, #ff3a1a, #5a0006) 1; }
+.card.v-devil:not(.v-combo) .card-photo img, .r-secret.v-devil:not(.v-combo) .sc-art img { filter: url(#dvRed); }
+.r-secret.v-devil { box-shadow: 0 6px 18px #000c, 0 0 26px #ff1a1acc, 0 0 60px #ff5a1a55; }
+.dv-bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; border-radius: inherit; }
+.r-secret .dv-bg { z-index: 1; }
+.v-combo .dv-bg { opacity: .6; }
+.v-combo .dv-flame { mix-blend-mode: normal; }
+.dv-flame { position: absolute; bottom: -4%; width: 22%; height: 28%; opacity: .8; border-radius: 50% 50% 22% 22% / 62% 62% 38% 38%;
+  background: radial-gradient(ellipse at 50% 85%, #fff3b0 0 12%, #ffb02e 28%, #ff4a1a 52%, #b3001b88 72%, transparent 78%);
+  filter: blur(2px); mix-blend-mode: screen; transform-origin: 50% 100%; animation: dvFlame 1.1s ease-in-out infinite alternate; }
+@keyframes dvFlame { 0% { transform: scale(1, 1) skewX(0); } 50% { transform: scale(.9, 1.15) skewX(4deg); } 100% { transform: scale(1.05, .85) skewX(-4deg); } }
+.dv-out { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
+.dv-out .dv-horn { position: absolute; top: -11%; width: 13cqw; height: 16cqw; overflow: visible; color: #b3001b; filter: drop-shadow(0 0 1cqw #ff1a1a); }
+.dv-out .dv-horn.l { left: 10%; } .dv-out .dv-horn.r { right: 10%; transform: scaleX(-1); }
+.var-tag.vt-devil, .ph.vt-devil { background: linear-gradient(90deg, #2a0005, #d10a1e, #2a0005); color: #ffd6d6; box-shadow: 0 0 .8em #ff1a1a; }
+.pick.v-devil { box-shadow: inset 0 0 0 2px #ff1a1a, 0 0 12px #ff1a1aaa, inset 0 -26px 26px -18px var(--rc); }
+.pick.v-devil img, .avv-devil img { filter: url(#dvRed); }
+.avv-devil img { box-shadow: 0 0 0 2px #ff1a1a, 0 0 12px #ff1a1a !important; }
+.vdot.vt-devil { background: radial-gradient(circle at 50% 70%, #ffcf5a, #ff3a1a 35%, #b3001b 60%, #120002); }
+.odd.odd-v.vt-devil { border-left-color: #ff1a1a; }
+.vchip.vt-devil.active { background: linear-gradient(90deg, #3a0006, #d10a1e, #ff5a1a); color: #fff; }
+:is(.vdot, .vchip, .hof-vtag).vt-combo.vt-l-devil { box-shadow: 0 0 0 2px #120002, 0 0 0 3.5px #ff1a1a; }
+.ph.vt-combo.vt-l-devil { box-shadow: 0 0 0 1.5px #120002, 0 0 0 3px #ff1a1a; }

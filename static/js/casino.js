@@ -1,5 +1,5 @@
 "use strict";
-// Kasyno: ruletka (stawką są karty, wygrana też w kartach) i jackpot dla dwóch graczy (zwycięzca bierze wszystkie karty).
+// Kasyno: ruletka (stawką są karty, wygrana też w kartach) i jackpot - lobby dla dwóch graczy (zwycięzca bierze wszystkie karty).
 // Losuje zawsze serwer - przeglądarka tylko pokazuje animację z gotowym wynikiem.
 
 const CS = {
@@ -11,7 +11,9 @@ const CS = {
   angle: 0,              // obrót koła ruletki (stopnie)
   history: [],           // ostatnie wylosowane liczby
   last: null,            // ostatni wynik (do pokazania pod kołem)
-  jp: { data: null, sel: new Set(), invite: "", q: "", mode: "create", join: null, poll: null, waiting: null, shown: new Set() },
+  sorts: { rl: "value", jp: "value" },   // sortowanie moich kart w ruletce / jackpocie
+  // jackpot: lobby, w którym siedzę (data.current), nowe lobby (publiczne / prywatne + zaproszenia), obejrzane wyniki
+  jp: { data: null, q: "", poll: null, sig: "", lastLobby: null, busy: false, newPublic: true, newInvites: "", shown: new Set() },
 };
 const CS_PICK_LIMIT = 240;
 
@@ -22,9 +24,10 @@ function csPct(x) { return (x * 100).toLocaleString("pl-PL", { maximumFractionDi
 // siatka moich kart do wyboru (ruletka / jackpot)
 function csPickerHTML(set, q, max, zone) {
   const ql = q.trim().toLowerCase();
-  const list = csItems().filter(i => !ql || person(i.person).name.toLowerCase().includes(ql))
-    .sort((a, b) => (set.has(b.id) - set.has(a.id)) || b.value - a.value || b.id - a.id);
+  const sorted = sortCards(csItems().filter(i => !ql || person(i.person).name.toLowerCase().includes(ql)), CS.sorts[zone]);
+  const list = [...sorted.filter(i => set.has(i.id)), ...sorted.filter(i => !set.has(i.id))];   // wybrane na początku
   return `<div class="cs-pick-head"><input type="text" data-csq="${zone}" placeholder="Szukaj w swoich kartach…" value="${esc(q)}">
+      ${sortSelectHTML(CS.sorts[zone], `data-cssort="${zone}"`)}
       <span class="muted small">${set.size}/${max} kart · ${fmt(csStake(set))}</span>
       ${set.size ? `<button class="btn tiny" data-csclear="${zone}">Wyczyść</button>` : ""}</div>
     <div class="pick-grid cs-grid" data-zone="${zone}">${list.slice(0, CS_PICK_LIMIT).map(i => pickHTML(i, { sel: set.has(i.id) })).join("")
@@ -36,7 +39,6 @@ function renderCasino() {
     `<button data-cstab="${t}" class="${CS.tab === t ? "active" : ""}">${n}</button>`).join("");
   const own = new Set(S.items.map(i => i.id));
   [...CS.sel].forEach(id => { if (!own.has(id)) CS.sel.delete(id); });
-  [...CS.jp.sel].forEach(id => { if (!own.has(id)) CS.jp.sel.delete(id); });
   if (CS.tab === "roulette") { stopJackpotPolling(); drawRoulette(); }
   else renderJackpot();
 }
@@ -114,7 +116,7 @@ function drawRoulette() {
           <span>Szansa: <b>${csPct(chance)}</b></span>
         </div>
         <button class="big-btn rl-spin" id="rlSpin"${CS.sel.size && !CS.spinning ? "" : " disabled"}>🎡 ZAKRĘĆ${stake ? ` · stawka ${fmt(stake)}` : ""}</button>
-        <div class="muted small">Wygrana: twoje karty zostają, a dostajesz karty o wartości stawki × wypłata (losowe karty ze skrzynek w sklepie; końcówka w $). Przegrana: postawione karty przepadają.</div>
+        <div class="muted small">Wygrana: twoje karty zostają, a dostajesz karty o wartości stawki × wypłata (losowe karty ze skrzynek w sklepie; końcówka w groszach). Przegrana: postawione karty przepadają.</div>
       </div>
       <div class="panel cs-pick">${csPickerHTML(CS.sel, CS.q, S.cfg.roulette.maxCards, "rl")}</div>
     </div>
@@ -181,162 +183,225 @@ async function spinRoulette() {
   if (currentView() === "casino" && CS.tab === "roulette") drawRoulette();
 }
 
-// ================================================================ JACKPOT
+// ================================================================ JACKPOT (lobby dla 2 graczy)
+// Lobby: publiczne albo prywatne (tylko zaproszeni po nicku), założyciel może to zmienić i zapraszać kolejnych graczy.
+// Obaj gracze wybierają i zmieniają karty w lobby (każda zmiana cofa akceptację obu), gdy obaj zaakceptują - serwer losuje.
+// Karty nie są blokowane - serwer sprawdza przy losowaniu, czy gracze nadal je mają.
 
-function stopJackpotPolling() { clearInterval(CS.jp.poll); CS.jp.poll = null; }
+function stopJackpotPolling() { clearTimeout(CS.jp.poll); CS.jp.poll = null; }
 
 async function renderJackpot(quiet = false) {
+  const jp = CS.jp;
   let data;
   try { data = await api("/api/casino/jackpot"); }
-  catch (e) { if (!quiet) toast(e.message, true); return; }
+  catch (e) { if (!quiet) toast(e.message, true); return jpSchedule(); }
   if (currentView() !== "casino" || CS.tab !== "jackpot") return;
-  const jp = CS.jp;
-  jp.data = data;
-  // mój stół zniknął z listy otwartych - ktoś dołączył (albo stół wygasł)
-  const myOpen = data.tables.find(t => t.creator?.id === S.me.id);
-  if (jp.waiting && !myOpen) {
-    const done = data.mine.find(t => t.id === jp.waiting);
-    jp.waiting = null;
-    if (done && done.status === "done" && !jp.shown.has(done.id)) {
-      jp.shown.add(done.id);
-      await csRefreshInventory();
-      jackpotAnim(done);
-    } else if (done) {
-      await csRefreshInventory();
-      toast(done.status === "expired" ? "⌛ Nikt nie dołączył do twojego stołu — karty wróciły" : "Stół zamknięty — karty wróciły");
-    }
+  // lobby, w którym byłem, już się skończyło: wynik gry albo zamknięte / wyproszony
+  const prev = jp.lastLobby, cur = data.current;
+  if (prev && cur?.id !== prev) {
+    const old = data.mine.find(t => t.id === prev);
+    if (old?.status === "done") showJackpotResult(old);
+    else if (old?.status === "cancelled") toast("Założyciel zamknął lobby");
+    else if (old?.status === "expired") toast("Lobby zamknęło się po długim czasie bez ruchu");
+    else if (!old) toast("Założyciel wyprosił cię z lobby");
   }
-  if (myOpen) jp.waiting = myOpen.id;
-  if (jp.join && !data.tables.some(t => t.id === jp.join)) { jp.join = null; toast("Ktoś był szybszy — ten stół jest już nieaktualny", true); }
-  if (!(quiet && document.querySelector("#casinoBody input:focus"))) drawJackpot();
-  // czekam na rywala - sprawdzam co 3 s; inaczej lista stołów odświeża się co 10 s
+  jp.lastLobby = cur?.id || null;
+  S.jpLobby = jp.lastLobby;
+  jp.data = data;
+  // przerysowanie tylko, gdy coś się zmieniło (i nie w trakcie pisania) - inaczej wybór kart by "migał"
+  const sig = JSON.stringify([data.current, data.lobbies.map(l => [l.id, l.joiner?.id, l.valueA, l.public]), data.recent.map(t => t.id)]);
+  const typing = document.querySelector("#casinoBody input:focus");
+  if (!quiet || (sig !== jp.sig && !typing)) { jp.sig = sig; drawJackpot(); }
+  jpSchedule();
+}
+
+// w lobby odświeżamy co 2 s (akceptacje, karty rywala, wynik), poza lobby lista co 8 s
+function jpSchedule() {
   stopJackpotPolling();
-  jp.poll = setInterval(() => {
-    if (currentView() !== "casino" || CS.tab !== "jackpot") return stopJackpotPolling();
-    if (!document.hidden && !document.querySelector(".jp-anim")) renderJackpot(true);
-  }, myOpen ? 3000 : 10000);
+  if (currentView() !== "casino" || CS.tab !== "jackpot") return;
+  CS.jp.poll = setTimeout(() => {
+    if (currentView() !== "casino" || CS.tab !== "jackpot") return;
+    if (document.hidden || document.querySelector(".jp-anim") || CS.jp.busy) return jpSchedule();
+    renderJackpot(true);
+  }, CS.jp.lastLobby ? 2000 : 8000);
 }
 
-async function csRefreshInventory() {
-  try {
-    const st = await api("/api/state");
-    S.items = st.items; S.showcase = st.showcase || [];
-    noteCollected(S.items);
-    applyState(st.state);
-    if (S.items.some(i => person(i.person)?.masked)) await refreshConfig();   // wygrana tajna karta jest teraz odkryta
-  } catch (_) {}
+// wynik gry - pokazywany gdziekolwiek gracz jest (także gdy wyszedł z zakładki albo z gry), raz na grę
+async function showJackpotResult(t) {
+  const jp = CS.jp;
+  if (!t || !t.side || jp.shown.has(t.id)) return;
+  if (S.opening || epicOpen() || dialogOpen() || document.querySelector(".jp-anim")) return;   // spróbujemy przy następnym odświeżeniu
+  jp.shown.add(t.id);
+  api(`/api/casino/jackpot/${t.id}/seen`, {}).catch(() => {});
+  await syncInventory(null, true);
+  await jackpotAnim(t);
+  if (currentView() === "casino" && CS.tab === "jackpot") renderJackpot();
 }
 
-function jpCardsHTML(t, side, max = 10) {
+function jpCardsHTML(t, side, max = 10, own = false) {
   const cards = t[side];
+  if (!cards.length) return '<div class="muted small jp-nocards">jeszcze bez kart</div>';
   return `<div class="jp-cards">${cards.slice(0, max).map(c => withRevealMap(c.reveal ? { [c.person]: c.reveal } : {}, `jackpot=${t.id}`,
-    () => pickHTML({ id: 0, person: c.person, variant: c.variant, value: c.value }))).join("")}${cards.length > max ? `<span class="jp-more">+${cards.length - max}</span>` : ""}</div>`;
-}
-
-function jpTableHTML(t) {
-  const mine = t.creator?.id === S.me.id;
-  return `<div class="jp-table${mine ? " mine" : ""}${t.invite ? " invite" : ""}">
-    <div class="jp-head">${t.creator ? userLink(t.creator) : "?"} stawia ${mkPrice(t.valueA)}
-      ${t.invite ? `<span class="mk-tag">✉️ ${t.invite.id === S.me.id ? "zaproszenie dla ciebie" : "dla: " + esc(t.invite.username)}</span>` : ""}
-      <span class="fi-time">${timeAgo(t.created)}</span></div>
-    ${jpCardsHTML(t, "a")}
-    <div class="mk-actions">${mine ? `<span class="mk-tag mine">⏳ Twój stół — czekasz na rywala</span><button class="btn tiny" data-jcancel="${t.id}">↩️ Zamknij stół</button>`
-      : `<button class="btn primary" data-jjoin="${t.id}">🎲 Dołącz</button>`}</div>
-  </div>`;
+    () => `<div class="jp-c"${own ? ` data-jrm="${c.id}" title="Kliknij, aby zdjąć kartę"` : ""}>${pickHTML({ id: c.id, person: c.person, variant: c.variant, value: c.value })}</div>`)).join("")}${
+    cards.length > max ? `<span class="jp-more">+${cards.length - max}</span>` : ""}</div>`;
 }
 
 function jpOddsBar(a, b, nameA, nameB) {
   const pa = a + b ? a / (a + b) : 0.5;
   return `<div class="jp-odds"><div class="jp-bar"><i class="jp-a" style="width:${pa * 100}%"></i><i class="jp-b" style="width:${(1 - pa) * 100}%"></i></div>
-    <div class="jp-odds-txt"><span>${esc(nameA)} <b>${csPct(pa)}</b></span><span><b>${csPct(1 - pa)}</b> ${esc(nameB)}</span></div></div>`;
+    <div class="jp-odds-txt"><span>${esc(nameA)} <b>${a + b ? csPct(pa) : "—"}</b></span><span><b>${a + b ? csPct(1 - pa) : "—"}</b> ${esc(nameB)}</span></div></div>`;
+}
+
+// ---------------------------------------------------------------- lobby, w którym siedzę
+function jpRoomHTML(L) {
+  const me = L.side, opp = me === "a" ? "b" : "a", creator = me === "a";
+  const ready = { a: L.readyA, b: L.readyB }, value = { a: L.valueA, b: L.valueB };
+  const seat = side => {
+    const u = side === "a" ? L.creator : L.joiner;
+    if (!u) return `<div class="jp-seat empty"><div class="jp-seat-wait">⏳ Czekamy na drugiego gracza…</div>
+      <div class="muted small">${L.public ? "Lobby jest publiczne — każdy może dołączyć." : "Lobby jest prywatne — dołączyć mogą tylko zaproszeni."}</div></div>`;
+    return `<div class="jp-seat jp-s${side}${side === me ? " me" : ""}${ready[side] ? " ready" : ""}">
+      <div class="jp-seat-head">${avatarHTML(u)}<b>${esc(u.username)}${side === me ? " (ty)" : ""}</b>
+        <span class="jp-ready-tag">${ready[side] ? "✅ Akceptuje" : "⏳ Wybiera karty"}</span>
+        ${creator && side === "b" ? '<button class="btn tiny" data-jkick>🚪 Wyproś</button>' : ""}</div>
+      <div class="jp-seat-val">${mkPrice(value[side])} · ${L[side].length} ${plural(L[side].length, "karta", "karty", "kart")}</div>
+      ${jpCardsHTML(L, side, 40, side === me)}
+    </div>`;
+  };
+  const canReady = L.joiner && L[me].length;
+  const hint = !L.joiner ? "Poczekaj, aż ktoś dołączy." : !L[me].length ? "Wybierz swoje karty poniżej."
+    : ready[opp] && !ready[me] ? "Rywal już zaakceptował — gdy ty zaakceptujesz, od razu losujemy!"
+    : ready[me] && !ready[opp] ? "Czekamy, aż rywal zaakceptuje." : "Gdy obaj zaakceptujecie, od razu losujemy zwycięzcę.";
+  return `<div class="jp-room">
+    <div class="panel jp-room-head">
+      <div class="jp-room-title"><h3>💰 Lobby #${L.id}</h3>
+        <span class="mk-tag">${L.public ? "🌍 Publiczne" : "🔒 Prywatne"}</span>
+        ${creator ? `<button class="btn tiny" data-jpublic="${L.public ? 0 : 1}">${L.public ? "🔒 Zmień na prywatne" : "🌍 Zmień na publiczne"}</button>` : ""}
+        <button class="btn tiny jp-leave" data-jleave>${creator ? "✖ Zamknij lobby" : "↩️ Opuść lobby"}</button></div>
+      <div class="jp-invites">✉️ Zaproszeni: ${L.invites.map(u => `<span class="jp-inv">${esc(u.username)}${creator ? `<button data-juninv="${u.id}" title="Usuń zaproszenie">×</button>` : ""}</span>`).join("")
+        || '<span class="muted small">nikt</span>'}
+        ${creator ? `<span class="jp-inv-add"><input type="text" data-jinv placeholder="nick gracza"><button class="btn tiny" data-jinvgo>✉️ Zaproś</button></span>` : ""}</div>
+    </div>
+    <div class="jp-seats">${seat("a")}<div class="jp-vs-big">⚔</div>${seat("b")}</div>
+    ${jpOddsBar(L.valueA, L.valueB, L.creator?.username || "?", L.joiner?.username || "?")}
+    <div class="cs-btns"><button class="big-btn jp-accept${ready[me] ? " on" : ""}" data-jready="${ready[me] ? 0 : 1}"${!ready[me] && !canReady ? " disabled" : ""}>
+      ${ready[me] ? "↩️ COFNIJ AKCEPTACJĘ" : "✅ AKCEPTUJĘ — GRAMY"}</button></div>
+    <p class="muted small jp-hint">${hint} Zmiana kart (twoich albo rywala) cofa akceptację obu graczy. Zwycięzca bierze wszystkie karty z lobby — swoje z powrotem i karty rywala.</p>
+    <div class="panel cs-pick"><h3>Twoje karty <small class="muted">(kliknij, aby dodać do lobby albo zdjąć)</small></h3>
+      ${csPickerHTML(new Set(L[me].map(c => c.id)), CS.jp.q, S.cfg.jackpot.maxCards, "jp")}</div>
+  </div>`;
+}
+
+// ---------------------------------------------------------------- lista lobby + nowe lobby
+function jpLobbyHTML(t) {
+  return `<div class="jp-table${t.invited ? " invite" : ""}">
+    <div class="jp-head">${t.creator ? userLink(t.creator) : "?"}
+      <span class="mk-tag">${t.public ? "🌍 publiczne" : "🔒 prywatne"}</span>
+      ${t.invited ? '<span class="mk-tag lead">✉️ zaproszenie dla ciebie</span>' : ""}
+      <span class="muted small">${t.joiner ? "👥 2/2" : "👤 1/2"}</span>
+      <span class="fi-time">${timeAgo(t.created)}</span></div>
+    ${t.a.length ? `<div class="small">stawia ${mkPrice(t.valueA)}</div>${jpCardsHTML(t, "a", 8)}` : '<div class="muted small">jeszcze nie wybrał kart</div>'}
+    <div class="mk-actions">${t.joiner ? '<span class="muted small">Lobby pełne</span>' : `<button class="btn primary" data-jjoin="${t.id}">🎲 Dołącz</button>`}</div>
+  </div>`;
+}
+
+function jpRecentHTML(t) {
+  const pa = t.valueA / ((t.valueA + t.valueB) || 1);
+  const win = t.winner === "a" ? t.creator : t.joiner;
+  return `<div class="jp-recent${t.side ? " mine" : ""}">
+    <span>${t.creator ? userLink(t.creator) : "?"} <small class="muted">${fmt(t.valueA)} · ${csPct(pa)}</small></span>
+    <span class="jp-vs">⚔</span>
+    <span>${t.joiner ? userLink(t.joiner) : "?"} <small class="muted">${fmt(t.valueB)} · ${csPct(1 - pa)}</small></span>
+    <span class="jp-win">🏆 ${esc(win?.username || "?")} · ${fmt(t.valueA + t.valueB)}</span>
+    <span class="fi-time">${timeAgo(t.finished)}</span></div>`;
 }
 
 function drawJackpot() {
   const jp = CS.jp, d = jp.data;
   if (!d) return;
-  const myOpen = d.tables.find(t => t.creator?.id === S.me.id);
-  const others = d.tables.filter(t => t !== myOpen);
-  const joinT = jp.join && d.tables.find(t => t.id === jp.join);
-  const stake = csStake(jp.sel);
-  let left;
-  if (joinT) {
-    left = `<h3>🎲 Dołączasz do stołu: ${esc(joinT.creator?.username || "?")}</h3>
-      ${jpCardsHTML(joinT, "a", 12)}
-      ${jpOddsBar(joinT.valueA, stake, joinT.creator?.username || "?", "Ty")}
-      <p class="muted small">Twoja szansa = wartość twoich kart / wartość wszystkich kart na stole. Po dołączeniu od razu losujemy zwycięzcę — bierze wszystkie karty.</p>
-      <div class="cs-btns"><button class="big-btn" data-jgo${jp.sel.size ? "" : " disabled"}>🎲 DOŁĄCZ I LOSUJ · ${fmt(stake)}</button>
-        <button class="btn" data-jback>Anuluj</button></div>
-      ${csPickerHTML(jp.sel, jp.q, S.cfg.jackpot.maxCards, "jp")}`;
-  } else if (myOpen) {
-    left = `<h3>⏳ Twój stół czeka na rywala</h3>${jpTableHTML(myOpen)}
-      <p class="muted small">Gdy ktoś dołączy, od razu zobaczysz losowanie. Stół zamyka się sam po ${S.cfg.jackpot.expireHours} godz. (karty wracają).</p>`;
-  } else {
-    left = `<h3>💰 Nowy stół</h3>
-      <p class="muted small">Postaw swoje karty. Drugi gracz dokłada swoje — im więcej warte twoje karty, tym większa szansa na wygraną (razem 100%). Zwycięzca bierze <b>wszystkie</b> karty ze stołu.</p>
-      <label class="jp-invite">✉️ Zaproś gracza (opcjonalnie — puste = każdy może dołączyć)<input type="text" data-jinvite placeholder="nazwa gracza" value="${esc(jp.invite)}"></label>
-      <div class="cs-btns"><button class="big-btn" data-jcreate${jp.sel.size ? "" : " disabled"}>💰 OTWÓRZ STÓŁ${stake ? ` · ${fmt(stake)}` : ""}</button></div>
-      ${csPickerHTML(jp.sel, jp.q, S.cfg.jackpot.maxCards, "jp")}`;
+  if (d.current) {
+    $("#casinoBody").innerHTML = jpRoomHTML(d.current);
+    return;
   }
-  const recentHTML = t => {
-    const pa = t.valueA / ((t.valueA + t.valueB) || 1);
-    const win = t.winner === "a" ? t.creator : t.joiner;
-    return `<div class="jp-recent${t.mine ? " mine" : ""}">
-      <span>${t.creator ? userLink(t.creator) : "?"} <small class="muted">${fmt(t.valueA)} · ${csPct(pa)}</small></span>
-      <span class="jp-vs">⚔</span>
-      <span>${t.joiner ? userLink(t.joiner) : "?"} <small class="muted">${fmt(t.valueB)} · ${csPct(1 - pa)}</small></span>
-      <span class="jp-win">🏆 ${esc(win?.username || "?")} · ${fmt(t.valueA + t.valueB)}</span>
-      <span class="fi-time">${timeAgo(t.finished)}</span></div>`;
-  };
+  const lobbies = d.lobbies.slice().sort((a, b) => (b.invited - a.invited) || (!!a.joiner - !!b.joiner) || b.id - a.id);
   $("#casinoBody").innerHTML = `<div class="jp-cols">
-    <div class="panel jp-left">${left}</div>
+    <div class="panel jp-left">
+      <h3>💰 Nowe lobby</h3>
+      <p class="muted small">Załóż lobby i zaproś graczy. W lobby obaj wybieracie karty (można je zmieniać), a gdy obaj zaakceptujecie —
+        losujemy zwycięzcę. Szansa = wartość twoich kart / wartość wszystkich kart. Zwycięzca bierze <b>wszystkie</b> karty: swoje z powrotem i karty rywala.</p>
+      <div class="seg jp-vis"><button data-jnewpub="1" class="${jp.newPublic ? "active" : ""}">🌍 Publiczne</button><button data-jnewpub="0" class="${jp.newPublic ? "" : "active"}">🔒 Prywatne</button></div>
+      <div class="muted small">${jp.newPublic ? "Każdy może dołączyć." : "Dołączyć mogą tylko zaproszeni."} Możesz to zmienić później w lobby.</div>
+      <label class="jp-invite">✉️ Zaproś graczy (nicki, oddzielone przecinkami)<input type="text" data-jnewinv placeholder="np. ala, bartek" value="${esc(jp.newInvites)}"></label>
+      <div class="cs-btns"><button class="big-btn" data-jcreate>💰 UTWÓRZ LOBBY</button></div>
+    </div>
     <div class="jp-right">
-      <div class="panel"><h3>🎲 Stoły czekające na rywala (${others.length})</h3>
-        ${others.map(jpTableHTML).join("") || '<p class="muted">Nikt teraz nie czeka. Otwórz własny stół!</p>'}</div>
-      <div class="panel"><h3>📜 Ostatnie gry</h3>${d.recent.map(recentHTML).join("") || '<p class="muted">Jeszcze nikt nie grał.</p>'}</div>
+      <div class="panel"><h3>🎲 Lobby (${lobbies.length})</h3>${lobbies.map(jpLobbyHTML).join("") || '<p class="muted">Nie ma otwartych lobby. Załóż własne!</p>'}</div>
+      <div class="panel"><h3>📜 Ostatnie gry</h3>${d.recent.map(jpRecentHTML).join("") || '<p class="muted">Jeszcze nikt nie grał.</p>'}</div>
     </div>
   </div>`;
 }
 
+// ---------------------------------------------------------------- akcje
+async function jpCall(path, body = {}, okMsg = null) {
+  const jp = CS.jp;
+  jp.busy = true;
+  try {
+    const res = await api(path, body);
+    if (res.jackpot && res.jackpot.status === "open" && jp.data) { jp.data.current = res.jackpot; jp.lastLobby = res.jackpot.id; S.jpLobby = jp.lastLobby; }
+    if (okMsg) toast(okMsg);
+    return res;
+  } catch (e) { Sound.error(); toast(e.message, true); return null; }
+  finally { jp.busy = false; }
+}
+
 async function jpCreate() {
   const jp = CS.jp;
-  if (!jp.sel.size) return;
-  const ids = [...jp.sel];
-  try {
-    const res = await api("/api/casino/jackpot", { ids, invite: $("[data-jinvite]")?.value || "" });
-    removeItems(res.consumed);
-    jp.sel.clear(); jp.invite = "";
-    jp.waiting = res.id;
-    Sound.coin(2);
-    toast("💰 Stół otwarty — czekasz na rywala");
-    renderHeader();
-  } catch (e) { Sound.error(); toast(e.message, true); }
+  const res = await jpCall("/api/casino/jackpot", { public: jp.newPublic, invites: $("[data-jnewinv]")?.value || "" });
+  if (res) { jp.newInvites = ""; Sound.click(); toast("💰 Lobby gotowe — wybierz karty"); }
   renderJackpot();
 }
 
-async function jpJoin() {
-  const jp = CS.jp, t = jp.data?.tables.find(x => x.id === jp.join);
-  if (!t || !jp.sel.size) return;
-  const stake = csStake(jp.sel);
-  if (!confirm(`Dołączyć do stołu ${t.creator?.username || ""}? Stawiasz ${fmt(stake)}, szansa ${csPct(stake / (stake + t.valueA))}. Zwycięzca bierze wszystko.`)) return;
+async function jpSetCards(ids) {
+  const L = CS.jp.data?.current;
+  if (!L || CS.jp.busy) return;
+  const res = await jpCall(`/api/casino/jackpot/${L.id}/cards`, { ids });
+  if (res) Sound.click();
+  drawJackpot();
+}
+
+async function jpReady(on) {
+  const L = CS.jp.data?.current;
+  if (!L || CS.jp.busy) return;
+  CS.jp.busy = true;
+  S.inflight = (S.inflight || 0) + 1; S.mutations = (S.mutations || 0) + 1;
   let res;
-  try { res = await api(`/api/casino/jackpot/${t.id}/join`, { ids: [...jp.sel] }); }
-  catch (e) { Sound.error(); toast(e.message, true); jp.join = null; return renderJackpot(); }
-  jp.sel.clear(); jp.join = null;
-  jp.shown.add(res.jackpot.id);
-  S.items = res.items;
-  noteCollected(S.items);
-  applyState(res.state);
-  if (S.items.some(i => person(i.person)?.masked)) await refreshConfig();
-  await jackpotAnim(res.jackpot);
-  renderJackpot();
+  try {   // własne zapytanie: przy 409 (karty zniknęły) serwer zwraca też poprawione lobby
+    res = await fetch(`/api/casino/jackpot/${L.id}/ready`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ready: on }) })
+      .then(async r => ({ status: r.status, body: await r.json().catch(() => ({})) }));
+  } catch (_) { res = { status: 0, body: { error: "Błąd połączenia" } }; }
+  finally { S.inflight--; CS.jp.busy = false; }
+  const b = res.body;
+  if (res.status === 409 && b.jackpot) { CS.jp.data.current = b.jackpot; Sound.error(); toast(b.error, true); return drawJackpot(); }
+  if (res.status !== 200) { Sound.error(); toast(b.error || "Błąd serwera", true); return renderJackpot(); }
+  if (b.jackpot.status === "done") {   // to ja zaakceptowałem jako drugi - losowanie już się odbyło
+    CS.jp.lastLobby = null; S.jpLobby = null;
+    if (b.items) { S.items = b.items; noteCollected(S.items); }
+    if (b.state) applyState(b.state);
+    await showJackpotResult(b.jackpot);
+    return renderJackpot();
+  }
+  CS.jp.data.current = b.jackpot;
+  Sound.click();
+  drawJackpot();
 }
 
 // animacja losowania: pasek podzielony według szans, wskaźnik biega w tę i z powrotem i zatrzymuje się na wyniku
 function jackpotAnim(t) {
   return new Promise(resolve => {
     const pa = t.valueA / (t.valueA + t.valueB);
-    const meA = t.creator?.id === S.me.id, iWon = (t.winner === "a") === meA;
+    const iWon = t.winner === t.side;
     const winner = t.winner === "a" ? t.creator : t.joiner;
+    const mine = t.side === "a" ? t.valueA : t.valueB, theirs = t.side === "a" ? t.valueB : t.valueA;
     const cards = [...t.a, ...t.b];
     const el = document.createElement("div");
     el.className = "jp-anim";
@@ -347,14 +412,14 @@ function jackpotAnim(t) {
         <div class="jp-vs">⚔</div>
         <div class="jp-p jp-pb">${avatarHTML(t.joiner || {})}<b>${esc(t.joiner?.username || "?")}</b><span>${fmt(t.valueB)} · ${csPct(1 - pa)}</span></div>
       </div>
-      <div class="jp-track"><i class="jp-a" style="width:${pa * 100}%"></i><i class="jp-b" style="width:${(1 - pa) * 100}%"></i><div class="jp-marker" id="jpMarker"></div></div>
+      <div class="jp-track"><i class="jp-a" style="width:${pa * 100}%"></i><i class="jp-b" style="width:${(1 - pa) * 100}%"></i><div class="jp-marker"></div></div>
       <div class="jp-anim-res" hidden></div>
       <div class="pick-grid jp-anim-cards" hidden></div>
       <div class="daily-actions"><button class="btn primary" data-jclose hidden>✔ OK</button></div>
     </div>`;
     document.body.appendChild(el);
     Sound.unlock();
-    const marker = el.querySelector("#jpMarker");
+    const marker = el.querySelector(".jp-marker");
     const fast = S.fast, D = fast ? 2200 : 5200, passes = fast ? 3 : 6;
     const t0 = performance.now();
     let lastSide = null;
@@ -369,8 +434,9 @@ function jackpotAnim(t) {
       el.querySelector(`.jp-p${t.winner}`).classList.add("won");
       const res = el.querySelector(".jp-anim-res");
       res.hidden = false;
-      res.innerHTML = iWon ? `<b class="pos-txt">🏆 WYGRYWASZ! +${fmt(t.valueA + t.valueB)}</b><div class="muted">Wszystkie karty ze stołu są w twoim ekwipunku.</div>`
-        : `<b class="neg-txt">Wygrywa ${esc(winner?.username || "?")}</b><div class="muted">Twoje karty przepadły.</div>`;
+      res.innerHTML = iWon
+        ? `<b class="pos-txt">🏆 WYGRYWASZ ${fmt(mine + theirs)}!</b><div class="muted">Twoje karty wracają do ciebie, a do tego karty rywala za ${fmt(theirs)}. Wszystko jest w ekwipunku.</div>`
+        : `<b class="neg-txt">Wygrywa ${esc(winner?.username || "?")}</b><div class="muted">Twoje karty (${fmt(mine)}) przechodzą do zwycięzcy.</div>`;
       const grid = el.querySelector(".jp-anim-cards");
       grid.hidden = false;
       grid.innerHTML = cards.map(c => withRevealMap(c.reveal ? { [c.person]: c.reveal } : {}, `jackpot=${t.id}`,
@@ -398,34 +464,63 @@ function bindCasino() {
   body.addEventListener("click", e => {
     const t = e.target;
     if (CS.spinning) return;
+    const L = CS.jp.data?.current;
+    // ruletka
     const won = t.closest(".rl-won .pick");
     if (won) { const it = CS.last?.items?.find(i => i.id === +won.dataset.id); if (it) openViewer(it.person, it.variant); return; }
     const pick = t.closest(".cs-grid .pick");
     if (pick) {
       const zone = pick.closest(".cs-grid").dataset.zone, id = +pick.dataset.id;
-      const set = zone === "rl" ? CS.sel : CS.jp.sel, max = zone === "rl" ? S.cfg.roulette.maxCards : S.cfg.jackpot.maxCards;
-      if (set.has(id)) set.delete(id);
-      else if (set.size >= max) { Sound.error(); return toast(`Najwyżej ${max} kart`, true); }
-      else set.add(id);
+      if (zone === "jp") {   // karta do lobby albo z lobby
+        if (!L) return;
+        const ids = L[L.side].map(c => c.id);
+        if (ids.includes(id)) return jpSetCards(ids.filter(x => x !== id));
+        if (ids.length >= S.cfg.jackpot.maxCards) { Sound.error(); return toast(`Najwyżej ${S.cfg.jackpot.maxCards} kart`, true); }
+        return jpSetCards([...ids, id]);
+      }
+      if (CS.sel.has(id)) CS.sel.delete(id);
+      else if (CS.sel.size >= S.cfg.roulette.maxCards) { Sound.error(); return toast(`Najwyżej ${S.cfg.roulette.maxCards} kart`, true); }
+      else CS.sel.add(id);
       Sound.click();
-      return zone === "rl" ? drawRoulette() : drawJackpot();
+      return drawRoulette();
     }
     const clear = t.closest("[data-csclear]");
-    if (clear) { (clear.dataset.csclear === "rl" ? CS.sel : CS.jp.sel).clear(); return clear.dataset.csclear === "rl" ? drawRoulette() : drawJackpot(); }
+    if (clear) {
+      if (clear.dataset.csclear === "jp") return jpSetCards([]);
+      CS.sel.clear(); return drawRoulette();
+    }
     const bet = t.closest("[data-rbet]");
     if (bet) { CS.bet = bet.dataset.rbet; Sound.click(); return drawRoulette(); }
     if (t.closest("#rlSpin")) return spinRoulette();
+    // jackpot
+    const rm = t.closest("[data-jrm]");
+    if (rm && L) return jpSetCards(L[L.side].map(c => c.id).filter(x => x !== +rm.dataset.jrm));
+    const pub = t.closest("[data-jnewpub]");
+    if (pub) { CS.jp.newPublic = pub.dataset.jnewpub === "1"; CS.jp.newInvites = $("[data-jnewinv]")?.value || ""; Sound.click(); return drawJackpot(); }
     if (t.closest("[data-jcreate]")) return jpCreate();
-    if (t.closest("[data-jgo]")) return jpJoin();
-    if (t.closest("[data-jback]")) { CS.jp.join = null; CS.jp.sel.clear(); return drawJackpot(); }
     const join = t.closest("[data-jjoin]");
-    if (join) { CS.jp.join = +join.dataset.jjoin; CS.jp.sel.clear(); Sound.click(); return drawJackpot(); }
-    const cancel = t.closest("[data-jcancel]");
-    if (cancel) {
-      if (!confirm("Zamknąć stół? Twoje karty wrócą do ekwipunku.")) return;
-      return api(`/api/casino/jackpot/${cancel.dataset.jcancel}/cancel`, {}).then(res => {
-        S.items = res.items; CS.jp.waiting = null; renderHeader(); toast("↩️ Stół zamknięty — karty wróciły");
-      }).catch(err => toast(err.message, true)).finally(() => renderJackpot());
+    if (join) return jpCall(`/api/casino/jackpot/${join.dataset.jjoin}/join`, {}, "🎲 Dołączyłeś do lobby — wybierz karty").then(() => renderJackpot());
+    if (!L) return;
+    const ready = t.closest("[data-jready]");
+    if (ready) return jpReady(ready.dataset.jready === "1");
+    const vis = t.closest("[data-jpublic]");
+    if (vis) return jpCall(`/api/casino/jackpot/${L.id}/settings`, { public: vis.dataset.jpublic === "1" },
+      vis.dataset.jpublic === "1" ? "🌍 Lobby jest teraz publiczne" : "🔒 Lobby jest teraz prywatne").then(drawJackpot);
+    if (t.closest("[data-jinvgo]")) {
+      const name = $("[data-jinv]")?.value.trim();
+      if (!name) return;
+      return jpCall(`/api/casino/jackpot/${L.id}/settings`, { invite: name }, `✉️ Zaproszono: ${name}`).then(drawJackpot);
+    }
+    const unInv = t.closest("[data-juninv]");
+    if (unInv) return jpCall(`/api/casino/jackpot/${L.id}/settings`, { uninvite: +unInv.dataset.juninv }).then(drawJackpot);
+    if (t.closest("[data-jkick]")) {
+      if (!confirm("Wyprosić drugiego gracza z lobby?")) return;
+      return jpCall(`/api/casino/jackpot/${L.id}/kick`, {}, "🚪 Gracz wyproszony").then(drawJackpot);
+    }
+    if (t.closest("[data-jleave]")) {
+      if (!confirm(L.side === "a" ? "Zamknąć lobby?" : "Opuścić lobby?")) return;
+      CS.jp.lastLobby = null; S.jpLobby = null;   // sam wychodzę - bez komunikatu "wyproszono cię"
+      return jpCall(`/api/casino/jackpot/${L.id}/leave`, {}).then(() => { CS.jp.data.current = null; renderJackpot(); });
     }
   });
   body.addEventListener("input", e => {
@@ -435,6 +530,13 @@ function bindCasino() {
       if (zone === "rl") { CS.q = t.value; drawRoulette(); } else { CS.jp.q = t.value; drawJackpot(); }
       const again = $(`[data-csq=${zone}]`); again.focus(); again.setSelectionRange(pos, pos);
     }
-    if (t.matches("[data-jinvite]")) CS.jp.invite = t.value;
+    if (t.matches("[data-jnewinv]")) CS.jp.newInvites = t.value;
+  });
+  body.addEventListener("change", e => {
+    const zone = e.target.dataset.cssort;
+    if (zone) { CS.sorts[zone] = e.target.value; return zone === "rl" ? drawRoulette() : drawJackpot(); }
+  });
+  body.addEventListener("keydown", e => {
+    if (e.key === "Enter" && e.target.matches("[data-jinv]")) { e.preventDefault(); $("[data-jinvgo]")?.click(); }
   });
 }

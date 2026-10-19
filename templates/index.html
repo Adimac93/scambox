@@ -14,7 +14,7 @@
   <title>ScamBox</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Cinzel:wght@700;900&family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Caveat:wght@700&family=Creepster&family=Cinzel:wght@700;900&family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ asset('css/style.css') }}">
   <link rel="stylesheet" href="{{ asset('css/fx.css') }}">
   <link rel="stylesheet" href="{{ asset('css/cards2.css') }}">
@@ -27,6 +27,68 @@
   <link rel="stylesheet" href="{{ asset('css/casino.css') }}">
 </head>
 <body>
+  <!-- wariant Rysunkowy: zdjęcie jak szkic ołówkiem - szarość rozjaśniona odwróconym, rozmytym obrazem ("color dodge"),
+       potem przyciemnione kreski (gamma) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <filter id="inkSketch" color-interpolation-filters="sRGB" x="0" y="0" width="100%" height="100%">
+      <feColorMatrix type="saturate" values="0" result="g"/>
+      <feColorMatrix in="g" type="matrix" values="-1 0 0 0 1  0 -1 0 0 1  0 0 -1 0 1  0 0 0 1 0" result="inv"/>
+      <feGaussianBlur in="inv" stdDeviation="3" result="binv"/>
+      <feBlend in="g" in2="binv" mode="color-dodge" result="pencil"/>
+      <feComponentTransfer in="pencil">
+        <feFuncR type="gamma" exponent="2.4"/><feFuncG type="gamma" exponent="2.4"/><feFuncB type="gamma" exponent="2.3"/>
+      </feComponentTransfer>
+      <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0 1"/>
+    </filter>
+    <!-- wariant Halloweenowy: nietoperz, dynia (lampion), czaszka, pajęczyna, pająk, cukierek -->
+    <symbol id="hw-bat" viewBox="0 0 64 30">
+      <path fill="currentColor" d="M32 9c1-3 2.2-4.6 3.4-5 .2 1.6.1 3 .6 4.2 3.6-3.4 8.4-5.2 13.8-5.4-1.8 1.8-2.6 3.8-2.4 6.2 4.2-.6 8.6.2 12.6 2.6-3.4.2-6 1.8-7.4 4.6-2.2-1.2-4.6-1.4-6.8-.4.2 1.8-.4 3.4-1.6 4.8-1.6-1.6-3.8-2.2-6.2-1.6-1 2-2.6 3.6-5 5-2.4-1.4-4-3-5-5-2.4-.6-4.6 0-6.2 1.6-1.2-1.4-1.8-3-1.6-4.8-2.2-1-4.6-.8-6.8.4C9 16 6.4 14.4 3 14.2c4-2.4 8.4-3.2 12.6-2.6.2-2.4-.6-4.4-2.4-6.2 5.4.2 10.2 2 13.8 5.4.5-1.2.4-2.6.6-4.2 1.2.4 2.4 2 3.4 5z"/>
+    </symbol>
+    <!-- Diabelska: róg (lewy; prawy = odbicie) i filtr zdjęcia: czerń -> krwista czerwień -> różowe światła -->
+    <symbol id="dv-horn" viewBox="0 0 40 50">
+      <path fill="currentColor" d="M14 50C15 33 11 15 3 0 22 10 36 28 38 50z"/>
+      <path fill="#ffffff45" d="M3 0C16 9 26 21 30 38 25 22 16 10 3 0z"/>
+      <path fill="#00000035" d="M14 50C15 33 11 15 3 0 9 16 18 34 20 50z"/>
+    </symbol>
+    <filter id="dvRed" color-interpolation-filters="sRGB">
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer><feFuncR type="table" tableValues="0.04 0.7 1"/><feFuncG type="table" tableValues="0 0.06 0.62"/><feFuncB type="table" tableValues="0.02 0.08 0.55"/></feComponentTransfer>
+    </filter>
+    <!-- Lampionowa: zdjęcie jak w blasku świecy z dyni -->
+    <filter id="hwLantern" color-interpolation-filters="sRGB">
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer><feFuncR type="table" tableValues="0.02 0.55 1 1"/><feFuncG type="table" tableValues="0.01 0.18 0.55 0.92"/><feFuncB type="table" tableValues="0 0.02 0.08 0.45"/></feComponentTransfer>
+    </filter>
+    <symbol id="hw-pumpkin" viewBox="0 0 64 60">
+      <path d="M30 9c0-4 2-7 6-8l2 3c-3 1-4 3-4 5z" fill="#3d6b1f"/>
+      <ellipse cx="19" cy="35" rx="16" ry="21" fill="#d9590a"/><ellipse cx="45" cy="35" rx="16" ry="21" fill="#d9590a"/>
+      <ellipse cx="32" cy="35" rx="15" ry="23" fill="#ff8a1f"/>
+      <path d="M17 27l8 7h-10z M47 27l-8 7h10z M28 38l4-5 4 5z" fill="var(--hw-face, #ffd84a)"/>
+      <path d="M14 42Q32 58 50 42L45 45 41 42 37 47 32 42 27 47 23 42 19 45z" fill="var(--hw-face, #ffd84a)"/>
+    </symbol>
+    <symbol id="hw-skull" viewBox="0 0 40 44">
+      <path fill="currentColor" d="M20 2C10 2 3 9 3 19c0 6 3 10 7 12v6c0 2 2 4 4 4h12c2 0 4-2 4-4v-6c4-2 7-6 7-12C37 9 30 2 20 2z"/>
+      <circle cx="13" cy="20" r="5" fill="#1a0a12"/><circle cx="27" cy="20" r="5" fill="#1a0a12"/>
+      <path d="M20 25l-3 5h6z" fill="#1a0a12"/><path d="M15 35v6M20 35v6M25 35v6" stroke="#1a0a12" stroke-width="1.6"/>
+    </symbol>
+    <symbol id="hw-web" viewBox="0 0 60 60">
+      <g fill="none" stroke="currentColor" stroke-width="1.1">
+        <path d="M0 0L60 0M0 0L58 22M0 0L42 42M0 0L22 58M0 0L0 60"/>
+        <path d="M14 0Q12 6 13 5Q8 10 13 13Q10 12 5 13Q6 8 0 14"/>
+        <path d="M30 0Q26 10 28 11Q17 18 21 21Q18 18 11 28Q10 25 0 30"/>
+        <path d="M46 0Q42 14 44 17Q28 27 32 32Q27 28 17 44Q14 41 0 46"/>
+      </g>
+    </symbol>
+    <symbol id="hw-spider" viewBox="0 0 30 30">
+      <g stroke="currentColor" stroke-width="1.4" fill="none"><path d="M15 15L4 8M15 15L3 15M15 15L4 22M15 15L7 27M15 15L26 8M15 15L27 15M15 15L26 22M15 15L23 27"/></g>
+      <circle cx="15" cy="15" r="5" fill="currentColor"/><circle cx="15" cy="9" r="3.2" fill="currentColor"/>
+      <circle cx="13.8" cy="8.5" r=".8" fill="#ff3b3b"/><circle cx="16.2" cy="8.5" r=".8" fill="#ff3b3b"/>
+    </symbol>
+    <symbol id="hw-candy" viewBox="0 0 20 24">
+      <path d="M10 0L20 22Q10 25 0 22z" fill="#fff4e0"/><path d="M5.2 11.5L14.8 11.5L18 19Q10 21 2 19z" fill="#ff8a1f"/>
+      <path d="M2 19Q10 21 18 19L20 22Q10 25 0 22z" fill="#ffd84a"/>
+    </symbol>
+  </svg>
   <header class="topbar">
     <div class="logo">🎴 <span>ScamBox</span></div>
     <nav class="tabs">
@@ -35,7 +97,7 @@
       <a class="tab" href="/inventory" data-view="inventory"><span class="ti">🎒</span><span class="tl">Ekwipunek</span> <span class="badge" id="invCount">0</span></a>
       <a class="tab" href="/forge" data-view="forge"><span class="ti">⚒️</span><span class="tl">Kuźnia</span></a>
       <a class="tab" href="/market" data-view="market"><span class="ti">🏪</span><span class="tl">Rynek</span> <span class="badge alert" id="marketBadge" hidden>0</span></a>
-      <a class="tab" href="/casino" data-view="casino"><span class="ti">🎰</span><span class="tl">Kasyno</span></a>
+      <a class="tab" href="/casino" data-view="casino"><span class="ti">🎰</span><span class="tl">Kasyno</span> <span class="badge alert" id="casinoBadge" hidden>0</span></a>
       <a class="tab" href="/friends" data-view="friends"><span class="ti">👥</span><span class="tl">Znajomi</span> <span class="badge alert" id="friendsBadge" hidden>0</span></a>
       <a class="tab" href="/ranking" data-view="ranking"><span class="ti">🏆</span><span class="tl">Ranking</span></a>
       <a class="tab" href="/arena" data-view="arena"><span class="ti">⚔️</span><span class="tl">Arena</span></a>
@@ -43,7 +105,7 @@
     <div class="top-right">
       <button class="icon-btn" id="installBtn" title="Zainstaluj grę jako aplikację" hidden>📲</button>
       <button class="icon-btn daily-btn" id="dailyBtn" title="Nagroda dzienna">🎁</button>
-      <div class="balance" id="balance" title="Twoje pieniądze">0 $</div>
+      <div class="balance" id="balance" title="Twoje pieniądze">0 gr</div>
       <button class="icon-btn" id="soundBtn" title="Dźwięk">🔊</button>
       <a class="icon-btn" href="/admin" title="Panel admina" id="adminLink" hidden>⚙️</a>
       <button class="user-chip" id="userChip" title="Twój profil"><span id="userAvatar">😎</span><span id="userName"></span></button>

@@ -48,6 +48,32 @@ def crate_variants(crate, person=None):
     return out + (data.card_variants(person["id"]) if person is not None else [])
 
 
+def photo_variants(pid):
+    """Warianty, dla których ta karta może mieć własne zdjęcie: przypisane do karty (np. Rzulty JP2) i wyjątkowe warianty
+    z polem "photo" (np. Halloweenowa), jeśli są włączone w którejś skrzynce karty."""
+    out = data.card_variants(pid)
+    person = PEOPLE.get(pid)
+    if person:
+        for c in person.get("crates") or []:
+            if c in CRATES:
+                out += [v for v in CRATES[c].get("variants") or [] if data.VARIANTS[v].get("photo") and v not in out]
+    return out
+
+
+def possible_variants(person):
+    """Warianty, w których ta karta może istnieć: zwykłe zawsze, wyjątkowe tylko z jej skrzynek (flagowy - z krajem),
+    własne warianty karty (np. Rzulty tylko dla Jana Pawła II) i połączenia flagi z każdym z nich ("flag+gold")."""
+    extra = set(data.card_variants(person["id"]))
+    for c in person.get("crates") or []:
+        if c in CRATES:
+            extra |= set(crate_variants(CRATES[c], person))
+    base = [v for v in data.VARIANT_ORDER if not data.VARIANTS[v].get("combo")
+            and (not data.VARIANTS[v].get("exclusive") or v in extra)]
+    combos = {data.combine_variant(layer, b) for layer in base if data.VARIANTS[layer].get("layer")
+              for b in base if b != "normal" and not data.VARIANTS[b].get("layer")}
+    return [v for v in data.VARIANT_ORDER if v in base or v in combos]
+
+
 def _int(v, lo, hi, default=None):
     try:
         return max(lo, min(hi, int(v)))
@@ -149,6 +175,11 @@ def rebuild(conn):
             people[pid]["modified"] = True
             if "crates" not in d and "crate" in d:  # starszy zapis z jedną skrzynką - zachowaj pozostałe
                 people[pid]["crates"] = [d["crate"]] + [c for c in old_crates if c != d["crate"]]
+            elif "crates" in d:
+                # skrzynki dodane w kodzie PO zapisaniu karty w panelu (np. Skrzynia Halloween z kartą próbną) dopisujemy;
+                # skrzynki, które już istniały i admin je odznaczył ("crates_seen"), zostają odznaczone
+                seen = set(d.get("crates_seen") or (set(data.CRATES) - data.CRATES_ADDED_LATER))
+                people[pid]["crates"] = list(d["crates"]) + [c for c in old_crates if c not in seen and c not in d["crates"]]
         else:
             people[pid] = dict(d, id=pid, builtin=False, modified=False)
             people[pid].setdefault("crates", [d.get("crate")])

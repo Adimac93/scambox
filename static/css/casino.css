@@ -81,6 +81,45 @@
 .jp-vs { color: var(--muted); font-weight: 900; }
 .jp-win { margin-left: auto; font-weight: 700; color: var(--accent); }
 
+/* lobby jackpota */
+.jp-vis { margin: 4px 0; align-self: flex-start; }
+.jp-left { display: flex; flex-direction: column; gap: 8px; }
+.jp-room { display: flex; flex-direction: column; gap: 14px; }
+.jp-room-head { display: flex; flex-direction: column; gap: 10px; }
+.jp-room-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.jp-room-title h3 { margin: 0; }
+.jp-leave { margin-left: auto; }
+.jp-invites { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; }
+.jp-inv { display: inline-flex; align-items: center; gap: 4px; background: var(--panel2); border: 1px solid var(--line); border-radius: 99px; padding: 2px 4px 2px 10px; font-weight: 700; }
+.jp-inv button { background: none; border: none; color: var(--muted); font-size: 15px; padding: 0 4px; cursor: pointer; }
+.jp-inv button:hover { color: var(--bad); }
+.jp-inv-add { display: inline-flex; gap: 6px; }
+.jp-inv-add input { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 5px 8px; font: inherit; width: 150px; }
+.jp-seats { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: stretch; }
+.jp-vs-big { align-self: center; font-size: 28px; color: var(--muted); }
+.jp-seat { background: var(--panel); border: 2px solid var(--line); border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; transition: border-color .2s, box-shadow .2s; }
+.jp-seat.jp-sa { border-color: #4b8bff66; } .jp-seat.jp-sb { border-color: #ff5c8a66; }
+.jp-seat.ready { border-color: var(--good); box-shadow: 0 0 18px #3ddc8444; }
+.jp-seat.empty { display: grid; place-items: center; text-align: center; border-style: dashed; min-height: 160px; }
+.jp-seat-wait { font-size: 16px; font-weight: 700; animation: blink 1.6s ease-in-out infinite; }
+.jp-seat-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.jp-seat-head .av { font-size: 26px; }
+.jp-seat-head .av-card { width: 34px; height: 34px; }
+.jp-ready-tag { margin-left: auto; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 8px; background: var(--panel2); }
+.jp-seat.ready .jp-ready-tag { background: #1d3a2a; color: var(--good); }
+.jp-seat-val .mk-money { font-size: 20px; }
+.jp-c { cursor: default; }
+.jp-c[data-jrm] { cursor: pointer; }
+.jp-c[data-jrm]:hover .pick { outline: 2px solid var(--bad); }
+.jp-nocards { padding: 10px 0; }
+.jp-accept { flex: 1; }
+.jp-accept.on { background: linear-gradient(180deg, #2ccf74, #179552); color: #fff; box-shadow: 0 6px 0 #0f6b3a; }
+.jp-hint { margin: 0; }
+@media (max-width: 700px) {
+  .jp-seats { grid-template-columns: 1fr; }
+  .jp-vs-big { justify-self: center; }
+}
+
 .jp-anim { position: fixed; inset: 0; z-index: 400; display: grid; place-items: center; padding: 16px; background: radial-gradient(circle, #1c1405f0, #000f); animation: fadeIn .3s; }
 .jp-anim-box { width: min(720px, 100%); display: flex; flex-direction: column; gap: 16px; text-align: center; max-height: 100%; overflow: hidden auto; }
 .jp-anim-box h2 { margin: 0; font-family: Bungee, Rubik, sans-serif; font-weight: 400; font-size: clamp(28px, 6vw, 48px); color: var(--accent); text-shadow: 0 0 20px #ffcf3f88; }

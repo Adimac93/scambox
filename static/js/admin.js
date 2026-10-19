@@ -4,7 +4,7 @@
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const fmt = n => Math.round(n).toLocaleString("pl-PL") + " $";
+const fmt = n => Math.round(n).toLocaleString("pl-PL") + " gr";
 
 const A = { cat: null, crate: null, search: "", rarity: "all", showSecrets: false };
 try { A.showSecrets = localStorage.getItem("adminSecrets") === "1"; } catch (_) {}
@@ -89,7 +89,7 @@ function crateFormHTML(c) {
       <label>Emoji<input type="text" name="emoji" value="${esc(c.emoji)}" maxlength="8"></label>
       <label>Kolor górny<input type="color" name="color1" value="${esc(c.color1)}"></label>
       <label>Kolor dolny<input type="color" name="color2" value="${esc(c.color2)}"></label>
-      <label>Cena skrzynki ($)<input type="number" name="price" value="${esc(c.price)}" min="1" max="1000000"></label>
+      <label>Cena skrzynki (gr)<input type="number" name="price" value="${esc(c.price)}" min="1" max="1000000"></label>
       <label class="wide">Opis<input type="text" name="desc" value="${esc(c.desc)}" maxlength="120" placeholder="krótki opis pod nazwą"></label>
     </div>
     <fieldset>
@@ -227,7 +227,7 @@ function openCardForm(id) {
       </fieldset>
 
       ${(c.cardVariants || []).map(v => `<fieldset class="a-vphoto">
-        <legend>📷 Zdjęcie wariantu ${esc(A.cat.variants[v].name)} <small class="muted">(wariant tylko tej karty — gdy brak, zwykłe zdjęcie)</small></legend>
+        <legend>📷 Zdjęcie wariantu ${esc(A.cat.variants[v].name)} <small class="muted">(użyte zamiast zwykłego zdjęcia w tym wariancie — gdy brak, ${A.cat.variants[v].photoFallback ? `zdjęcie wariantu ${esc(A.cat.variants[A.cat.variants[v].photoFallback].name)}, a gdy i tego brak - ` : ""}zwykłe zdjęcie)</small></legend>
         <div class="a-vphoto-row">
           <div class="a-img-box"><img src="${(c.variantPhotos || {})[v] != null ? `/img/${esc(c.id)}/${v}?admin=1&v=${c.variantPhotos[v]}` : ""}" alt="" id="prevV_${v}" ${(c.variantPhotos || {})[v] != null ? "" : "hidden"}><span>${esc(A.cat.variants[v].name)}</span></div>
           <div class="a-grid">
@@ -418,7 +418,7 @@ async function userAction(row, act) {
       }
     }
     if (act === "money") {
-      const v = prompt(`Ile $ dodać graczowi ${name}? (ujemna kwota odejmuje)`, "5000");
+      const v = prompt(`Ile groszy dodać graczowi ${name}? (ujemna kwota odejmuje)`, "5000");
       if (!v) return;
       await api(`/api/admin/users/${id}/money`, { method: "POST", json: { amount: parseInt(v, 10) } });
       toast(`Zmieniono saldo gracza ${name}`);
