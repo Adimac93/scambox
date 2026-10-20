@@ -354,7 +354,7 @@ def adopt_legacy_save(conn, uid):
     for key, value in conn.execute("SELECT key, value FROM state").fetchall():
         conn.execute("INSERT INTO user_state (user_id, key, value) VALUES (?, ?, ?) "
                  "ON CONFLICT (user_id, key) DO UPDATE SET value = excluded.value", (uid, key, value))
-    conn.execute("INSERT INTO user_discovered (user_id, person_id) SELECT ?, person_id FROM discovered ON CONFLICT DO NOTHING", (uid,))
+    conn.execute("INSERT INTO user_discovered (user_id, person_id) SELECT ?, person_id FROM discovered WHERE true ON CONFLICT DO NOTHING", (uid,))  # WHERE: bez niego SQLite czyta ON jako JOIN
     conn.execute("DELETE FROM state")
     conn.execute("DELETE FROM discovered")
 
