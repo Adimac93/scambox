@@ -268,6 +268,8 @@ function specialFieldsHTML(c) {
       <label>Jedyny wariant karty<select name="fixed_variant">${A.cat.specialVariants.map(v =>
         `<option value="${v}"${v === variant ? " selected" : ""}>${esc(A.cat.variants[v].name)}</option>`).join("")}</select></label>
       <label class="a-style" ${(A.cat.variants[variant]?.styles || []).length > 1 ? "" : "hidden"}>Wygląd<select name="style">${styleOpts(variant, c.style)}</select></label>
+      <div class="wide">${c.id ? '<button class="btn" type="button" data-act="preview-special" title="W nowej karcie, tak jak w skrzynce - z wybranym wariantem i wyglądem, nawet niezapisanym">👁️ Podgląd karty</button>'
+        : '<span class="muted small">👁️ Podgląd po dodaniu karty</span>'}</div>
     </div>
     <p class="muted small">Wszystkie wyglądy zobaczysz na stronie <a href="/mockups" target="_blank">🎴 makiety</a> (tylko dla adminów). Karta trafi do skrzynki „Karty specjalne”.
       Kartę z linku rozdajesz w sekcji 🔗 Linki do kart specjalnych.</p>
@@ -756,6 +758,11 @@ function bind() {
     const c = A.cat.cards.find(x => x.id === id);
     try {
       if (act === "close-card") return closeCardForm();
+      if (act === "preview-special") {   // podgląd karty specjalnej w grze (makiety), z wyborem z formularza
+        const f = new FormData($("#cardForm"));
+        const q = new URLSearchParams({ card: id, variant: f.get("fixed_variant") || "", style: f.get("style") || "" });
+        return window.open(`/mockups?${q}`, "_blank");
+      }
       if (act === "add-ability") {
         if (document.querySelectorAll("#abilityRows .a-ability").length >= A.cat.maxExtraAbilities) return toast(`Maksymalnie ${A.cat.maxExtraAbilities} dodatkowe zdolności`, true);
         return $("#abilityRows").insertAdjacentHTML("beforeend", abilityRowHTML());

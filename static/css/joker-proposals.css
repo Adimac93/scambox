@@ -1,0 +1,238 @@
+/* ============================================================ PROPOZYCJE WYGLĄDU JOKEROWEJ (makiety /mockups)
+   6 pomysłów do wyboru (klasa karty jx jx-1 ... jx-6, ozdoby: static/js/joker-proposals.js). Po wyborze jednego -
+   przenieść go do wyglądów wariantu Jokerowa i usunąć ten plik. */
+
+/* strona makiet */
+.mock-head { margin-bottom: 14px; }
+.mock-sec { margin-bottom: 18px; }
+.mock-sec h3 { margin-top: 0; }
+.mock-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 24px 20px; }
+.mock { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.mock-card .card { width: 100%; --cw: 100%; }
+.mock figcaption { display: flex; flex-direction: column; gap: 3px; }
+.jx-pick, .mock-real .mock-card { cursor: zoom-in; }
+
+/* wspólne: tło pod napisami, nakładka na zdjęcie (czapka i kołnierz błazna), ozdoby nad kartą */
+.card.jx { background: var(--frame); }
+.card.jx .card-inner { background: var(--inner); }
+.card.jx .card-inner > :not(.jx-bg) { position: relative; z-index: 1; }
+.jx-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.jx-bg > i { position: absolute; inset: 0; }
+.jx-photo { position: absolute; inset: 0; pointer-events: none; }
+.jx-photo > * { position: absolute; }
+.jx-hat {
+  width: var(--hat-w, 64%); height: auto; aspect-ratio: 200 / 120; left: 50%; top: var(--hat-top, -8%);
+  translate: -50% 0; rotate: var(--hat-rot, 0deg); filter: drop-shadow(0 .3em .25em #0007); overflow: visible;
+}
+.jx-collar { width: 84%; height: 26%; left: 50%; bottom: -4%; translate: -50% 0; filter: drop-shadow(0 -.15em .2em #0006); overflow: visible; }
+.jx-over { position: absolute; inset: 0; z-index: 4; pointer-events: none; border-radius: inherit; }
+.jx-over > * { position: absolute; }
+
+/* ---------- A. Talia: karta do gry - kremowy karton, indeksy JOKER w szerokich marginesach, czerwień i czerń */
+.card.jx-1 {
+  --frame: linear-gradient(160deg, #fffdf6, #f1ead6); --inner: #fffdf7; padding: 4.2% 11.5%;
+  --ink: #161616; --ink-w: 4; --hat1: #c8102e; --hat2: #161616; --band: #f2c94c; --band2: #161616;
+  --ball1: #f2c94c; --ball2: #f2c94c; --ball3: #f2c94c; --col1: #c8102e; --col2: #161616; --cb1: #f2c94c; --cb2: #f2c94c;
+  box-shadow: 0 6px 18px #000a, inset 0 0 0 1px #0003;
+}
+.card.jx-1 .card-inner {
+  border-radius: 2.5%/1.8%; padding: 6% 7% 4%;
+  box-shadow: inset 0 0 0 .14em #161616, inset 0 0 0 .32em #fffdf7, inset 0 0 0 .42em #c8102e;
+}
+.card.jx-1 .card-name { font-family: Cinzel, serif; color: #161616; }
+.card.jx-1 .card-hp { color: #c8102e; }
+.card.jx-1 .card-photo { aspect-ratio: 1 / 1.08; border: .16em solid #161616; border-image: none; background: #efe7d2; box-shadow: none; }
+.card.jx-1 .card-sub { background: none; color: #161616; font-style: normal; letter-spacing: .08em; }
+.card.jx-1 .card-sub::before { content: "♠ ♣  "; color: #161616; }
+.card.jx-1 .card-sub::after { content: "  ♥ ♦"; color: #c8102e; }
+.card.jx-1 .card-attack { border-color: #16161633; }
+.card.jx-1 .card-value { color: #c8102e; }
+.jx-1 .jx-idx {
+  display: flex; flex-direction: column; align-items: center; font-family: Cinzel, serif; font-weight: 900;
+  font-size: 6.6cqw; line-height: .98; color: #c8102e;
+}
+.jx-1 .jx-idx.tl { left: 2.4%; top: 3.6%; }
+.jx-1 .jx-idx.br { right: 2.4%; bottom: 3.6%; rotate: 180deg; color: #161616; }
+.jx-1 .jx-idx i { font-style: normal; font-size: .95em; margin-top: .15em; }
+.card.jx-1 .jx-vt { background: #161616; color: #f2c94c; text-shadow: none; right: 14%; }
+
+/* ---------- B. Arlekin: pop-art - cztery kolory, romby, grube kontury, wybuch JOKER! */
+.card.jx-2 {
+  --frame: conic-gradient(from 45deg, #e2231a 0 25%, #f6d40b 0 50%, #2b4fae 0 75%, #141414 0); --inner: #fff6dc; padding: 4.4%;
+  --ink: #111; --ink-w: 6; --hat1: #e2231a; --hat2: #2b4fae; --band: #f6d40b; --band2: #111;
+  --ball1: #f6d40b; --ball2: #e2231a; --ball3: #f6d40b; --col1: #f6d40b; --col2: #2b4fae; --cb1: #e2231a; --cb2: #e2231a;
+}
+.card.jx-2 .card-inner { border: .16em solid #111; }
+.jx-2 .jx-diamonds {
+  inset: -45%; rotate: 45deg; opacity: .2;
+  background: repeating-conic-gradient(#e2231a 0 25%, #f6d40b 0 50%, #2b4fae 0 75%, #111 0 100%); background-size: 16% 16%;
+}
+.card.jx-2 .card-head { background: #fff; border: .12em solid #111; border-radius: .4em; padding: .15em .35em; box-shadow: .14em .14em 0 #111; }
+.card.jx-2 .card-name { font-family: Bungee, Rubik, sans-serif; font-weight: 400; font-size: .9em; }
+.card.jx-2 .card-photo { border: .2em solid #111; border-image: none; box-shadow: .22em .22em 0 #111; background: #f6d40b; }
+.jx-2 .jx-halftone {
+  inset: 0; background: radial-gradient(circle, #2b4fae 30%, transparent 32%); background-size: 4.5% 4.5%;
+  mix-blend-mode: multiply; opacity: .28;
+}
+.card.jx-2 .card-sub { background: #111; color: #f6d40b; font-style: normal; font-weight: 900; margin: 3.5% 0 0; border-radius: .3em; }
+.card.jx-2 .card-attack { background: #fff; border: .1em solid #111; border-radius: .35em; padding: .3em .45em; box-shadow: .12em .12em 0 #111; }
+.card.jx-2 .card-attack.atk2 { margin-top: 2.5%; border-top: .1em solid #111; }
+.card.jx-2 .card-stats { margin-top: 3%; }
+.card.jx-2 .card-value { color: #e2231a; }
+.jx-2 .jx-burst {
+  top: 13%; right: -3%; width: 36%; aspect-ratio: 1.3; display: grid; place-items: center; rotate: 12deg;
+  background: #f6d40b; filter: drop-shadow(.12em .12em 0 #111) drop-shadow(-.06em -.06em 0 #111);
+  clip-path: polygon(50% 0, 60% 22%, 82% 6%, 78% 30%, 100% 30%, 84% 48%, 100% 66%, 78% 68%, 84% 94%, 62% 78%, 50% 100%, 40% 78%, 16% 94%, 22% 68%, 0 66%, 16% 48%, 0 30%, 22% 30%, 18% 6%, 40% 22%);
+}
+.jx-2 .jx-burst b { font-family: Bungee, Rubik, sans-serif; font-weight: 400; font-size: 5.4cqw; color: #e2231a; -webkit-text-stroke: .04em #111; }
+.card.jx-2 .jx-vt { display: none; }
+
+/* ---------- C. Kasyno Noir: art déco - czarny aksamit, mieniące się złoto, czarno-białe zdjęcie */
+.card.jx-3 {
+  background: none; isolation: isolate; padding: 4.4%;
+  --frame: linear-gradient(115deg, #5c3d00, #f8e08e 20%, #a77a1a 40%, #fff4c8 55%, #8a6410 75%, #f1d27a);
+  --inner: radial-gradient(120% 80% at 50% 32%, #221d14, #070707 70%);
+  --ink: #0a0a0a; --ink-w: 3; --hat1: #141414; --hat2: #d8b25a; --band: #d8b25a; --band2: #141414;
+  --ball1: #f5dc8c; --ball2: #f5dc8c; --ball3: #f5dc8c; --col1: #141414; --col2: #d8b25a; --cb1: #f5dc8c; --cb2: #f5dc8c;
+  box-shadow: 0 6px 18px #000a, 0 0 18px #e8c25a66;
+}
+.card.jx-3::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; will-change: transform;
+  background: var(--frame); background-size: 200% 200%; animation: goldShift 4s ease-in-out infinite;
+}
+.card.jx-3 .card-inner { color: #efe6cf; box-shadow: inset 0 0 0 .12em #d8b25a, inset 0 0 0 .3em #070707, inset 0 0 0 .38em #d8b25a88; }
+.jx-3 .jx-rays { background: repeating-conic-gradient(from 0deg at 50% 36%, #d8b25a26 0 4deg, transparent 4deg 12deg); }
+.card.jx-3 .card-name { font-family: Cinzel, serif; color: #f3d98a; letter-spacing: .03em; }
+.card.jx-3 .card-hp { color: #f3d98a; }
+.card.jx-3 .card-type { background: #111; box-shadow: 0 0 0 .1em #d8b25a; }
+.card.jx-3 .card-photo { border: .22em double #d8b25a; border-image: none; background: #000; }
+.card.jx-3 .card-photo img { filter: grayscale(1) contrast(1.15) sepia(.15); }
+.card.jx-3 .card-sub { background: linear-gradient(90deg, transparent, #d8b25a33, transparent); color: #d8b25a; font-style: normal; letter-spacing: .14em; text-transform: uppercase; }
+.card.jx-3 .card-attack { border-color: #d8b25a55; }
+.card.jx-3 .atk-dmg, .card.jx-3 .card-stats b, .card.jx-3 .card-value { color: #f3d98a; }
+.card.jx-3 :is(.card-stats, .card-foot) { color: #cbbf9f; }
+.jx-3 .jx-suit { font-size: 7cqw; line-height: 1; color: #f3d98a; text-shadow: 0 0 .3em #000, 0 0 .1em #000; font-style: normal; }
+.jx-3 .jx-suit.s1 { top: 3%; left: 4%; } .jx-3 .jx-suit.s2 { top: 3%; right: 4%; }
+.jx-3 .jx-suit.s3 { bottom: 3%; left: 4%; } .jx-3 .jx-suit.s4 { bottom: 3%; right: 4%; }
+.card.jx-3 .jx-vt { background: #0a0a0a; color: #f3d98a; border: 1px solid #d8b25a; font-family: Cinzel, serif; text-shadow: none; }
+
+/* ---------- D. Chaos: neonowy złoczyńca - fiolet i kwaśna zieleń, HA HA HA, drgające zdjęcie */
+.card.jx-4 {
+  background: #0d0614; isolation: isolate; padding: 4%;
+  --inner: linear-gradient(170deg, #1d0b2e, #0e0618);
+  --ink: #0a0410; --ink-w: 4; --hat1: #7b1fd6; --hat2: #39ff14; --band: #39ff14; --band2: #7b1fd6;
+  --ball1: #39ff14; --ball2: #ff2bd6; --ball3: #39ff14; --hat-rot: -12deg; --hat-top: -9%;
+  box-shadow: 0 6px 18px #000a, 0 0 18px #39ff1455, 0 0 32px #a020f055;
+}
+.card.jx-4::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; will-change: transform;
+  background: repeating-linear-gradient(135deg, #39ff14 0 12px, #12051f 12px 24px, #a020f0 24px 36px, #12051f 36px 48px);
+  background-size: 68px 68px; animation: jxStripes 1.6s linear infinite;
+}
+@keyframes jxStripes { to { background-position: 68px 0; } }
+.card.jx-4 .card-inner { color: #efe7ff; box-shadow: inset 0 0 0 .12em #39ff14aa; }
+.jx-4 .jx-ha {
+  inset: -25%; rotate: -14deg; display: flex; flex-direction: column; justify-content: space-around;
+  font-family: Bungee, Rubik, sans-serif; font-size: 9cqw; line-height: 1; white-space: nowrap; color: #39ff141c;
+}
+.jx-4 .jx-ha span.o { color: #c04dff26; translate: -18% 0; }
+.card.jx-4 .card-name { font-family: Bungee, Rubik, sans-serif; font-weight: 400; font-size: .9em; color: #39ff14; text-shadow: 0 0 .3em #39ff14aa, .07em .07em 0 #a020f0; }
+.card.jx-4 .card-hp { color: #ff2bd6; }
+.card.jx-4 .card-type { background: #1d0b2e; box-shadow: 0 0 0 .1em #39ff14; }
+.card.jx-4 .card-photo {
+  border: .18em solid #39ff14; border-image: none; background: #12051f; box-shadow: 0 0 .6em #39ff1499;
+  clip-path: polygon(0 4%, 5% 0, 100% 0, 100% 93%, 94% 100%, 0 100%);
+}
+.card.jx-4 .card-photo img { filter: grayscale(1) contrast(1.3); animation: jxGlitch 3.4s steps(1) infinite; }
+@keyframes jxGlitch {
+  0%, 84%, 100% { translate: 0 0; }
+  86% { translate: 4% 0; } 88% { translate: -3% 1%; } 90% { translate: 2% -1%; } 92% { translate: 0 0; } 94% { translate: -4% 0; }
+}
+.jx-4 .jx-duo { inset: 0; background: linear-gradient(160deg, #a020f0 20%, #39ff14 95%); mix-blend-mode: color; opacity: .8; }
+.jx-4 .jx-scan { inset: 0; background: repeating-linear-gradient(0deg, transparent 0 2px, #0007 2px 3px); opacity: .55; }
+.jx-4 .jx-spray {
+  bottom: 5%; left: 4%; rotate: -9deg; font-family: Bungee, Rubik, sans-serif; font-weight: 400; font-size: 8.4cqw;
+  color: #39ff14; text-shadow: 0 0 .25em #39ff14, .06em .06em 0 #000;
+}
+.card.jx-4 .card-sub { background: #39ff14; color: #12051f; font-style: normal; font-weight: 900; margin: 3% 0 0; transform: skewX(-12deg); }
+.card.jx-4 .card-attack { border-color: #a020f088; }
+.card.jx-4 .atk-dmg, .card.jx-4 .card-value { color: #39ff14; }
+.card.jx-4 :is(.card-stats, .card-foot) { color: #cdb8ff; }
+.card.jx-4 .card-stats b { color: #fff; }
+.card.jx-4 .jx-vt { background: #12051f; color: #39ff14; border: 1px solid #39ff14; box-shadow: 0 0 .5em #39ff14; text-shadow: none; }
+
+/* ---------- E. Cyrk: plakat cyrkowy - pasy namiotu, mrugające żarówki, stary papier, zdjęcie w łuku */
+.card.jx-5 {
+  --frame: repeating-linear-gradient(90deg, #c1121f 0 7.14%, #f6e7c8 7.14% 14.28%); padding: 6.4%;
+  --inner: radial-gradient(120% 90% at 50% 40%, #f8ecd0, #e6cf9e 80%, #cfae73);
+  --ink: #3a1406; --ink-w: 4; --hat1: #c1121f; --hat2: #1f4e9c; --band: #f2b705; --band2: #c1121f;
+  --ball1: #f2b705; --ball2: #f2b705; --ball3: #f2b705; --col1: #f6e7c8; --col2: #c1121f; --cb1: #f2b705; --cb2: #f2b705;
+}
+.card.jx-5 .card-inner { color: #3a1406; box-shadow: inset 0 0 0 .14em #7a0a12, inset 0 0 2em #8a5a2040; }
+.card.jx-5 .card-head {
+  background: #c1121f; color: #f6e7c8; margin: -4% -5% 0; padding: .4em .9em .32em;
+  clip-path: polygon(0 0, 100% 0, 96% 50%, 100% 100%, 0 100%, 4% 50%);
+}
+.card.jx-5 .card-name { font-family: Bungee, Rubik, sans-serif; font-weight: 400; font-size: .88em; }
+.card.jx-5 .card-hp { color: #f2b705; }
+.card.jx-5 .card-photo {
+  border: .22em solid #f2b705; border-image: none; border-radius: 50% 50% .3em .3em / 36% 36% .3em .3em;
+  box-shadow: 0 0 0 .12em #7a0a12, inset 0 0 1em #0008;
+}
+.card.jx-5 .card-photo img { filter: sepia(.35) saturate(1.15) contrast(1.05); }
+.jx-5 .jx-star { color: #f2b705; font-size: 7cqw; font-style: normal; line-height: 1; text-shadow: 0 0 .15em #7a0a12; animation: jxTwinkle 1.8s ease-in-out infinite; }
+.jx-5 .jx-star.a { top: 34%; left: 6%; } .jx-5 .jx-star.b { top: 26%; right: 7%; animation-delay: -.6s; }
+.jx-5 .jx-star.c { top: 52%; right: 5%; font-size: 5cqw; animation-delay: -1.2s; }
+@keyframes jxTwinkle { 50% { scale: .7; opacity: .6; } }
+.card.jx-5 .card-sub { background: #1f4e9c; color: #f6e7c8; font-style: normal; font-weight: 700; letter-spacing: .08em; margin: 3.5% 6% 0; border-radius: .2em; }
+.card.jx-5 .card-attack { border-color: #7a0a1244; }
+.card.jx-5 .atk-dmg, .card.jx-5 .card-value { color: #c1121f; }
+.jx-5 .jx-bulbs { inset: 0; }
+.jx-5 .jx-bulb {
+  position: absolute;
+  width: 2.8cqw; height: 2.8cqw; translate: -50% -50%; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff, #ffe27a 40%, #f2a200); box-shadow: 0 0 1.4cqw #ffd54a, 0 0 0 .4cqw #3a1406;
+  animation: jxBlink 1.2s steps(1) infinite;
+}
+.jx-5 .jx-bulb.odd { animation-delay: -.6s; }
+@keyframes jxBlink { 50% { opacity: .35; } }
+.card.jx-5 .jx-vt { background: #c1121f; color: #f6e7c8; border: .12em solid #f2b705; top: 40%; right: 9%; }
+
+/* ---------- F. Tarot: karta „0 · Błazen” - granat i złoto, gwiazdy, zdjęcie w łuku, wstęga z podpisem */
+.card.jx-6 {
+  --frame: linear-gradient(160deg, #1b2a5c, #0a1230); padding: 4.6%;
+  --inner: radial-gradient(130% 90% at 50% 22%, #24356f, #0c1433 72%);
+  --ink: #0b1230; --ink-w: 3; --hat1: #e9c46a; --hat2: #5b3fa8; --band: #e9c46a; --band2: #0b1230;
+  --ball1: #f6e1a3; --ball2: #f6e1a3; --ball3: #f6e1a3; --hat-w: 58%; --hat-top: -3%;
+  box-shadow: 0 6px 18px #000a, 0 0 16px #6f86ff44;
+}
+.card.jx-6 .card-inner { color: #e8e2cf; box-shadow: inset 0 0 0 .1em #e9c46a, inset 0 0 0 .3em #0c1433, inset 0 0 0 .38em #e9c46a99; }
+.jx-6 .jx-stars {
+  background-image: radial-gradient(circle, #fff 0 .6px, transparent 1.1px), radial-gradient(circle, #f6e1a3 0 .8px, transparent 1.4px);
+  background-size: 11% 8%, 17% 13%; background-position: 0 0, 7% 5%; opacity: .6;
+}
+.card.jx-6 .card-name { font-family: Cinzel, serif; color: #f6e1a3; }
+.card.jx-6 .card-hp { color: #f6e1a3; }
+.card.jx-6 .card-type { background: #0c1433; box-shadow: 0 0 0 .1em #e9c46a; }
+.card.jx-6 .card-photo {
+  border: .18em solid #e9c46a; border-image: none; border-radius: 50% 50% .2em .2em / 42% 42% .2em .2em;
+  background: #0c1433; box-shadow: 0 0 .8em #e9c46a55;
+}
+.card.jx-6 .card-photo img { filter: saturate(.85) contrast(1.05); }
+.jx-6 .jx-photo::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 55%, #0c1433cc); }
+.jx-6 .jx-num {
+  top: 30%; left: 5%; z-index: 1; width: 1.6em; height: 1.6em; display: grid; place-items: center; border-radius: 50%;
+  font-family: Cinzel, serif; font-weight: 900; font-size: 6cqw; color: #0c1433; background: #e9c46a;
+  box-shadow: 0 0 0 .08em #0c1433, 0 0 0 .16em #e9c46a, 0 0 .6em #0008;
+}
+.jx-6 .jx-moon { top: 28%; right: 8%; width: 6.5cqw; height: 6.5cqw; border-radius: 50%; box-shadow: -1.5cqw .7cqw 0 0 #f6e1a3; rotate: 20deg; }
+.jx-6 .jx-ribbon {
+  bottom: 5%; left: 50%; translate: -50% 0; z-index: 1; white-space: nowrap;
+  font-family: Cinzel, serif; font-weight: 900; font-size: 4.6cqw; letter-spacing: .25em; color: #0c1433;
+  background: #e9c46a; padding: .25em 1.1em .2em 1.35em; clip-path: polygon(0 0, 100% 0, 93% 50%, 100% 100%, 0 100%, 7% 50%);
+}
+.card.jx-6 .card-sub { background: linear-gradient(90deg, transparent, #e9c46a33, transparent); color: #e9c46a; font-style: normal; letter-spacing: .12em; }
+.card.jx-6 .card-attack { border-color: #e9c46a44; }
+.card.jx-6 .atk-dmg, .card.jx-6 .card-stats b, .card.jx-6 .card-value { color: #f6e1a3; }
+.card.jx-6 :is(.card-stats, .card-foot) { color: #b9b3d6; }
+.card.jx-6 .jx-vt { background: #0c1433; color: #e9c46a; border: 1px solid #e9c46a; font-family: Cinzel, serif; text-shadow: none; }

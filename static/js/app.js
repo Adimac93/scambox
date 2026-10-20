@@ -1532,10 +1532,20 @@ async function claimLink(token) {
 }
 
 // Makiety (/mockups, tylko admini): każdy wygląd każdego wariantu kart specjalnych na przykładowej karcie
-// (Donald Tusk - pl_tusk). Admin wybiera wariant i wygląd karty specjalnej w panelu (edycja karty).
+// (Donald Tusk - pl_tusk), propozycje nowego wyglądu Jokerowej (joker-proposals.js) i wszystkie karty specjalne z gry.
+// Admin wybiera wariant i wygląd karty specjalnej w panelu (edycja karty); przycisk "Podgląd" w panelu otwiera
+// /mockups?card=<id>&variant=<wariant>&style=<wygląd> - podgląd karty jak w skrzynce, także z niezapisanym wyglądem.
 function renderMockups() {
   const base = person("pl_tusk") || Object.values(S.cfg.people).find(p => !p.masked && p.rarity !== "secret");
   const crate = crateList().find(c => c.special) || crateOf(base.crate);
+  const real = Object.values(S.cfg.people).filter(p => isSpecialCard(p) && !p.id.startsWith("__"))
+    .sort((a, b) => a.name.localeCompare(b.name, "pl"));
+  const realHTML = `<section class="panel mock-sec mock-real"><h3>🎴 Karty specjalne w grze <small class="muted">— ${real.length
+    ? "kliknij kartę, żeby zobaczyć ją tak jak w skrzynce" : "brak, dodaj je w panelu admina (rzadkość „Specjalna”)"}</small></h3>
+    <div class="mock-grid">${real.map(p => `<figure class="mock"><div class="mock-card" data-real="${esc(p.id)}">${cardHTML(p.id, p.fixedVariant)}</div>
+      <figcaption><b>${esc(p.name)}</b><span class="muted small">${esc(variantName(p.fixedVariant))}${
+        (S.cfg.variants[p.fixedVariant]?.styles || []).length > 1 ? ` · wygląd ${p.style || 1}. ${esc(S.cfg.variants[p.fixedVariant].styles[(p.style || 1) - 1] || "")}` : ""
+      } · ${esc(S.cfg.specialSources[p.source] || "")}</span></figcaption></figure>`).join("")}</div></section>`;
   const sections = S.cfg.specialVariants.map(v => {
     const V = S.cfg.variants[v];
     const cards = (V.styles || ["—"]).map((name, i) => {
@@ -1556,7 +1566,21 @@ function renderMockups() {
       <h2>🎴 Makiety kart specjalnych</h2>
       <p class="muted">Rzadkość <b style="color:${S.cfg.rarities.special.color}">${esc(S.cfg.rarities.special.name)}</b> — między Legendarną a ULTRA.
         Na przykładzie: ${esc(base.name)}. Wariant i wygląd każdej karty specjalnej wybierasz w <a href="/admin">panelu admina</a>
-        (rzadkość „Specjalna” w edycji karty).</p></div>${sections}`;
+        (rzadkość „Specjalna” w edycji karty).</p></div>${jokerProposalsHTML(base, crate)}${realHTML}${sections}`;
+  $("#mockupsBody").onclick = e => {
+    const jx = e.target.closest(".jx-pick"), card = e.target.closest("[data-real]");
+    if (jx) { Sound.click(); openJokerProposal(base, crate, +jx.dataset.jx); }
+    else if (card) { Sound.click(); openViewer(card.dataset.real, person(card.dataset.real).fixedVariant); }
+  };
+  // podgląd z panelu admina: /mockups?card=<id>&variant=...&style=... (wariant i wygląd mogą być jeszcze niezapisane)
+  const q = new URLSearchParams(location.search), pid = q.get("card");
+  if (pid && person(pid)) {
+    history.replaceState(null, "", location.pathname);
+    const p = person(pid), saved = { fixedVariant: p.fixedVariant, style: p.style };
+    if (S.cfg.variants[q.get("variant")]?.special) p.fixedVariant = q.get("variant");
+    if (+q.get("style") > 0) p.style = +q.get("style");
+    try { openViewer(pid, p.fixedVariant); } finally { Object.assign(p, saved); }
+  }
 }
 
 // ================================================================ ZDARZENIA
