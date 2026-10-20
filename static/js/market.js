@@ -187,7 +187,7 @@ function mkWantedHTML() {
       <h3>📢 Szukam karty</h3>
       <p class="muted small">Ustal cenę, za którą kupisz kartę. Pieniądze są blokowane, a każdy, kto ma tę kartę, może ci ją od razu sprzedać.</p>
       <div class="mk-row"><input type="text" data-want="q" placeholder="Wpisz nazwę karty…" value="${esc(w.q)}">
-        ${sortSelectHTML(w.sortFound, 'data-msort="found"', CARD_SORTS.filter(([k]) => k !== "new" && k !== "variant"))}</div>
+        ${sortSelectHTML(w.sortFound, 'data-msort="found"', UNIQUE_SORTS.filter(([k]) => k !== "variant"))}</div>
       ${found.length ? `<div class="pick-grid mk-pick">${found.map(c => pickHTML(c, { sel: c.person === w.person })).join("")}</div>` : ""}
       ${sel ? `<div class="mk-want-form">
         <div class="mk-want-card">${cardHTML(sel.id, w.variant)}</div>

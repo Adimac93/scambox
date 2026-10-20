@@ -26,13 +26,42 @@ function csSpecialChance(payout) {
 function csStake(set) { return S.items.filter(i => set.has(i.id)).reduce((a, i) => a + i.value, 0); }
 function csPct(x) { return (x * 100).toLocaleString("pl-PL", { maximumFractionDigits: x < 0.1 ? 1 : 0 }) + "%"; }
 
+// duplikaty do postawienia: z każdej karty (osoba + wariant) zostaje jeden egzemplarz - najstarszy, a gdy któryś jest
+// ulubiony ⭐, zostają ulubione i stawiamy wszystkie pozostałe. Kolejność jak w sortowaniu listy; bez już wybranych.
+function csDuplicates(set, zone) {
+  const keep = new Set(), groups = new Map();
+  for (const i of S.items.slice().sort((a, b) => a.id - b.id)) {
+    const k = dupKey(i);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(i);
+  }
+  for (const g of groups.values()) {
+    const favs = g.filter(i => i.fav);
+    (favs.length ? favs : [g[0]]).forEach(i => keep.add(i.id));
+  }
+  return sortCards(csItems().filter(i => !keep.has(i.id) && !set.has(i.id)), CS.sorts[zone]);
+}
+// dopisuje duplikaty do wybranych kart (najwyżej max) - ids: lista wybranych; zwraca nową listę albo null
+function csAddDuplicates(ids, max, zone) {
+  const add = csDuplicates(new Set(ids), zone);
+  if (!add.length) { Sound.error(); toast("Nie masz duplikatów do dodania", true); return null; }
+  const room = Math.max(0, max - ids.length);
+  if (!room) { Sound.error(); toast(`Najwyżej ${max} kart`, true); return null; }
+  const picked = add.slice(0, room).map(i => i.id);
+  toast(`♻️ Dodano ${picked.length} ${plural(picked.length, "duplikat", "duplikaty", "duplikatów")}` +
+    (add.length > room ? ` (limit ${max} kart — zostało jeszcze ${add.length - room})` : ""));
+  return [...ids, ...picked];
+}
+
 // siatka moich kart do wyboru (ruletka / jackpot)
 function csPickerHTML(set, q, max, zone) {
   const sorted = sortCards(csItems().filter(i => cardMatches(i, q)), CS.sorts[zone]);
   const list = [...sorted.filter(i => set.has(i.id)), ...sorted.filter(i => !set.has(i.id))];   // wybrane na początku
+  const dupes = csDuplicates(set, zone).length;
   return `<div class="cs-pick-head"><input type="text" data-csq="${zone}" placeholder="🔍 Szukaj: nazwa, wariant, rzadkość…" value="${esc(q)}">
       ${sortSelectHTML(CS.sorts[zone], `data-cssort="${zone}"`)}
       <span class="muted small">${set.size}/${max} kart · ${fmt(csStake(set))}</span>
+      ${dupes ? `<button class="btn tiny" data-csdupes="${zone}" title="Dodaj wszystkie karty, które masz podwójnie — z każdej zostaje jeden egzemplarz (ulubione ⭐ zostają)">♻️ Dodaj duplikaty (${dupes})</button>` : ""}
       ${set.size ? `<button class="btn tiny" data-csclear="${zone}">Wyczyść</button>` : ""}</div>
     <div class="pick-grid cs-grid" data-zone="${zone}" data-keep="${zone}">${list.slice(0, CS_PICK_LIMIT).map(i => pickHTML(i, { sel: set.has(i.id) })).join("")
       || '<div class="empty">Nie masz kart (ulubionych ⭐ i specjalnych 🃏 nie można postawić).</div>'}</div>`;
@@ -495,6 +524,17 @@ function bindCasino() {
       else CS.sel.add(id);
       Sound.click();
       return drawRoulette();
+    }
+    const dupes = t.closest("[data-csdupes]");
+    if (dupes) {
+      if (dupes.dataset.csdupes === "jp") {
+        if (!L) return;
+        const ids = csAddDuplicates(L[L.side].map(c => c.id), S.cfg.jackpot.maxCards, "jp");
+        return ids && jpSetCards(ids);
+      }
+      const ids = csAddDuplicates([...CS.sel], S.cfg.roulette.maxCards, "rl");
+      if (ids) { CS.sel = new Set(ids); Sound.click(); drawRoulette(); }
+      return;
     }
     const clear = t.closest("[data-csclear]");
     if (clear) {

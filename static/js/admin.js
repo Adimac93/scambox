@@ -179,7 +179,7 @@ function openCardForm(id) {
   const inSpecial = A.crate === A.cat.specialCrate;
   const c = id ? A.cat.cards.find(x => x.id === id)
     : { id: "", name: "", crate: A.crate, crates: [A.crate], rarity: inSpecial ? "special" : "green", type: "polityka", hp: 60, attack: "",
-        dmg: 40, wiki: null, builtin: false, source: "casino", fixedVariant: "joker", style: 1 };
+        dmg: 40, wiki: null, builtin: false, source: "casino", fixedVariant: "joker", style: 7 };   // 7 = Talia Kasynowa
   if (id && hiddenSecret(c) && !confirm("To tajna karta. Pokazać, kto to jest?")) return;
   const isNew = !id;
   const opt = (obj, sel) => Object.entries(obj).map(([k, v]) => `<option value="${k}"${k === sel ? " selected" : ""}>${esc(v)}</option>`).join("");

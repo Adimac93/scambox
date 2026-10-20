@@ -15,7 +15,7 @@ const MAX_BULK_CONTRACTS = 50;  // tyle przyjmie serwer w jednym zapytaniu
 const PICK_LIMIT = 300;
 // ulubione karty (⭐) i karty specjalne nie trafiają do kuźni
 const forgeItems = () => S.items.filter(i => !i.fav && !isSpecialCard(i.person));
-const PICK_TAGS = { bw: "B&W", reverse: "REV", silver: "SILV", holo: "HOLO", gold: "GOLD", flag: "🏳️", halloween: "🎃", lantern: "🏮", devil: "😈", joker: "🃏", jeans: "👖", clear: "🫧", sketch: "✒️", emerald: "💚", ruby: "❤️", royal: "👑", diamond: "💎", galaxy: "🌌", negative: "◐", rzulty: "💛" };
+const PICK_TAGS = { bw: "B&W", reverse: "REV", silver: "SILV", holo: "HOLO", gold: "GOLD", flag: "🏳️", halloween: "🎃", lantern: "🏮", devil: "😈", joker: "🃏", jeans: "👖", clear: "🫧", sketch: "✒️", emerald: "💚", amethyst: "💜", ruby: "❤️", royal: "👑", diamond: "💎", galaxy: "🌌", negative: "◐", rzulty: "💛" };
 
 function pickHTML(item, { sel = false, extra = "" } = {}) {
   const p = person(item.person);
@@ -474,7 +474,7 @@ function renderUpgrader() {
         <input type="text" id="uSearch" placeholder="🔍 Szukaj…" value="${esc(u.search)}">
         <select id="uVariant">${[["all", "Wszystkie"], ...S.cfg.variantOrder.filter(v => !isExclusive(v)).map(v => [v, variantName(v)])].map(([v, n]) =>
           `<option value="${v}"${u.variant === v ? " selected" : ""}>${n}</option>`).join("")}</select>
-        ${sortSelectHTML(u.sortTarget, 'data-fsort="target"', CARD_SORTS.filter(([k]) => k !== "new"))}
+        ${sortSelectHTML(u.sortTarget, 'data-fsort="target"', UNIQUE_SORTS)}
       </div>
       <div class="pick-grid" data-keep="target">${targets.length ? sortCards(targets, u.sortTarget).slice(0, PICK_LIMIT).map(t => pickHTML({ id: t.key, person: t.person, variant: t.variant, value: t.value },
         { sel: t.key === u.target, extra: stake ? `<span class="pc">${pct(upgChance(stake, t.value))}</span>` : "" })).join("")

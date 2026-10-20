@@ -47,6 +47,7 @@ VARIANTS = {
     "sketch":  {"name": "Rysunkowa",    "chance": 0.004, "mult": 10.0,
                 "desc": "Karta narysowana piórem i tuszem na starym papierze."},
     "emerald": {"name": "Szmaragdowa",  "chance": 0.005, "mult": 11.0},
+    "amethyst": {"name": "Ametystowa",  "chance": 0.0045, "mult": 12.5},   # między Szmaragdową a Rubinową
     "ruby":    {"name": "Rubinowa",     "chance": 0.004, "mult": 14.0},
     "royal":   {"name": "Królewska",    "chance": 0.004, "mult": 15.0, "exclusive": True,   # wyjątkowy (Skrzynia Królów)
                 "desc": "Ozdobna złota rama z ornamentami i złota korona na górze."},
@@ -60,9 +61,10 @@ VARIANTS = {
     "rzulty":  {"name": "Rzulty",       "chance": 2137 / 2_137_420, "mult": 31.0, "exclusive": True, "cards": ["pl_secret"],
                 "desc": "Wariant tylko jednej karty (Jan Paweł II) - własne zdjęcie."},   # najrzadszy
     # warianty kart SPECJALNYCH (rzadkość "special"): karta specjalna istnieje tylko w jednym wariancie, który admin wybiera
-    # w panelu (pole karty "fixedVariant") razem z wyglądem 1-6 ("style", makiety: /mockups). Nie wypadają ze skrzynek.
+    # w panelu (pole karty "fixedVariant") razem z wyglądem ("style", numer od 1, makiety: /mockups). Nie wypadają ze skrzynek.
+    # Jokerowa 7 "Talia Kasynowa": karta do gry na zielonym suknie, czapka i żetony na marginesach (static/css/joker-talia.css)
     "joker":   {"name": "Jokerowa",     "chance": 0.0, "mult": 1.0, "exclusive": True, "special": True,
-                "styles": ["Klasyczny", "Dworski", "Retro", "Nocny", "Złoty", "Fioletowy"],
+                "styles": ["Klasyczny", "Dworski", "Retro", "Nocny", "Złoty", "Fioletowy", "Talia Kasynowa"],
                 "desc": "Karta jak Joker z talii kart - osoba ze zdjęcia w czapce i kołnierzu błazna."},
     "jeans":   {"name": "Dżinsowa",     "chance": 0.0, "mult": 1.0, "exclusive": True, "special": True,
                 "styles": ["Klasyczny dżins"],
@@ -533,6 +535,16 @@ JACKPOT = {"maxCards": 20, "expireHours": 24}
 # ============================================================ LISTA ZMIAN (pokazywana raz po aktualizacji)
 # Najnowsza na górze. "v" musi rosnąć z każdą nową wersją - gracz zobaczy wpisy nowsze niż ostatnio obejrzany.
 PATCH_NOTES = [
+    {"v": 9, "date": "2026-10-22", "title": "Ametyst i porządek z duplikatami",
+     "items": [
+         "💜 Nowy wariant <b>Ametystowa</b> — fioletowy kamień szlachetny we wszystkich skrzynkach, "
+         "rzadszy od Szmaragdowej, częstszy od Rubinowej (wartość ×12,5).",
+         "♻️ W <b>ruletce</b> i <b>jackpocie</b> jednym przyciskiem dodasz wszystkie <b>duplikaty</b> — z każdej karty "
+         "zostaje jeden egzemplarz, a ulubione ⭐ zostają zawsze.",
+         "🔁 Nowe sortowanie <b>Duplikaty</b> w ekwipunku, kasynie, kuźni, na rynku i w wymianach — karty, które masz "
+         "kilka razy, są na górze.",
+         "🃏 Nowy wygląd kart Jokerowych: <b>Talia Kasynowa</b> — karta do gry na zielonym suknie z żetonami.",
+     ]},
     {"v": 8, "date": "2026-10-21", "title": "Karty specjalne i nowy sklep",
      "items": [
          "🃏 Nowa rzadkość <b>Specjalna</b> — między Legendarną a ULTRA. Kart specjalnych nie ma w skrzynkach!",

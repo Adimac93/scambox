@@ -9,8 +9,8 @@ const fmt = n => Math.round(n).toLocaleString("pl-PL") + " gr";   // waluta gry:
 
 const COUNT_CHIPS = [1, 2, 3, 5, 10, 15, 20];
 const INV_PAGE = 120;
-const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", silver: "SILVER", holo: "HOLO", gold: "GOLDEN", flag: "FLAG", halloween: "🎃 HALLOWEEN", lantern: "🏮 LAMPION", devil: "😈 DEVIL", joker: "🃏 JOKER", jeans: "👖 DŻINS", clear: "🫧 CLEAR", sketch: "✒️ SKETCH", emerald: "💚 EMERALD", ruby: "❤️ RUBY", royal: "👑 ROYAL", diamond: "💎 DIAMOND", galaxy: "🌌 GALAXY", negative: "◐ NEGATIVE", rzulty: "💛 RZULTY" };
-const GEMS = ["emerald", "ruby", "diamond"];  // warianty z kamieniami szlachetnymi - wspólny wygląd, inne kolory
+const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", silver: "SILVER", holo: "HOLO", gold: "GOLDEN", flag: "FLAG", halloween: "🎃 HALLOWEEN", lantern: "🏮 LAMPION", devil: "😈 DEVIL", joker: "🃏 JOKER", jeans: "👖 DŻINS", clear: "🫧 CLEAR", sketch: "✒️ SKETCH", emerald: "💚 EMERALD", amethyst: "💜 AMETHYST", ruby: "❤️ RUBY", royal: "👑 ROYAL", diamond: "💎 DIAMOND", galaxy: "🌌 GALAXY", negative: "◐ NEGATIVE", rzulty: "💛 RZULTY" };
+const GEMS = ["emerald", "amethyst", "ruby", "diamond"];  // warianty z kamieniami szlachetnymi - wspólny wygląd, inne kolory
 
 const S = {
   cfg: null,
@@ -124,12 +124,29 @@ function kindIcon(k) { return KIND_ICONS[k] || KIND_ICONS.off; }
 
 // Sortowanie kart w listach do wyboru (kuźnia, kasyno, rynek, wymiany, ikona gracza): elementy { person, variant, value, id? }
 const CARD_SORTS = [["value", "💰 Najdroższe"], ["valueAsc", "💰 Najtańsze"], ["rarity", "💎 Rzadkość"],
-                    ["variant", "✨ Wariant"], ["name", "🔤 Nazwa"], ["new", "🕒 Najnowsze"]];
+                    ["variant", "✨ Wariant"], ["name", "🔤 Nazwa"], ["new", "🕒 Najnowsze"], ["dupes", "🔁 Duplikaty"]];
+// listy bez sensu dla "Duplikaty" (karty do zdobycia, nie egzemplarze gracza): cele ulepszacza, szukane na rynku, ikona gracza
+const UNIQUE_SORTS = CARD_SORTS.filter(([k]) => k !== "new" && k !== "dupes");
+// ile egzemplarzy tej karty w tym wariancie ma gracz (osoba + wariant)
+function dupKey(x) { return x.person + "|" + (x.variant || "normal"); }
+function ownCounts() {
+  const m = new Map();
+  for (const i of S.items) m.set(dupKey(i), (m.get(dupKey(i)) || 0) + 1);
+  return m;
+}
 function sortCards(list, mode = "value") {
   const name = x => { const p = person(x.person); return !p || p.masked ? "￿" : p.name; };
   const byName = (a, b) => name(a).localeCompare(name(b), "pl");
   const num = x => (typeof x.id === "number" ? x.id : 0);
+  let dup = () => 0;
+  if (mode === "dupes") {   // moje karty: ile mam ich łącznie (też ⭐), cudze (wymiany): ile jest ich na tej liście
+    const own = ownCounts(), mine = new Set(S.items.map(i => i.id)), here = new Map();
+    for (const x of list) here.set(dupKey(x), (here.get(dupKey(x)) || 0) + 1);
+    dup = x => (mine.has(x.id) ? own : here).get(dupKey(x)) || 0;
+  }
   const cmp = {
+    // duplikaty na górze (najwięcej egzemplarzy najpierw), takie same karty obok siebie
+    dupes: (a, b) => (dup(b) > 1) - (dup(a) > 1) || dup(b) - dup(a) || byName(a, b) || varRank(b.variant) - varRank(a.variant) || b.value - a.value,
     value: (a, b) => b.value - a.value || byName(a, b),
     valueAsc: (a, b) => a.value - b.value || byName(a, b),
     rarity: (a, b) => rarityIdx(person(b.person).rarity) - rarityIdx(person(a.person).rarity) || varRank(b.variant) - varRank(a.variant) || byName(a, b),
@@ -221,7 +238,7 @@ function variantLayers(v, p = null) {
     // nad kartą: migoczące gwiazdy i co jakiś czas spadająca gwiazda (każda karta w innym momencie i miejscu)
     if (x === "galaxy") html += `<div class="galaxy-stars"></div><div class="galaxy-shoot" style="--sd:-${rand(0, 11).toFixed(1)}s;--st:${Math.round(rand(4, 50))}%;--sl:${Math.round(rand(-30, 10))}%"><i></i></div>`;
     if (x === "negative") html += '<div class="neg-grain"></div>';
-    if (x === "joker") html += jokerDeco();
+    if (x === "joker") html += jokerDeco(p);
     if (x === "jeans") html += jeansDeco();
     if (GEMS.includes(x)) html += '<div class="diamond-layer"></div><div class="diamond-glints"><i></i><i></i><i></i><i></i><i></i></div>';
   }
@@ -297,13 +314,21 @@ function devilDeco() { return `<div class="dv-out">${hwUse("dv-horn", "dv-horn l
 
 // Karty specjalne - wariant Jokerowa: karta z talii (gruba czarna ramka, pionowy napis JOKER w rogach), a osoba ze zdjęcia
 // jest błaznem - czapka nad twarzą i kołnierz pod nią (symbole SVG #jk-hat / #jk-collar w templates/index.html).
-// 6 wyglądów (klasa karty vs-1 ... vs-6, kolory w special.css), wybór w panelu admina, makiety: /mockups.
-function jokerDeco() {
+// Wyglądy: klasa karty vs-1 ... vs-6 (kolory w special.css), wybór w panelu admina, makiety: /mockups.
+// Wygląd 7 "Talia Kasynowa" (joker-talia.css): karta do gry na zielonym suknie - na szerokich marginesach indeksy JOKER
+// z czapką błazna i stosy żetonów; nic nie zasłania zdjęcia (bez czapki i kołnierza na zdjęciu).
+const JOKER_TALIA = 7;
+function jokerDeco(p) {
   const letters = "JOKER".split("").map(l => `<b>${l}</b>`).join("");
+  if (+p?.style === JOKER_TALIA) {
+    const idx = c => `<span class="jt-idx ${c}">${hwUse("jk-hat", "jt-hat")}${letters}</span>`;
+    const chips = (side, colors) => `<span class="jt-chips ${side}">${colors.map(c => `<i class="jt-chip ${c}"></i>`).join("")}</span>`;
+    return `<div class="jt-deco"><i class="jt-stitch"></i>${idx("tl")}${idx("br")}${chips("l", ["red", "black", "blue"])}${chips("r", ["purple", "red", "black"])}</div>`;
+  }
   return `<div class="jk-deco"><span class="jk-idx tl">${letters}</span><span class="jk-idx br">${letters}</span></div>`;
 }
-function jokerPhoto(variant) {
-  if (!variantParts(variant).includes("joker")) return "";
+function jokerPhoto(variant, p) {
+  if (!variantParts(variant).includes("joker") || +p?.style === JOKER_TALIA) return "";
   return `<i class="jk-figure">${hwUse("jk-hat", "jk-hat")}${hwUse("jk-collar", "jk-collar")}</i>`;
 }
 // Karty specjalne - wariant Dżinsowa: dżins, pomarańczowe przeszycia, miedziane nity
@@ -342,7 +367,7 @@ function cardHTML(pid, variant = "normal") {
         <span class="card-hp"><small>HP</small>${p.hp}</span>
         <span class="card-type">${type.icon}</span>
       </div>
-      <div class="card-photo"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false">${galaxyPhoto(variant)}${halloweenPhoto(variant)}${jokerPhoto(variant)}</div>
+      <div class="card-photo"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false">${galaxyPhoto(variant)}${halloweenPhoto(variant)}${jokerPhoto(variant, p)}</div>
       <div class="card-sub">${type.name} · ${esc(crate.short)}</div>
       ${abils.map((a, i) => `<div class="card-attack${i ? " atk2" : ""}${a.kind !== "off" ? " " + a.kind : ""}">
         <span class="atk-cost">${a.kind === "off" ? cost + (i ? type.icon : "") : S.cfg.abilityKinds[a.kind]?.icon || ""}</span>
@@ -453,7 +478,7 @@ function tiltMove(e) {
   const b = zone ? zone.getBoundingClientRect() : flatRect(card);
   const px = Math.min(1, Math.max(0, (e.clientX - b.left) / b.width));
   const py = Math.min(1, Math.max(0, (e.clientY - b.top) / b.height));
-  const fancy = card.matches(".r-secret, .v-holo, .v-reverse, .v-gold, .v-silver, .v-diamond, .v-emerald, .v-ruby, .v-bw, .v-clear, .v-negative, .v-sketch, .v-galaxy");
+  const fancy = card.matches(".r-secret, .v-holo, .v-reverse, .v-gold, .v-silver, .v-diamond, .v-emerald, .v-ruby, .v-amethyst, .v-bw, .v-clear, .v-negative, .v-sketch, .v-galaxy");
   const strength = card.closest(".viewer") ? 1.5 : fancy || card.closest(".modal") ? 1 : 0.6;
   card.classList.add("tilting");
   card.style.setProperty("--rx", ((0.5 - py) * 16 * strength).toFixed(2) + "deg");
@@ -1151,7 +1176,7 @@ function showResults(afterEpic = false) {
     const topBase = baseVariant(top.variant);
     const colors = {
       diamond: ["#e8fbff", "#9ff6ff", "#c9b8ff", "#ffffff"], emerald: ["#00c853", "#6dffb0", "#c6ffe0", "#ffffff"],
-      ruby: ["#ff1744", "#ff8a9c", "#ffd0d8", "#ffffff"], clear: ["#ffffff", "#e0f7ff", "#bfefff"],
+      ruby: ["#ff1744", "#ff8a9c", "#ffd0d8", "#ffffff"], amethyst: ["#9b3dff", "#c99bff", "#ecdcff", "#ffffff"], clear: ["#ffffff", "#e0f7ff", "#bfefff"],
       negative: ["#000000", "#ffffff", "#7a7a7a", "#00e5ff"], gold: ["#ffc531", "#fff3b0", "#fff"], holo: ["#9ff6ff", "#ff9ff3", "#fff"],
       silver: ["#e6ebf2", "#b8c2d0", "#ffffff"], reverse: ["#c9d6ff", "#ffffff", "#9ff6ff"], bw: ["#ffffff", "#111111", "#888888"],
       rzulty: ["#ffe600", "#fff6a0", "#ffffff"], flag: ["#ffffff", "#dc143c", "#ffcf3f"], halloween: ["#ff7a00", "#1a0a12", "#8a2be2", "#ffd84a"],
@@ -1419,6 +1444,7 @@ function filteredItems() {
     rarity: (a, b) => rarityIdx(person(b.person).rarity) - rarityIdx(person(a.person).rarity) || varRank(b.variant) - varRank(a.variant) || byName(a, b),
     name: (a, b) => byName(a, b) || varRank(b.variant) - varRank(a.variant),
   }[f.sort];
+  if (f.sort === "dupes") return sortCards(list, "dupes");
   return list.sort(by);
 }
 
@@ -1532,7 +1558,7 @@ async function claimLink(token) {
 }
 
 // Makiety (/mockups, tylko admini): każdy wygląd każdego wariantu kart specjalnych na przykładowej karcie
-// (Donald Tusk - pl_tusk), propozycje nowego wyglądu Jokerowej (joker-proposals.js) i wszystkie karty specjalne z gry.
+// (Donald Tusk - pl_tusk) i wszystkie karty specjalne z gry.
 // Admin wybiera wariant i wygląd karty specjalnej w panelu (edycja karty); przycisk "Podgląd" w panelu otwiera
 // /mockups?card=<id>&variant=<wariant>&style=<wygląd> - podgląd karty jak w skrzynce, także z niezapisanym wyglądem.
 function renderMockups() {
@@ -1566,11 +1592,10 @@ function renderMockups() {
       <h2>🎴 Makiety kart specjalnych</h2>
       <p class="muted">Rzadkość <b style="color:${S.cfg.rarities.special.color}">${esc(S.cfg.rarities.special.name)}</b> — między Legendarną a ULTRA.
         Na przykładzie: ${esc(base.name)}. Wariant i wygląd każdej karty specjalnej wybierasz w <a href="/admin">panelu admina</a>
-        (rzadkość „Specjalna” w edycji karty).</p></div>${jokerProposalsHTML(base, crate)}${realHTML}${sections}`;
+        (rzadkość „Specjalna” w edycji karty).</p></div>${realHTML}${sections}`;
   $("#mockupsBody").onclick = e => {
-    const jx = e.target.closest(".jx-pick"), card = e.target.closest("[data-real]");
-    if (jx) { Sound.click(); openJokerProposal(base, crate, +jx.dataset.jx); }
-    else if (card) { Sound.click(); openViewer(card.dataset.real, person(card.dataset.real).fixedVariant); }
+    const card = e.target.closest("[data-real]");
+    if (card) { Sound.click(); openViewer(card.dataset.real, person(card.dataset.real).fixedVariant); }
   };
   // podgląd z panelu admina: /mockups?card=<id>&variant=...&style=... (wariant i wygląd mogą być jeszcze niezapisane)
   const q = new URLSearchParams(location.search), pid = q.get("card");

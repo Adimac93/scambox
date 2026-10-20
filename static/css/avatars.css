@@ -22,12 +22,12 @@
 }
 .avv-gold img { filter: sepia(1) saturate(1.8) hue-rotate(-10deg) brightness(1.05) contrast(1.15); box-shadow: 0 0 0 2px #ffcf3f, 0 0 12px #ffcf3f !important; }
 .avv-gold::after { background: linear-gradient(115deg, transparent 35%, #fff8 48%, transparent 60%); background-size: 250% 100%; mix-blend-mode: overlay; animation: photoGlint 2.4s ease-in-out infinite; }
-:is(.avv-diamond, .avv-emerald, .avv-ruby) img { filter: grayscale(.35) brightness(1.08) contrast(1.15); box-shadow: 0 0 0 2px var(--gem-2), 0 0 14px var(--gem-6) !important; }
-:is(.avv-diamond, .avv-emerald, .avv-ruby)::after { background: linear-gradient(160deg, var(--gem-t1), var(--gem-t2) 45%, var(--gem-t3)); mix-blend-mode: color; opacity: .75; }
+:is(.avv-diamond, .avv-emerald, .avv-ruby, .avv-amethyst) img { filter: grayscale(.35) brightness(1.08) contrast(1.15); box-shadow: 0 0 0 2px var(--gem-2), 0 0 14px var(--gem-6) !important; }
+:is(.avv-diamond, .avv-emerald, .avv-ruby, .avv-amethyst)::after { background: linear-gradient(160deg, var(--gem-t1), var(--gem-t2) 45%, var(--gem-t3)); mix-blend-mode: color; opacity: .75; }
 .avv-clear img { opacity: .62; box-shadow: 0 0 0 2px #ffffffb0, 0 0 10px #bfefffaa !important; }
 .avv-negative img { filter: invert(1); box-shadow: 0 0 0 2px #fff, 0 0 0 4px #000, 0 0 12px #00e5ff !important; }
 .av-vname { font-size: 10px; font-weight: 900; padding: 1px 6px; border-radius: 5px; background: #000a; }
-.av-vname.vt-gold { color: #ffcf3f; } .av-vname:is(.vt-diamond, .vt-emerald, .vt-ruby) { color: var(--gem-3); } .av-vname.vt-silver { color: #dfe6f0; }
+.av-vname.vt-gold { color: #ffcf3f; } .av-vname:is(.vt-diamond, .vt-emerald, .vt-ruby, .vt-amethyst) { color: var(--gem-3); } .av-vname.vt-silver { color: #dfe6f0; }
 .av-vname.vt-clear { color: #e0f7ff; } .av-vname.vt-negative { color: #000; background: #fff; }
 .av-vname.vt-holo { color: #ff9ff3; } .av-vname.vt-reverse { color: #c9d6ff; } .av-vname.vt-bw { color: #fff; }
 

@@ -783,7 +783,7 @@ function openAvatarPicker(tab = null) {
     </div>
     ${tab === "cards" ? `
       <p class="muted small">Ikoną może być każda karta, którą masz — w każdym wariancie, który masz (złota, diamentowa, holo…).</p>
-      <div class="tb-row"><input type="text" class="av-search" placeholder="Szukaj…">${sortSelectHTML(avatarSort, "data-avsort", CARD_SORTS.filter(([k]) => k !== "new"))}</div>
+      <div class="tb-row"><input type="text" class="av-search" placeholder="Szukaj…">${sortSelectHTML(avatarSort, "data-avsort", UNIQUE_SORTS)}</div>
       <div class="avatar-cards">${mine.map(c => {
         const p = person(c.person), R = S.cfg.rarities[p.rarity];
         const active = c.person === S.me.avatarCard && c.variant === (S.me.avatarVariant || "normal");
