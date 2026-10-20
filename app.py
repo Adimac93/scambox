@@ -1,5 +1,6 @@
 import datetime
 import functools
+import gzip
 import json
 import os
 import random
@@ -25,7 +26,8 @@ from data import (ABILITY_KINDS, ARENA, ARENA_EFFECT_TARGETS, ARENA_EFFECTS, ARE
                   MAX_OPEN, MONEY_CHESTS, RARITIES, RARITY_ORDER, SECRET_ODDS, SHOWCASE_SIZE,
                   STARTING_BALANCE, TYPES, UPGRADE_EDGE, UPGRADE_MAX, UPGRADE_MAX_ITEMS, VARIANT_ORDER,
                   VARIANTS, CRATE_VARIANTS, PATCH_NOTES, MARKET, ROULETTE, ROULETTE_BETS, ROULETTE_RED, ROULETTE_WHEEL,
-                  JACKPOT, card_value, card_variants, combine_variant)
+                  JACKPOT, card_value, card_variants, combine_variant, SPECIAL_VARIANTS, SPECIAL_SOURCES, SPECIAL_CRATE,
+                  CASINO_SPECIAL)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEST_MODE = "--test" in sys.argv  # osobny zapis do testów: python app.py --test
@@ -82,6 +84,27 @@ def no_cache_pages(resp):
     # strony HTML i odpowiedzi API nie mogą być brane z pamięci przeglądarki (stara wersja gry)
     if resp.mimetype in ("text/html", "application/json"):
         resp.headers["Cache-Control"] = "no-store"
+    # pliki statyczne z ?v=<wersja> (asset()) zmieniają adres przy każdej zmianie - przeglądarka nie musi o nie pytać
+    elif request.endpoint == "static" and request.args.get("v") and resp.status_code == 200:
+        resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return gzip_response(resp)
+
+
+GZIP_TYPES = ("application/json", "text/html", "image/svg+xml", "application/manifest+json")
+
+
+def gzip_response(resp):
+    """Odpowiedzi tekstowe wysyłamy spakowane gzipem: ekwipunek z kilkoma tysiącami kart to ~0,5 MB JSON-a, po spakowaniu
+    ~35 KB. Duże odpowiedzi potrafiły się też zawieszać na kilkanaście sekund na Windowsie (antywirus sprawdzający ruch)."""
+    if (resp.mimetype not in GZIP_TYPES or resp.direct_passthrough or not resp.is_sequence
+            or "Content-Encoding" in resp.headers or "gzip" not in request.headers.get("Accept-Encoding", "").lower()):
+        return resp
+    data = resp.get_data()
+    if len(data) < 1024:
+        return resp
+    resp.set_data(gzip.compress(data, 5))
+    resp.headers["Content-Encoding"] = "gzip"
+    resp.vary.add("Accept-Encoding")
     return resp
 
 
@@ -276,6 +299,14 @@ def init_sqlite(conn):
             person_id TEXT NOT NULL, variant TEXT NOT NULL, value INTEGER NOT NULL
         );
         CREATE INDEX IF NOT EXISTS jackpot_items_jackpot ON jackpot_items (jackpot_id);
+        CREATE TABLE IF NOT EXISTS card_links (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            token TEXT NOT NULL UNIQUE, person_id TEXT NOT NULL, note TEXT NOT NULL DEFAULT '',
+            created_by INTEGER, created_at REAL NOT NULL, active INTEGER NOT NULL DEFAULT 1,
+            max_uses INTEGER NOT NULL DEFAULT 0, uses INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE IF NOT EXISTS card_link_claims (link_id INTEGER NOT NULL, user_id INTEGER NOT NULL, item_id INTEGER,
+                                                     claimed_at REAL NOT NULL, PRIMARY KEY (link_id, user_id));
     """)
     cols = [r[1] for r in conn.execute("PRAGMA table_info(items)")]
     if "variant" not in cols:  # migracja: holo (0/1) -> variant
@@ -409,7 +440,7 @@ def admin_required(fn):
         if not current_user()["is_admin"]:
             if request.path.startswith("/api/"):
                 return jsonify({"error": "Tylko dla admina"}), 403
-            return redirect(url_for("index"))
+            return redirect("/")
         return fn(*a, **kw)
     return wrapper
 
@@ -439,7 +470,7 @@ def find_user(name):
 @app.route("/login")
 def login_page():
     if current_user():
-        return redirect(url_for("index"))
+        return redirect("/")
     first = db().execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0
     return render_template("login.html", first=first)
 
@@ -550,7 +581,7 @@ def money_kind(kind):
 
 
 def valid_chest_kind(kind):
-    return kind in catalog.CRATES or money_kind(kind) is not None
+    return (kind in catalog.CRATES and not catalog.CRATES[kind]["special"]) or money_kind(kind) is not None
 
 
 def get_chests(user_id=None):
@@ -573,6 +604,8 @@ def has_access(crate_id, user_id=None):
 
 def can_buy(crate):
     """Czy zalogowany gracz może KUPIĆ tę skrzynkę (otwieranie posiadanych skrzynek jest zawsze możliwe)."""
+    if crate.get("special"):   # skrzynka kart specjalnych - nie da się jej kupić (nawet adminowi)
+        return False
     u = current_user()
     if u is not None and u["is_admin"]:
         return True
@@ -607,7 +640,8 @@ def collected_list(user_id):
 
 
 def insert_item(person_id, variant, source="drop"):
-    """Nowa karta gracza (source: drop = ze skrzynki, contract, upgrade - do Hall of Fame; casino - bez Hall of Fame)."""
+    """Nowa karta gracza (source: drop = ze skrzynki, contract, upgrade, joker = karta specjalna z kasyna, link = z linku
+    od admina - do Hall of Fame; casino - zwykła wygrana w kasynie, bez Hall of Fame)."""
     now = time.time()
     note_collected(uid(), person_id, variant, source)
     new_id = db().execute("INSERT INTO items (person_id, holo, variant, created_at, user_id) VALUES (?, ?, ?, ?, ?) "
@@ -677,7 +711,7 @@ def public_person(p, found):
                 "name": "???", "type": "tv", "hp": 0, "attack": "???", "dmg": 0, "imgv": 0}
     base = {k: p.get(k) for k in ("id", "name", "rarity", "type", "hp", "attack", "dmg", "attack2", "dmg2",
                                   "kind1", "kind2", "abilities", "arena", "crate", "crates", "number", "valueMult",
-                                  "country", "forge")}
+                                  "country", "forge", "source", "fixedVariant", "style")}
     base["imgv"] = img_version(p["id"])
     vp = variant_photos(p["id"])
     if vp:
@@ -691,10 +725,12 @@ def public_person(p, found):
 @app.route("/<any(crates, binder, inventory, forge, market, casino, friends, ranking, arena):view>")
 @app.route("/inventory/hall-of-fame")
 @app.route("/player/<name>")
+@app.route("/link/<token>")   # link do karty specjalnej - kartę odbiera przeglądarka (/api/links/<token>/claim)
+@app.route("/mockups")         # makiety kart specjalnych - tylko dla adminów
 @login_required
-def index(view=None, name=None):
-    if view == "arena" and not current_user()["is_admin"]:  # Arena: na razie tylko dla adminów (testy)
-        return redirect(url_for("index"))
+def index(view=None, name=None, token=None):
+    if (view == "arena" or request.path == "/mockups") and not current_user()["is_admin"]:  # Arena i makiety: tylko admini
+        return redirect("/")
     return render_template("index.html")
 
 
@@ -727,6 +763,12 @@ def service_worker():
 @admin_required
 def admin_page():
     return render_template("admin.html")
+
+
+@app.route("/admin/mockups")
+@admin_required
+def admin_mockups():
+    return redirect("/mockups")   # makiety kart specjalnych są w grze (index.html), nie w panelu
 
 
 def svg_response(svg):
@@ -782,7 +824,9 @@ def image(person_id, kind="main"):
     else:
         path = images.ensure(person_id, alt=(kind == "alt"))
     if path:
-        resp = send_file(path, mimetype=images.mimetype(path), max_age=86400)
+        # ?s=1 - mały kafelek (bęben, kuźnia, kasyno): miniatura; ?v=<wersja zdjęcia> - adres zmienia się razem ze zdjęciem
+        path = images.web_version(path, thumb=request.args.get("s") == "1")
+        resp = send_file(path, mimetype=images.mimetype(path), max_age=30 * 86400 if request.args.get("v") else 86400)
         if p["rarity"] == "secret":
             resp.headers["Cache-Control"] = "private, no-store"
         return resp
@@ -799,7 +843,7 @@ def image(person_id, kind="main"):
 
 def crate_json(c):
     return {k: c.get(k) for k in ("id", "name", "short", "code", "emoji", "color1", "color2", "price", "desc",
-                                  "shop", "restricted")} | \
+                                  "shop", "restricted", "special")} | \
            {"people": [p["id"] for p in c["people"]], "variants": c.get("variants") or [],
             "weights": {r: catalog.crate_weight(c, r) for r in RARITY_ORDER}}
 
@@ -838,6 +882,7 @@ def config():
         "roulette": dict(ROULETTE, wheel=ROULETTE_WHEEL, red=ROULETTE_RED,
                          bets={k: {"name": n, "numbers": nums, "pays": pays} for k, (n, nums, pays) in ROULETTE_BETS.items()}),
         "jackpot": JACKPOT,
+        "specialVariants": SPECIAL_VARIANTS, "specialSources": SPECIAL_SOURCES, "casinoSpecial": CASINO_SPECIAL,
     })
 
 
@@ -882,7 +927,7 @@ def roll_variant(factor=1.0, extra=()):
 
 
 def roll(crate):
-    present = {p["rarity"] for p in crate["people"]}
+    present = {p["rarity"] for p in crate["people"] if p["rarity"] != "special"}   # karty specjalne nie wypadają ze skrzynek
     weights = [catalog.crate_weight(crate, r) if r in present else 0 for r in RARITY_ORDER]
     rarity = rng.choices(RARITY_ORDER, weights=weights)[0]
     person = rng.choice([p for p in crate["people"] if p["rarity"] == rarity])
@@ -898,7 +943,9 @@ def open_crates():
     count = int(body.get("count", 1))
     if crate is None or not 1 <= count <= MAX_OPEN:
         return jsonify({"error": "Nieprawidłowe żądanie"}), 400
-    if not crate["people"]:
+    if crate["special"]:
+        return jsonify({"error": "Karty specjalne zdobywa się w kasynie albo z linku — tej skrzynki nie da się otworzyć"}), 400
+    if not any(p["rarity"] != "special" for p in crate["people"]):
         return jsonify({"error": "Ta skrzynka jest pusta"}), 400
     owned = get_chests().get(crate["id"], 0) if body.get("useOwned", True) else 0
     from_inv = min(owned, count)
@@ -992,6 +1039,7 @@ def sell():
     marks = ",".join("?" * len(ids))
     rows = db().execute(f"SELECT * FROM items WHERE user_id = ? AND favorite = 0 AND id IN ({marks})",
                         [uid(), *ids]).fetchall()  # ulubionych kart nie sprzedajemy
+    rows = [r for r in rows if not catalog.is_special(catalog.PEOPLE.get(r["person_id"]))]   # karty specjalne nie znikają z gry
     total = sum(row_value(r) for r in rows if r["person_id"] in catalog.PEOPLE)
     delete_items([r["id"] for r in rows] or [-1])
     add_state("balance", total)
@@ -1001,6 +1049,7 @@ def sell():
 
 
 FAV_ERROR = "Ulubionych kart (⭐) nie da się zużyć ani sprzedać — najpierw odznacz gwiazdkę"
+SPECIAL_ERROR = "Kart specjalnych nie da się sprzedać grze, postawić ani zużyć — można je tylko wymienić albo sprzedać na rynku"
 
 
 @app.post("/api/favorite")
@@ -1050,6 +1099,8 @@ def contract_check(ids):
         raise ContractError("Nie masz tych kart")
     if any(r["favorite"] for r in rows):
         raise ContractError(FAV_ERROR)
+    if any(catalog.is_special(catalog.PEOPLE[r["person_id"]]) for r in rows):
+        raise ContractError(SPECIAL_ERROR)
     rarities = {catalog.PEOPLE[r["person_id"]]["rarity"] for r in rows}
     rarity = rarities.pop() if len(rarities) == 1 else None
     if rarity is not None and rarity not in CONTRACT_SIZE:
@@ -1136,7 +1187,9 @@ def upgrade():
         return jsonify({"error": "Nieprawidłowy wybór kart"}), 400
     if any(r["favorite"] for r in rows):
         return jsonify({"error": FAV_ERROR}), 400
-    if target["rarity"] == "secret":
+    if any(catalog.is_special(catalog.PEOPLE[r["person_id"]]) for r in rows):
+        return jsonify({"error": SPECIAL_ERROR}), 400
+    if target["rarity"] in ("secret", "special"):
         return jsonify({"error": "Tajnych kart nie da się wytworzyć w kuźni"}), 400
     if not target.get("forge"):
         return jsonify({"error": "Tej karty nie ma teraz w żadnej skrzynce w sklepie — nie da się jej wytworzyć"}), 400
@@ -1650,7 +1703,7 @@ def avatar_image(name):
     # tajna karta jako ikona: widzą ją tylko ci, którzy ją odkryli, sam gracz i jego znajomi
     if p["rarity"] == "secret" and pid not in discovered() and u["id"] != uid() and u["id"] not in friend_ids(uid()):
         return svg_response(MYSTERY_SVG)
-    path = images.ensure(pid)
+    path = images.web_version(images.ensure(pid), thumb=True)   # ikona gracza jest mała - wystarczy miniatura
     if not path:
         return "", 404
     resp = send_file(path, mimetype=images.mimetype(path), max_age=300)
@@ -1766,7 +1819,7 @@ def hof_first(person_id, variant, hidden=None):
     if hidden is None:
         hidden = {u["id"] for u in db().execute("SELECT * FROM users") if hidden_from_ranking(u)}
     for c in db().execute("SELECT user_id, at, source FROM user_collected WHERE person_id = ? AND variant = ? AND at IS NOT NULL "
-                          "AND (source IS NULL OR source IN ('drop', 'contract', 'upgrade')) ORDER BY at",
+                          "AND (source IS NULL OR source IN ('drop', 'contract', 'upgrade', 'joker', 'link')) ORDER BY at",
                           (person_id, variant)).fetchall():
         if c["user_id"] not in hidden:
             return c["user_id"], c["at"], c["source"] or "drop"
@@ -1792,13 +1845,16 @@ def patch_notes_seen():
 # wtedy nie da się jej sprzedać, zużyć w kuźni ani dać w wymianie. Pieniądze z ofert kupna, licytacji i zleceń
 # "Szukam" są od razu zabierane kupującemu (i oddawane, gdy oferta przepada), więc zawarta transakcja zawsze się uda.
 
-def take_my_items(ids):
-    """(wiersze moich kart, None) albo (None, komunikat błędu) - karty muszą być moje i bez gwiazdki."""
+def take_my_items(ids, stake=False):
+    """(wiersze moich kart, None) albo (None, komunikat błędu) - karty muszą być moje i bez gwiazdki.
+    stake: karty stawiane w kasynie (mogą przepaść) - bez kart specjalnych."""
     rows = owned_rows(ids)
     if rows is None:
         return None, "Nie masz tych kart"
     if any(r["favorite"] for r in rows):
         return None, FAV_ERROR
+    if stake and any(catalog.is_special(catalog.PEOPLE[r["person_id"]]) for r in rows):
+        return None, SPECIAL_ERROR
     return rows, None
 
 
@@ -2298,6 +2354,24 @@ def house_cards(value):
     return out, left
 
 
+def casino_special_pool():
+    """Karty specjalne, które wypadają w kasynie (pole karty "source" = casino, panel admina)."""
+    return [p for p in catalog.PEOPLE.values() if catalog.is_special(p) and p["source"] == "casino"]
+
+
+def casino_special_drop(payout):
+    """Wygrana w grze kasyna, która daje nowe karty (ruletka, kolejne gry): z szansą wygrana / CASINO_SPECIAL["per"]
+    (najwyżej "max") gracz dostaje dodatkowo kartę specjalną z kasyna - zawsze w jej jedynym wariancie (np. Jokerowa).
+    Zwraca nową kartę albo None."""
+    pool = casino_special_pool()
+    if not pool or rng.random() >= min(CASINO_SPECIAL["max"], payout / CASINO_SPECIAL["per"]):
+        return None
+    p = rng.choice(pool)
+    item = insert_item(p["id"], p["fixedVariant"], "joker")
+    note_drops([item], "joker")
+    return item
+
+
 @app.post("/api/casino/roulette")
 @login_required
 def casino_roulette():
@@ -2312,7 +2386,7 @@ def casino_roulette():
         return bad("Wybierz zakład na stole")
     if not 1 <= len(ids) <= ROULETTE["maxCards"]:
         return bad(f"Postaw od 1 do {ROULETTE['maxCards']} kart")
-    rows, err = take_my_items(ids)
+    rows, err = take_my_items(ids, stake=True)
     if err:
         return bad(err)
     stake = sum(row_value(r) for r in rows)
@@ -2326,6 +2400,7 @@ def casino_roulette():
         out["payout"] = stake * pays
         add_state("balance", money)
         note_drops(out["items"], "casino")
+        out["special"] = casino_special_drop(out["payout"])   # karta specjalna z kasyna (Joker) albo None
     else:
         delete_items(ids)
         out["consumed"] = ids
@@ -2594,7 +2669,7 @@ def casino_jackpot_cards(jid):
     ids = int_ids(request.get_json(force=True).get("ids"))
     if len(ids) > JACKPOT["maxCards"]:
         return bad(f"Najwyżej {JACKPOT['maxCards']} kart")
-    rows, err = take_my_items(ids) if ids else ([], None)
+    rows, err = take_my_items(ids, stake=True) if ids else ([], None)
     if err:
         return bad(err)
     db().execute("DELETE FROM jackpot_items WHERE jackpot_id = ? AND side = ?", (jid, side))
@@ -2615,7 +2690,7 @@ def jackpot_play(J):
     for r in rows:
         it = db().execute("SELECT * FROM items WHERE id = ? AND user_id = ? AND favorite = 0",
                           (r["item_id"], owners[r["side"]])).fetchone()
-        if it is None or it["person_id"] not in catalog.PEOPLE:
+        if it is None or it["person_id"] not in catalog.PEOPLE or catalog.is_special(catalog.PEOPLE[it["person_id"]]):
             gone.append(r["item_id"])
             continue
         values[r["side"]] += row_value(it)
@@ -2982,7 +3057,7 @@ def unique_id(base, taken):
 
 def admin_card_json(p):
     return dict({k: p.get(k) for k in ("id", "name", "rarity", "type", "hp", "attack", "dmg", "attack2", "dmg2",
-                                       "kind1", "kind2", "abilities", "arena", "country",
+                                       "kind1", "kind2", "abilities", "arena", "country", "source", "fixedVariant", "style",
                                        "crate", "crates", "number", "builtin", "modified")},
                 wiki=list(p["wiki"]) if p.get("wiki") else None,
                 hasImage=bool(images.find(p["id"])), hasAlt=bool(images.find(p["id"], True)),
@@ -3050,6 +3125,7 @@ def admin_catalog():
                     "arena": {"effects": ARENA_EFFECTS, "visuals": ARENA_VISUALS, "targets": ARENA_TARGETS,
                               "effectTargets": ARENA_EFFECT_TARGETS, "maxEffects": MAX_ABILITY_EFFECTS},
                     "variants": VARIANTS, "exclusiveVariants": CRATE_VARIANTS,
+                    "specialVariants": SPECIAL_VARIANTS, "specialSources": SPECIAL_SOURCES, "specialCrate": SPECIAL_CRATE,
                     "defaultPrice": CRATE_PRICE, "users": users})
 
 
@@ -3139,6 +3215,8 @@ def admin_save_card():
     f = request.form
     name = (f.get("name") or "").strip()
     crates = [c for c in dict.fromkeys(f.getlist("crates") or [f.get("crate")]) if c in catalog.CRATES]
+    # karta specjalna jest tylko w skrzynce kart specjalnych (której nie da się otworzyć), a zwykła karta - nigdy
+    crates = [SPECIAL_CRATE] if f.get("rarity") == "special" and SPECIAL_CRATE in catalog.CRATES         else [c for c in crates if not catalog.CRATES[c]["special"]]
     crate = crates[0] if crates else None
     if not name:
         return jsonify({"error": "Podaj nazwę karty"}), 400
@@ -3163,6 +3241,8 @@ def admin_save_card():
         "abilities": catalog.clean_abilities([{"name": n, "kind": k, "value": v} for n, k, v in
                                               zip(f.getlist("ab_name"), f.getlist("ab_kind"), f.getlist("ab_value"))]),
         "country": catalog.clean_country(f.get("country")),   # kod kraju do wariantu flagowego (np. PL)
+        # karta specjalna: skąd (kasyno / link), jedyny wariant (Jokerowa, Dżinsowa) i wygląd 1-6 (catalog.rebuild sprawdza)
+        "source": f.get("source"), "fixedVariant": f.get("fixed_variant"), "style": f.get("style"),
         # skrzynki istniejące w chwili zapisu - nowe wbudowane skrzynki dodane później dopiszą tę kartę (catalog.rebuild)
         "crates_seen": sorted(set(catalog.CRATES) | set(catalog.HIDDEN_CRATES)),
     }
@@ -3254,6 +3334,92 @@ def admin_restore_card(pid):
     return jsonify({"ok": True})
 
 
+# ---------------------------------------------------------------- linki do kart specjalnych
+# Admin tworzy link do karty specjalnej (źródło "link"): każdy gracz, który go otworzy, dostaje tę kartę - raz na link
+# (tabela card_link_claims). max_uses = 0 - bez limitu graczy. Wyłączony link przestaje działać.
+
+def link_card(person_id):
+    p = catalog.PEOPLE.get(person_id)
+    return p if catalog.is_special(p) and p["source"] == "link" else None
+
+
+def link_json(r, users):
+    p = catalog.PEOPLE.get(r["person_id"])
+    return {"id": r["id"], "token": r["token"], "path": f"/link/{r['token']}", "person": r["person_id"],
+            "name": p["name"] if p else r["person_id"], "variant": p["fixedVariant"] if p else None,
+            "note": r["note"], "created": r["created_at"], "createdBy": users.get(r["created_by"]),
+            "active": bool(r["active"]), "maxUses": r["max_uses"], "uses": r["uses"]}
+
+
+@app.get("/api/admin/links")
+@admin_required
+def admin_links():
+    users = {u["id"]: u["username"] for u in db().execute("SELECT id, username FROM users")}
+    rows = db().execute("SELECT * FROM card_links ORDER BY id DESC").fetchall()
+    claims = {}
+    for c in db().execute("SELECT link_id, user_id, claimed_at FROM card_link_claims ORDER BY claimed_at DESC"):
+        claims.setdefault(c["link_id"], []).append(users.get(c["user_id"], "?"))
+    cards = [{"id": p["id"], "name": p["name"], "variant": p["fixedVariant"]}
+             for p in catalog.PEOPLE.values() if link_card(p["id"])]
+    return jsonify({"links": [dict(link_json(r, users), claimedBy=claims.get(r["id"], [])) for r in rows], "cards": cards})
+
+
+@app.post("/api/admin/links")
+@admin_required
+def admin_link_create():
+    body = request.get_json(force=True)
+    p = link_card(body.get("person"))
+    if p is None:
+        return jsonify({"error": "Wybierz kartę specjalną ze źródłem „Link od admina”"}), 400
+    try:
+        max_uses = max(0, min(100_000, int(body.get("maxUses") or 0)))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Limit graczy musi być liczbą"}), 400
+    note = str(body.get("note") or "").strip()[:80]
+    token = secrets.token_urlsafe(9)
+    db().execute("INSERT INTO card_links (token, person_id, note, created_by, created_at, max_uses) VALUES (?, ?, ?, ?, ?, ?)",
+                 (token, p["id"], note, uid(), time.time(), max_uses))
+    log_admin("link_create", details=f"{p['name']}{f' · {note}' if note else ''}{f' · max {max_uses}' if max_uses else ''}")
+    db().commit()
+    return jsonify({"ok": True, "path": f"/link/{token}"})
+
+
+@app.post("/api/admin/links/<int:link_id>")
+@admin_required
+def admin_link_toggle(link_id):
+    r = db().execute("SELECT * FROM card_links WHERE id = ?", (link_id,)).fetchone()
+    if r is None:
+        return jsonify({"error": "Nie ma takiego linku"}), 404
+    active = bool(request.get_json(force=True).get("active"))
+    db().execute("UPDATE card_links SET active = ? WHERE id = ?", (int(active), link_id))
+    name = (catalog.PEOPLE.get(r["person_id"]) or {}).get("name", r["person_id"])
+    log_admin("link_on" if active else "link_off", details=name + (f" · {r['note']}" if r["note"] else ""))
+    db().commit()
+    return jsonify({"ok": True})
+
+
+@app.post("/api/links/<token>/claim")
+@login_required
+def link_claim(token):
+    """Gracz otworzył link od admina: dostaje kartę specjalną (w jej jedynym wariancie) - każdy gracz raz na link."""
+    lock_me()
+    r = db().execute("SELECT * FROM card_links WHERE token = ?", (token,)).fetchone()
+    p = link_card(r["person_id"]) if r else None
+    if r is None or p is None or not r["active"]:
+        return bad("Ten link nie działa (wyłączony albo nieprawidłowy)", 404)
+    if db().execute("SELECT 1 FROM card_link_claims WHERE link_id = ? AND user_id = ?", (r["id"], uid())).fetchone():
+        return bad("Ten link już wykorzystałeś — każdy gracz może go użyć tylko raz")
+    if not db().execute("UPDATE card_links SET uses = uses + 1 WHERE id = ? AND (max_uses = 0 OR uses < max_uses)",
+                        (r["id"],)).rowcount:
+        return bad("Limit graczy dla tego linku już się wyczerpał")
+    item = insert_item(p["id"], p["fixedVariant"], "link")
+    db().execute("INSERT INTO card_link_claims (link_id, user_id, item_id, claimed_at) VALUES (?, ?, ?, ?)",
+                 (r["id"], uid(), item["id"], time.time()))
+    note_drops([item], "link")
+    db().commit()
+    return jsonify({"item": item, "state": get_state()})
+
+
 @app.post("/api/admin/cards/<pid>/refetch")
 @admin_required
 def admin_refetch(pid):
@@ -3277,7 +3443,7 @@ def admin_users():
              for u in db().execute("SELECT * FROM users ORDER BY id")]
     restricted = [{"id": c["id"], "name": c["name"], "emoji": c["emoji"], "shop": c["shop"]}
                   for c in catalog.CRATES.values() if c["restricted"]]
-    kinds = [{"kind": c["id"], "name": c["name"], "emoji": c["emoji"]} for c in catalog.CRATES.values()]
+    kinds = [{"kind": c["id"], "name": c["name"], "emoji": c["emoji"]} for c in catalog.CRATES.values() if not c["special"]]
     kinds += [{"kind": "money_" + k, "name": m["name"], "emoji": m["emoji"]} for k, m in MONEY_CHESTS.items()]
     return jsonify({"users": users, "me": uid(), "chestKinds": kinds, "restrictedCrates": restricted})
 
@@ -3434,7 +3600,7 @@ def admin_delete_user(user_id):
                 "DELETE FROM user_collected WHERE user_id = ?",
                 "DELETE FROM showcase WHERE user_id = ?", "DELETE FROM feed WHERE author_id = ? OR to_user_id = ?",
                 "DELETE FROM user_chests WHERE user_id = ?", "DELETE FROM crate_access WHERE user_id = ?",
-                "DELETE FROM arena_daily WHERE user_id = ?",
+                "DELETE FROM arena_daily WHERE user_id = ?", "DELETE FROM card_link_claims WHERE user_id = ?",
                 "DELETE FROM trade_lines WHERE trade_id IN (SELECT id FROM trades WHERE from_id = ? OR to_id = ?)",
                 "DELETE FROM trades WHERE from_id = ? OR to_id = ?",
                 "DELETE FROM friendships WHERE requester_id = ? OR addressee_id = ?", "DELETE FROM users WHERE id = ?"):

@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="{{ asset('css/style.css') }}">
   <link rel="stylesheet" href="{{ asset('css/fx.css') }}">
   <link rel="stylesheet" href="{{ asset('css/cards2.css') }}">
+  <link rel="stylesheet" href="{{ asset('css/special.css') }}">
   <link rel="stylesheet" href="{{ asset('css/arena.css') }}">
   <link rel="stylesheet" href="{{ asset('css/social.css') }}">
   <link rel="stylesheet" href="{{ asset('css/avatars.css') }}">
@@ -41,6 +42,30 @@
       <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0 1"/>
     </filter>
     <!-- wariant Halloweenowy: nietoperz, dynia (lampion), czaszka, pajęczyna, pająk, cukierek -->
+    <!-- Jokerowa (karty specjalne): czapka błazna i kołnierz wokół zdjęcia - kolory ze zmiennych CSS (special.css) -->
+    <clipPath id="jkHalfR"><rect x="100" y="0" width="100" height="120"/></clipPath>
+    <symbol id="jk-hat" viewBox="0 0 200 120">
+      <g style="stroke: var(--ink); stroke-width: var(--ink-w); stroke-linejoin: round">
+        <g transform="matrix(-1 0 0 1 200 0)"><path transform="rotate(50 100 104)" d="M86 102C80 70 84 34 104 14 100 40 104 72 114 102Z" style="fill: var(--hat1)"/></g>
+        <path transform="rotate(50 100 104)" d="M86 102C80 70 84 34 104 14 100 40 104 72 114 102Z" style="fill: var(--hat2)"/>
+        <path d="M86 102C80 70 84 34 104 14 100 40 104 72 114 102Z" style="fill: var(--hat1)"/>
+        <path d="M86 102C80 70 84 34 104 14 100 40 104 72 114 102Z" style="fill: var(--hat2); stroke: none" clip-path="url(#jkHalfR)"/>
+        <path d="M50 101Q100 85 150 101L148 117Q100 101 52 117Z" style="fill: var(--band)"/>
+        <path d="M56 109L64 103 72 109 80 102 88 108 96 101 104 107 112 101 120 108 128 102 136 109 144 103" style="fill: none; stroke: var(--band2); stroke-width: 3"/>
+        <circle cx="29" cy="49" r="9" style="fill: var(--ball1)"/><circle cx="171" cy="49" r="9" style="fill: var(--ball3)"/>
+        <circle cx="105" cy="12" r="9" style="fill: var(--ball2)"/>
+      </g>
+    </symbol>
+    <symbol id="jk-collar" viewBox="22 -4 156 84" preserveAspectRatio="none">
+      <g style="stroke: var(--ink); stroke-width: var(--ink-w); stroke-linejoin: round">
+        <g transform="rotate(78 100 2)"><path d="M100 2C82 18 80 46 100 64 120 46 118 18 100 2Z" style="fill: var(--col2)"/><circle cx="100" cy="69" r="7" style="fill: var(--cb2)"/></g>
+        <g transform="rotate(-78 100 2)"><path d="M100 2C82 18 80 46 100 64 120 46 118 18 100 2Z" style="fill: var(--col2)"/><circle cx="100" cy="69" r="7" style="fill: var(--cb2)"/></g>
+        <g transform="rotate(38 100 2)"><path d="M100 2C82 18 80 46 100 64 120 46 118 18 100 2Z" style="fill: var(--col1)"/><circle cx="100" cy="69" r="7" style="fill: var(--cb1)"/></g>
+        <g transform="rotate(-38 100 2)"><path d="M100 2C82 18 80 46 100 64 120 46 118 18 100 2Z" style="fill: var(--col1)"/><circle cx="100" cy="69" r="7" style="fill: var(--cb1)"/></g>
+        <path d="M100 2C82 18 80 46 100 64 120 46 118 18 100 2Z" style="fill: var(--col2)"/><circle cx="100" cy="69" r="7" style="fill: var(--cb2)"/>
+        <ellipse cx="100" cy="6" rx="30" ry="11" style="fill: var(--col1)"/>
+      </g>
+    </symbol>
     <symbol id="hw-bat" viewBox="0 0 64 30">
       <path fill="currentColor" d="M32 9c1-3 2.2-4.6 3.4-5 .2 1.6.1 3 .6 4.2 3.6-3.4 8.4-5.2 13.8-5.4-1.8 1.8-2.6 3.8-2.4 6.2 4.2-.6 8.6.2 12.6 2.6-3.4.2-6 1.8-7.4 4.6-2.2-1.2-4.6-1.4-6.8-.4.2 1.8-.4 3.4-1.6 4.8-1.6-1.6-3.8-2.2-6.2-1.6-1 2-2.6 3.6-5 5-2.4-1.4-4-3-5-5-2.4-.6-4.6 0-6.2 1.6-1.2-1.4-1.8-3-1.6-4.8-2.2-1-4.6-.8-6.8.4C9 16 6.4 14.4 3 14.2c4-2.4 8.4-3.2 12.6-2.6.2-2.4-.6-4.4-2.4-6.2 5.4.2 10.2 2 13.8 5.4.5-1.2.4-2.6.6-4.2 1.2.4 2.4 2 3.4 5z"/>
     </symbol>
@@ -119,7 +144,13 @@
         <h2>🛒 Sklep ze skrzynkami</h2>
         <span class="muted">Wybierz skrzynkę — kup ją od razu do otwarcia albo na później do ekwipunku.</span>
       </div>
-      <div class="shop-grid" id="cratePicker"></div>
+      <!-- karuzela skrzynek: środkowa = wybrana, sama się obraca (app.js: renderCrates / shopRotate) -->
+      <div class="shop-carousel" id="shopCarousel">
+        <button class="car-arrow prev" data-car="-1" title="Poprzednia skrzynka">‹</button>
+        <div class="car-track" id="cratePicker"></div>
+        <button class="car-arrow next" data-car="1" title="Następna skrzynka">›</button>
+        <div class="car-dots" id="shopDots"></div>
+      </div>
 
       <div class="panel buy-panel" id="buyPanel">
         <div class="bp-art" id="bpArt"></div>
@@ -195,6 +226,7 @@
       <div id="invCards">
       <div class="panel chest-shelf" id="chestShelf" hidden></div>
       <div class="inv-toolbar">
+        <input type="search" id="invSearch" class="inv-search" placeholder="🔍 Szukaj karty po nazwie…" autocomplete="off">
         <div class="seg" id="invCrateSeg"></div>
         <div class="rarity-filter" id="invRarity"></div>
         <select id="invVariant"></select>
@@ -232,6 +264,9 @@
 
     <!-- PROFIL -->
     <section class="view" id="view-profile"><div id="profileBody"></div></section>
+
+    <!-- MAKIETY KART SPECJALNYCH (tylko admini, /mockups) -->
+    <section class="view" id="view-mockups"><div id="mockupsBody"></div></section>
 
     <!-- KUŹNIA -->
     <section class="view" id="view-forge">

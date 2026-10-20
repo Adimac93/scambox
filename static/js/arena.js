@@ -395,7 +395,7 @@ function arCallout(unit, ab, primary) {
   const r = field.getBoundingClientRect(), p = person(unit.pid);
   const vis = arCfg().visuals[ab.visual]?.icon || "👊";
   const target = primary.length === 1 && primary[0] !== unit ? person(primary[0].pid).name : primary.length > 1 ? (ab.kind === "off" ? "wszyscy wrogowie" : "wszyscy sojusznicy") : "";
-  const el = arSpawn(`<div class="hs-call-who"><img src="${imgUrl(unit.pid)}" alt="">${esc(p.name)}${target ? ` <span>→ ${esc(target)}</span>` : ""}</div>
+  const el = arSpawn(`<div class="hs-call-who"><img src="${imgUrl(unit.pid, null, true)}" alt="">${esc(p.name)}${target ? ` <span>→ ${esc(target)}</span>` : ""}</div>
       <div class="hs-call-ab">${vis} ${esc(ab.name)} <b>${kindIcon(ab.kind)}${ab.value}</b></div>
       ${ab.effects.length ? `<div class="hs-call-eff">${ab.effects.map(e => `${arEffect(e.id).icon} ${esc(arEffect(e.id).name)}`).join(" · ")}</div>` : ""}`,
     r.left + r.width / 2, r.top + r.height / 2, `hs-callout ${unit.side}`);
@@ -566,7 +566,7 @@ function arRenderDeck() {
       <div class="ar-pick">${owned.map(o => {
         const p = person(o.pid);
         return `<button class="ar-chip${chosen.has(o.pid) ? " on" : ""}" data-ar-pick="${o.pid}" style="--rc:${S.cfg.rarities[p.rarity].color}">
-          <img src="${imgUrl(o.pid)}" alt=""><span class="ar-chip-name">${esc(p.name)}</span>${stats(p)}</button>`;
+          <img src="${imgUrl(o.pid, null, true)}" alt=""><span class="ar-chip-name">${esc(p.name)}</span>${stats(p)}</button>`;
       }).join("")}</div>
     </div>`;
 }

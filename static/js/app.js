@@ -9,7 +9,7 @@ const fmt = n => Math.round(n).toLocaleString("pl-PL") + " gr";   // waluta gry:
 
 const COUNT_CHIPS = [1, 2, 3, 5, 10, 15, 20];
 const INV_PAGE = 120;
-const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", silver: "SILVER", holo: "HOLO", gold: "GOLDEN", flag: "FLAG", halloween: "🎃 HALLOWEEN", lantern: "🏮 LAMPION", devil: "😈 DEVIL", clear: "🫧 CLEAR", sketch: "✒️ SKETCH", emerald: "💚 EMERALD", ruby: "❤️ RUBY", royal: "👑 ROYAL", diamond: "💎 DIAMOND", galaxy: "🌌 GALAXY", negative: "◐ NEGATIVE", rzulty: "💛 RZULTY" };
+const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", silver: "SILVER", holo: "HOLO", gold: "GOLDEN", flag: "FLAG", halloween: "🎃 HALLOWEEN", lantern: "🏮 LAMPION", devil: "😈 DEVIL", joker: "🃏 JOKER", jeans: "👖 DŻINS", clear: "🫧 CLEAR", sketch: "✒️ SKETCH", emerald: "💚 EMERALD", ruby: "❤️ RUBY", royal: "👑 ROYAL", diamond: "💎 DIAMOND", galaxy: "🌌 GALAXY", negative: "◐ NEGATIVE", rzulty: "💛 RZULTY" };
 const GEMS = ["emerald", "ruby", "diamond"];  // warianty z kamieniami szlachetnymi - wspólny wygląd, inne kolory
 
 const S = {
@@ -21,7 +21,7 @@ const S = {
   fast: false,
   binderCrate: null,
   spread: 0,
-  inv: { crate: "all", rarities: new Set(), variant: "all", sort: "new", limit: INV_PAGE, selected: new Set(),
+  inv: { crate: "all", rarities: new Set(), variant: "all", sort: "new", limit: INV_PAGE, selected: new Set(), q: "",
          mode: "cards" },        // mode: "cards" = moje karty, "hof" = Hall of Fame (/inventory/hall-of-fame)
   opening: null,
   me: null,               // zalogowany gracz
@@ -38,9 +38,11 @@ async function api(path, body) {
   let res;
   try { res = await fetch(path, opts); }
   finally { if (body !== undefined) S.inflight--; }
-  const data = await res.json().catch(() => ({}));
-  if (res.status === 401 && data.login) { location.href = "/login"; throw new Error("Zaloguj się"); }
-  if (!res.ok) throw new Error(data.error || "Błąd serwera");
+  const data = await res.json().catch(() => null);
+  if (res.status === 401 && data?.login) { location.href = "/login"; throw new Error("Zaloguj się"); }
+  if (!res.ok) throw new Error(data?.error || "Błąd serwera");
+  // ucięta odpowiedź (zerwane połączenie) - błąd zamiast pustych danych (start gry spróbuje jeszcze raz)
+  if (data === null) throw new Error("Błąd połączenia z serwerem — spróbuj jeszcze raz");
   return data;
 }
 
@@ -71,6 +73,7 @@ function crateVariants(crate, p = null) {
 // Warianty, w których ta karta może istnieć (jak catalog.possible_variants): zwykłe zawsze, wyjątkowe tylko z jej skrzynek,
 // własne warianty karty (Rzulty - tylko Jan Paweł II) i połączenia flagi z każdym z nich
 function possibleVariants(p) {
+  if (isSpecialCard(p)) return [p.fixedVariant];   // karta specjalna istnieje tylko w jednym wariancie
   const extra = new Set();
   (p.crates || [p.crate]).forEach(c => { if (crateOf(c)) crateVariants(crateOf(c), p).forEach(v => extra.add(v)); });
   const V = S.cfg.variants;
@@ -150,8 +153,25 @@ function cardSearchText(pid, variant) {
 }
 function searchMatch(text, q) { return searchNorm(q).split(/\s+/).filter(Boolean).every(w => text.includes(w)); }
 function cardMatches(x, q) { return !q || !q.trim() || searchMatch(cardSearchText(x.person, x.variant), q); }
+// Kliknięcie karty w kuźni / kasynie przerysowuje cały panel - listy kart z atrybutem data-keep nie wracają wtedy na górę.
+// --pick-h: wysokość kafelka (style.css: kafelki poza ekranem mają tę wysokość, zanim się narysują - przewinięcie się zgadza)
+function keepScroll(root, render) {
+  const kept = {};
+  root.querySelectorAll("[data-keep]").forEach(g => { kept[g.dataset.keep] = [g.scrollTop, g.querySelector(".pick")?.offsetHeight]; });
+  render();
+  root.querySelectorAll("[data-keep]").forEach(g => {
+    const [top, h] = kept[g.dataset.keep] || [];
+    if (h) g.style.setProperty("--pick-h", h + "px");
+    if (top) g.scrollTop = top;
+  });
+}
+// nowa zawartość listy (inna rzadkość, wyszukiwanie, sortowanie) - lista zaczyna się od góry
+function resetKeep(key) { $$(`[data-keep="${key}"]`).forEach(g => { g.scrollTop = 0; }); }
 function flagUrl(country) { return `/flag/${encodeURIComponent(country)}.svg`; }
 function person(id) { return S.cfg.people[id]; }
+// karta specjalna (rzadkość Specjalna): tylko z kasyna albo z linku, jeden wariant; nie da się jej sprzedać grze,
+// postawić ani zużyć w kuźni (można ją wymienić albo sprzedać na rynku). p - karta albo jej id.
+function isSpecialCard(p) { p = typeof p === "string" ? person(p) : p; return p?.rarity === "special"; }
 function crateOf(id) { return S.cfg.crates[id]; }
 function crateList() { return S.cfg.crateOrder.map(id => S.cfg.crates[id]); }
 function isSpecial(v) { return !!v && v !== "normal"; }
@@ -162,12 +182,13 @@ function cardValue(pid, v = "normal") {
 }
 // zdjęcie karty; wariant z własnym zdjęciem (np. Rzulty Jana Pawła II) -> /img/<id>/<wariant>
 // (połączony wariant, np. halloween+gold: zdjęcie tej warstwy, która ma własne zdjęcie)
-function imgUrl(pid, variant = null) {
+// small - mały kafelek (bęben, kuźnia, kasyno...): serwer wysyła lekką miniaturę zamiast pełnego zdjęcia
+function imgUrl(pid, variant = null, small = false) {
   // część wariantu z własnym zdjęciem, a gdy brak - zdjęcie z "photoFallback" (Lampionowa -> Halloweenowa)
   const p = person(pid), has = x => x && p.variantPhotos?.[x] != null, parts = variant ? variantParts(variant) : [];
   const part = parts.find(has) || parts.map(x => S.cfg?.variants[x]?.photoFallback).find(has);
   const vv = part ? p.variantPhotos[part] : null;
-  return `/img/${pid}${vv != null ? "/" + part : ""}?v=${vv ?? (p.imgv || 0)}${p.imgq ? "&" + p.imgq : ""}`;
+  return `/img/${p.imgAs || pid}${vv != null ? "/" + part : ""}?v=${vv ?? (p.imgv || 0)}${small ? "&s=1" : ""}${p.imgq ? "&" + p.imgq : ""}`;
 }
 // ikona gracza: zdjęcie wybranej karty albo emoji
 function avatarHTML(u, cls = "av") {
@@ -200,6 +221,8 @@ function variantLayers(v, p = null) {
     // nad kartą: migoczące gwiazdy i co jakiś czas spadająca gwiazda (każda karta w innym momencie i miejscu)
     if (x === "galaxy") html += `<div class="galaxy-stars"></div><div class="galaxy-shoot" style="--sd:-${rand(0, 11).toFixed(1)}s;--st:${Math.round(rand(4, 50))}%;--sl:${Math.round(rand(-30, 10))}%"><i></i></div>`;
     if (x === "negative") html += '<div class="neg-grain"></div>';
+    if (x === "joker") html += jokerDeco();
+    if (x === "jeans") html += jeansDeco();
     if (GEMS.includes(x)) html += '<div class="diamond-layer"></div><div class="diamond-glints"><i></i><i></i><i></i><i></i><i></i></div>';
   }
   parts.forEach((x, i) => {
@@ -272,6 +295,23 @@ function devilBG(variant) {
 }
 function devilDeco() { return `<div class="dv-out">${hwUse("dv-horn", "dv-horn l")}${hwUse("dv-horn", "dv-horn r")}</div>`; }
 
+// Karty specjalne - wariant Jokerowa: karta z talii (gruba czarna ramka, pionowy napis JOKER w rogach), a osoba ze zdjęcia
+// jest błaznem - czapka nad twarzą i kołnierz pod nią (symbole SVG #jk-hat / #jk-collar w templates/index.html).
+// 6 wyglądów (klasa karty vs-1 ... vs-6, kolory w special.css), wybór w panelu admina, makiety: /mockups.
+function jokerDeco() {
+  const letters = "JOKER".split("").map(l => `<b>${l}</b>`).join("");
+  return `<div class="jk-deco"><span class="jk-idx tl">${letters}</span><span class="jk-idx br">${letters}</span></div>`;
+}
+function jokerPhoto(variant) {
+  if (!variantParts(variant).includes("joker")) return "";
+  return `<i class="jk-figure">${hwUse("jk-hat", "jk-hat")}${hwUse("jk-collar", "jk-collar")}</i>`;
+}
+// Karty specjalne - wariant Dżinsowa: dżins, pomarańczowe przeszycia, miedziane nity
+function jeansDeco() {
+  const rivets = ["tl", "tr", "bl", "br"].map(c => `<i class="dz-rivet ${c}"></i>`).join("");
+  return `<div class="dz-deco"><i class="dz-stitch"></i>${rivets}</div>`;
+}
+
 // wszystkie zdolności karty po kolei: [{ name, kind: "off" | "def" | "heal" | "eco", value }]
 function abilitiesOf(p) {
   const list = [{ name: p.attack, kind: p.kind1 || "off", value: p.dmg }];
@@ -293,7 +333,7 @@ function cardHTML(pid, variant = "normal") {
   const cost = type.icon.repeat(Math.min(3, 1 + Math.floor(rarityIdx(p.rarity) / 2)));
   const abils = abilitiesOf(p);
   return `
-  <div class="card r-${p.rarity} ${vClass(variant)}${abils.length > 1 ? " two-atk" : ""}${abils.length > 2 ? ` atk-${abils.length}` : ""}" data-pid="${p.id}" data-variant="${variant}"${flagStyle(p, variant)}>
+  <div class="card r-${p.rarity} ${vClass(variant)}${p.style ? " vs-" + p.style : ""}${abils.length > 1 ? " two-atk" : ""}${abils.length > 2 ? ` atk-${abils.length}` : ""}" data-pid="${p.id}" data-variant="${variant}"${flagStyle(p, variant)}>
     <div class="card-inner">
       ${baseVariant(variant) === "reverse" ? '<div class="rev-foil"></div>' : ""}
       ${galaxyBG(variant)}${devilBG(variant)}
@@ -302,7 +342,7 @@ function cardHTML(pid, variant = "normal") {
         <span class="card-hp"><small>HP</small>${p.hp}</span>
         <span class="card-type">${type.icon}</span>
       </div>
-      <div class="card-photo"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false">${galaxyPhoto(variant)}${halloweenPhoto(variant)}</div>
+      <div class="card-photo"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false">${galaxyPhoto(variant)}${halloweenPhoto(variant)}${jokerPhoto(variant)}</div>
       <div class="card-sub">${type.name} · ${esc(crate.short)}</div>
       ${abils.map((a, i) => `<div class="card-attack${i ? " atk2" : ""}${a.kind !== "off" ? " " + a.kind : ""}">
         <span class="atk-cost">${a.kind === "off" ? cost + (i ? type.icon : "") : S.cfg.abilityKinds[a.kind]?.icon || ""}</span>
@@ -396,7 +436,13 @@ function flatRect(el) {
 function inRect(e, b) {
   return e.clientX >= b.left && e.clientX <= b.left + b.width && e.clientY >= b.top && e.clientY <= b.top + b.height;
 }
+// ruch myszy liczymy najwyżej raz na klatkę (myszki potrafią zgłaszać ruch 500-1000 razy na sekundę)
+let tiltEvent = null;
 document.addEventListener("pointermove", e => {
+  if (!tiltEvent) requestAnimationFrame(() => { const ev = tiltEvent; tiltEvent = null; if (ev) tiltMove(ev); });
+  tiltEvent = e;
+}, { passive: true });
+function tiltMove(e) {
   // podgląd karty i kieszonka w albumie: obszar, który się nie przechyla - przechylona karta "chowa się"
   // za swój pojemnik i przeglądarka przestaje widzieć nad nią kursor (karta skakała tam i z powrotem)
   const zone = e.target.closest?.(".viewer-stage, .pocket");
@@ -414,9 +460,21 @@ document.addEventListener("pointermove", e => {
   card.style.setProperty("--ry", ((px - 0.5) * 20 * strength).toFixed(2) + "deg");
   card.style.setProperty("--mx", (px * 100).toFixed(1) + "%");
   card.style.setProperty("--my", (py * 100).toFixed(1) + "%");
-});
+}
 // kursor wyjechał poza okno - karta wraca do pozycji prostej
-document.documentElement.addEventListener("pointerleave", () => { resetTilt(tiltCard); tiltCard = null; });
+document.documentElement.addEventListener("pointerleave", () => { tiltEvent = null; resetTilt(tiltCard); tiltCard = null; });
+
+// Pełnoekranowa nakładka (otwieranie skrzynek, wielkie odsłonięcie, kuźnia, podgląd karty, skrzynka z pieniędzmi...)
+// zasłania całą stronę - wtedy body.covered chowa stronę pod spodem (style.css: WYDAJNOŚĆ), żeby przeglądarka nie liczyła
+// animacji setek niewidocznych kart. Wszystkie te nakładki są dodawane bezpośrednio do <body>.
+const COVERS = ["body > #stage:not([hidden])", "body > .epic", "body > .sreveal", "body > .forge-anim", "body > .money-stage",
+                "body > .jp-anim", "body > .viewer"].join(", ");
+function updateCovered() { document.body.classList.toggle("covered", !!document.querySelector(COVERS)); }
+function watchCovers() {
+  const mo = new MutationObserver(updateCovered);
+  mo.observe(document.body, { childList: true });
+  mo.observe($("#stage"), { attributes: true, attributeFilter: ["hidden"] });
+}
 
 // ================================================================ NAGŁÓWEK / WSPÓLNE
 
@@ -514,9 +572,10 @@ function favBtnHTML(id, fav, cls = "") {
 
 async function sellIds(ids) {
   if (!ids.length) return 0;
-  const favs = new Set(S.items.filter(i => i.fav).map(i => i.id));
-  ids = ids.filter(id => !favs.has(id));  // ulubionych nie sprzedajemy (serwer też je pomija)
-  if (!ids.length) { toast("⭐ Ulubionych kart nie da się sprzedać"); return 0; }
+  // ulubionych i kart specjalnych nie sprzedajemy (serwer też je pomija)
+  const keep = new Set(S.items.filter(i => i.fav || isSpecialCard(i.person)).map(i => i.id));
+  ids = ids.filter(id => !keep.has(id));
+  if (!ids.length) { toast("⭐ Ulubionych i 🃏 specjalnych kart nie da się sprzedać"); return 0; }
   const res = await api("/api/sell", { ids });
   removeItems(res.sold);
   applyState(res.state);
@@ -570,7 +629,7 @@ function setupInstall() {
 // ================================================================ ADRESY STRON
 // każda zakładka ma swój adres (/inventory...), profil gracza: /player/<nazwa>; "/" = skrzynki
 const VIEW_PATHS = { crates: "/crates", binder: "/binder", inventory: "/inventory", forge: "/forge", market: "/market", casino: "/casino",
-                     friends: "/friends", ranking: "/ranking", arena: "/arena" };
+                     friends: "/friends", ranking: "/ranking", arena: "/arena", mockups: "/mockups" };
 
 function viewPath(view) {
   if (view === "inventory" && S.inv.mode === "hof") return "/inventory/hall-of-fame";
@@ -580,6 +639,8 @@ function viewPath(view) {
 function routeFromPath(path = location.pathname) {
   const m = path.match(/^\/player\/([^/]+)\/?$/);
   if (m) return { view: "profile", user: decodeURIComponent(m[1]) };
+  const link = path.match(/^\/link\/([^/]+)\/?$/);   // link od admina do karty specjalnej
+  if (link) return { view: "inventory", link: decodeURIComponent(link[1]) };
   const clean = path.replace(/\/+$/, "") || "/";
   if (clean === "/inventory/hall-of-fame") return { view: "inventory", hof: true };
   return { view: Object.keys(VIEW_PATHS).find(v => VIEW_PATHS[v] === clean) || "crates" };
@@ -587,6 +648,7 @@ function routeFromPath(path = location.pathname) {
 
 function showRoute(how = "none") {
   const r = routeFromPath();
+  if (r.link) return claimLink(r.link);
   if (r.view === "inventory") S.inv.mode = r.hof ? "hof" : "cards";
   if (r.view === "profile") openProfile(r.user, how);
   else switchView(r.view, how);
@@ -595,6 +657,7 @@ function showRoute(how = "none") {
 // how: "push" - nowy wpis w historii (kliknięcie), "replace" - podmiana (start), "none" - bez zmian (wstecz/dalej)
 function switchView(view, how = "push") {
   if (view === "arena" && !S.cfg.arena) view = "crates";  // Arena: na razie tylko dla adminów
+  if (view === "mockups" && !S.me?.isAdmin) view = "crates";
   const path = viewPath(view);
   if (how !== "none" && location.pathname !== path) history[how === "replace" ? "replaceState" : "pushState"](null, "", path);
   const tab = $(`.tab[data-view="${view}"]`);
@@ -613,6 +676,7 @@ function switchView(view, how = "push") {
   if (view === "ranking") renderRanking();
   if (view === "profile") renderProfile();
   if (view === "arena") renderArena();
+  if (view === "mockups") renderMockups();
   else document.body.classList.remove("hs-open");  // walka w Arenie zajmuje cały ekran tylko w jej zakładce
   updateSellbar();
 }
@@ -624,8 +688,44 @@ function rerenderCurrent() { switchView(currentView(), "none"); }
 // ================================================================ SKRZYNKI
 
 function shopCrates() {
-  // skrzynki "dla wybranych" widzą tylko gracze z dostępem (posiadane z ekwipunku zawsze da się otworzyć)
-  return crateList().filter(c => (c.shop && (!c.restricted || c.canBuy)) || (S.chests[c.id] || 0) > 0 || S.me?.isAdmin);
+  // skrzynki "dla wybranych" widzą tylko gracze z dostępem (posiadane z ekwipunku zawsze da się otworzyć);
+  // skrzynki kart specjalnych nie ma w sklepie (karty specjalne są z kasyna i z linków)
+  return crateList().filter(c => !c.special && ((c.shop && (!c.restricted || c.canBuy)) || (S.chests[c.id] || 0) > 0 || S.me?.isAdmin));
+}
+
+// ---------------------------------------------------------------- karuzela skrzynek ("rotacja sklepu")
+// Środkowa skrzynka = wybrana. Karuzela sama przechodzi do następnej co SHOP_ROTATE_MS - tylko gdy jest na ekranie,
+// kursor nie jest nad sklepem i gracz przez ostatnie SHOP_IDLE_MS nie klikał w sklepie (żeby nie zmienić skrzynki pod
+// palcem tuż przed "OTWÓRZ").
+const SHOP_ROTATE_MS = 5000, SHOP_IDLE_MS = 30000;
+function carOffset(i, sel, n) {   // przesunięcie kafelka względem wybranego, "w kółko": -n/2 ... n/2
+  const half = Math.floor(n / 2);
+  return ((i - sel + n + half) % n) - half;
+}
+function placeCarousel(track, sel) {
+  const tiles = [...track.children], n = tiles.length, side = innerWidth <= 700 ? 1 : 2;
+  tiles.forEach((t, i) => {
+    const off = carOffset(i, sel, n), abs = Math.abs(off);
+    t.style.setProperty("--off", off);
+    t.style.setProperty("--abs", abs);
+    t.classList.toggle("far", abs > side);
+    t.classList.toggle("selected", off === 0);
+  });
+}
+function shopTouched() { S.shopIdleAt = Date.now(); }
+function shopRotate(dir, manual = true) {
+  const list = shopCrates();
+  if (list.length < 2) return;
+  if (manual) { shopTouched(); Sound.click(); }
+  const i = list.findIndex(c => c.id === S.crate);
+  S.crate = list[(i + dir + list.length) % list.length].id;
+  renderCrates();
+}
+function shopAutoRotate() {
+  const car = $("#shopCarousel"), r = car?.getBoundingClientRect();
+  if (currentView() !== "crates" || !r || S.opening || S.shopHover || document.hidden || dialogOpen() || viewerOpen() || epicOpen() ||
+      Date.now() - (S.shopIdleAt || 0) < SHOP_IDLE_MS || r.bottom < 80 || r.top > innerHeight - 120) return;
+  shopRotate(1, false);
 }
 
 function crateArtHTML(c, cls = "") {
@@ -649,7 +749,8 @@ function oddsBarHTML(c) {
 function renderCrates() {
   const visible = shopCrates();
   if (!visible.some(c => c.id === S.crate)) S.crate = (visible.find(c => c.canBuy) || visible[0])?.id;
-  $("#cratePicker").innerHTML = visible.map(c => {
+  const track = $("#cratePicker");
+  track.innerHTML = visible.map(c => {
     const owned = S.chests[c.id] || 0;
     const locked = !c.canBuy;
     return `<div class="shop-tile${S.crate === c.id ? " selected" : ""}${locked ? " locked" : ""}" data-crate="${c.id}" style="${crateStyle(c)}">
@@ -665,6 +766,16 @@ function renderCrates() {
       <div class="st-price">${fmt(c.price)}</div>
     </div>`;
   }).join("") || '<div class="empty">Sklep jest pusty — na razie nie ma żadnych skrzynek.</div>';
+  // karuzela: kafelki startują z pozycji względem poprzednio wybranej skrzynki i przesuwają się (transition) na nowe miejsca
+  const sel = visible.findIndex(c => c.id === S.crate), prev = visible.findIndex(c => c.id === S.shopPrev);
+  if (sel >= 0) {
+    placeCarousel(track, prev >= 0 ? prev : sel);
+    if (prev >= 0 && prev !== sel) { void track.offsetWidth; placeCarousel(track, sel); }
+  }
+  S.shopPrev = S.crate;
+  $("#shopCarousel").classList.toggle("single", visible.length < 2);
+  $("#shopDots").innerHTML = visible.length > 1 ? visible.map(c =>
+    `<button class="car-dot${c.id === S.crate ? " active" : ""}" data-crate="${c.id}" title="${esc(c.name)}" style="--c1:${c.color1}"></button>`).join("") : "";
 
   const crate = crateOf(S.crate);
   $("#buyPanel").hidden = !crate;
@@ -802,7 +913,7 @@ function miniHTML(pid, win = false) {
       <div class="ms-star">★</div><div class="mn">??? TAJNA</div></div>`;
   }
   return `<div class="mini r-${p.rarity}${win ? " win" : ""}" style="--rc:${S.cfg.rarities[p.rarity].color}">
-    <img src="${imgUrl(p.id)}" alt="" draggable="false"><div class="mn">${esc(p.name)}</div></div>`;
+    <img src="${imgUrl(p.id, null, true)}" alt="" draggable="false"><div class="mn">${esc(p.name)}</div></div>`;
 }
 
 // ================================================================ AUTOOTWIERANIE
@@ -837,6 +948,7 @@ async function openCrates() {
   if (S.opening) return;
   const crate = crateOf(S.crate);
   if (!crate) return;
+  shopTouched();
   const cost = (S.count - Math.min(S.chests[crate.id] || 0, S.count)) * crate.price;
   if (S.state.balance < cost) {
     Sound.error();
@@ -1250,9 +1362,11 @@ function openModal(pid) {
   if (!o) { closeModal(); return; }
   const p = person(pid);
   const R = S.cfg.rarities[p.rarity];
+  const special = isSpecialCard(p);
   const rows = S.cfg.variantOrder.slice().reverse().filter(v => o.byVar[v]).map(v => {
     const favs = new Set(S.items.filter(i => i.fav).map(i => i.id));
-    const all = o.byVar[v], list = all.filter(id => !favs.has(id)), val = cardValue(pid, v);  // ulubionych nie sprzedajemy
+    // ulubionych nie sprzedajemy, karty specjalnej w ogóle (można ją wymienić albo wystawić na rynku)
+    const all = o.byVar[v], list = special ? [] : all.filter(id => !favs.has(id)), val = cardValue(pid, v);
     const nFav = all.length - list.length;
     return `<div class="copy-row">
       <span class="lbl"><span class="vdot ${vtClass(v)}"></span>${variantName(v)} ×${all.length}${nFav ? ` <span class="fav-note">★${nFav}</span>` : ""} <small>· ${fmt(val)}/szt.</small></span>
@@ -1267,6 +1381,7 @@ function openModal(pid) {
       <h3>${esc(p.name)}</h3>
       <div class="muted">${S.cfg.types[p.type].icon} ${S.cfg.types[p.type].name} · ${esc(crateOf(p.crate).name)} · <b style="color:${R.color}">${R.name}</b></div>
       <div>Posiadasz: <b>${o.ids.length}</b></div>
+      ${special ? `<div class="special-note">🃏 Karta specjalna — nie da się jej sprzedać grze, postawić w kasynie ani zużyć w kuźni. Możesz ją wymienić albo wystawić na 🏪 Rynku.</div>` : ""}
       ${rows}
       <div class="modal-actions">
         ${dupes.length ? `<button class="btn sell" data-sell="${dupes.join(",")}">Sprzedaj duplikaty (zostaw najlepszą)</button>` : ""}
@@ -1278,7 +1393,8 @@ function openModal(pid) {
 }
 
 function dupesOf(o) {
-  // zostawiamy jedną kartę - w najlepszym wariancie (najlepiej ulubioną) - i wszystkie ulubione
+  // zostawiamy jedną kartę - w najlepszym wariancie (najlepiej ulubioną) - i wszystkie ulubione; karty specjalne zostają
+  if (isSpecialCard(S.items.find(i => i.id === o.ids[0])?.person)) return [];
   const favs = new Set(S.items.filter(i => i.fav).map(i => i.id));
   const keep = o.byVar[o.best].find(id => favs.has(id)) ?? o.byVar[o.best][0];
   return o.ids.filter(id => id !== keep && !favs.has(id));
@@ -1293,7 +1409,7 @@ function filteredItems() {
   const list = S.items.filter(i => {
     const p = person(i.person);
     return (f.crate === "all" || (p.crates || [p.crate]).includes(f.crate)) &&
-           (!f.rarities.size || f.rarities.has(p.rarity)) &&
+           (!f.rarities.size || f.rarities.has(p.rarity)) && cardMatches(i, f.q) &&
            (f.variant === "all" || (f.variant === "fav" ? i.fav : f.variant === "special" ? isSpecial(i.variant) : i.variant === f.variant));
   });
   const byName = (a, b) => person(a.person).name.localeCompare(person(b.person).name, "pl");
@@ -1367,7 +1483,7 @@ function renderInventory() {
 }
 
 function updateSellbar() {
-  const sel = S.items.filter(i => S.inv.selected.has(i.id) && !i.fav);
+  const sel = S.items.filter(i => S.inv.selected.has(i.id) && !i.fav && !isSpecialCard(i.person));
   $("#selInfo").textContent = `Zaznaczono ${sel.length}` + (sel.length ? ` (${fmt(sel.reduce((a, i) => a + i.value, 0))})` : "");
   $("#sellSel").disabled = !sel.length;
   $("#selNone").disabled = !sel.length;
@@ -1375,8 +1491,8 @@ function updateSellbar() {
 }
 
 async function sellSelected() {
-  const sel = S.items.filter(i => S.inv.selected.has(i.id) && !i.fav);
-  if (!sel.length) { toast("⭐ Zaznaczone karty są ulubione — nie da się ich sprzedać"); return; }
+  const sel = S.items.filter(i => S.inv.selected.has(i.id) && !i.fav && !isSpecialCard(i.person));
+  if (!sel.length) { toast("⭐ Zaznaczone karty są ulubione albo specjalne — nie da się ich sprzedać"); return; }
   const value = sel.reduce((a, i) => a + i.value, 0);
   const rare = sel.filter(i => rarityIdx(person(i.person).rarity) >= rarityIdx("gold"));
   if ((rare.length || value >= 1000) &&
@@ -1396,6 +1512,53 @@ async function sellAllDupes() {
   renderInventory();
 }
 
+// ================================================================ KARTY SPECJALNE: LINKI I MAKIETY
+
+// Link od admina do karty specjalnej (/link/<token>): odbieramy kartę (każdy gracz raz na link) i pokazujemy ją
+async function claimLink(token) {
+  history.replaceState(null, "", "/inventory");
+  S.inv.mode = "cards";
+  switchView("inventory", "none");
+  let res;
+  try { res = await api(`/api/links/${encodeURIComponent(token)}/claim`, {}); }
+  catch (e) { Sound.error(); toast(e.message, true); return; }
+  S.items = [res.item, ...S.items];
+  noteCollected([res.item]);
+  applyState(res.state);
+  if (currentView() === "inventory") renderInventory();
+  await epicReveal(res.item);
+  announceFirsts([res.item]);
+  toast(`🎁 ${person(res.item.person).name} — karta specjalna jest już w twoim ekwipunku!`);
+}
+
+// Makiety (/mockups, tylko admini): każdy wygląd każdego wariantu kart specjalnych na przykładowej karcie
+// (Donald Tusk - pl_tusk). Admin wybiera wariant i wygląd karty specjalnej w panelu (edycja karty).
+function renderMockups() {
+  const base = person("pl_tusk") || Object.values(S.cfg.people).find(p => !p.masked && p.rarity !== "secret");
+  const crate = crateList().find(c => c.special) || crateOf(base.crate);
+  const sections = S.cfg.specialVariants.map(v => {
+    const V = S.cfg.variants[v];
+    const cards = (V.styles || ["—"]).map((name, i) => {
+      const id = `__mock_${v}_${i + 1}`;   // przykładowa karta tylko na czas budowania HTML
+      S.cfg.people[id] = Object.assign({}, base, {
+        id, rarity: "special", crate: crate.id, crates: [crate.id], number: i + 1, style: i + 1, fixedVariant: v,
+        source: v === "jeans" ? "link" : "casino", imgAs: base.id,
+        attack2: base.attack2 || "Specjalny atak", dmg2: base.dmg2 || Math.round(base.dmg * 1.4) });
+      const html = `<figure class="mock"><div class="mock-card">${cardHTML(id, v)}</div>
+        <figcaption><b>${i + 1}. ${esc(name)}</b><span class="muted small">wygląd ${i + 1} · ${esc(V.name)}</span></figcaption></figure>`;
+      delete S.cfg.people[id];
+      return html;
+    }).join("");
+    return `<section class="panel mock-sec"><h3>${v === "joker" ? "🃏" : "👖"} ${esc(V.name)} <small class="muted">— ${esc(V.desc || "")}</small></h3>
+      <div class="mock-grid">${cards}</div></section>`;
+  }).join("");
+  $("#mockupsBody").innerHTML = `<div class="mock-head">
+      <h2>🎴 Makiety kart specjalnych</h2>
+      <p class="muted">Rzadkość <b style="color:${S.cfg.rarities.special.color}">${esc(S.cfg.rarities.special.name)}</b> — między Legendarną a ULTRA.
+        Na przykładzie: ${esc(base.name)}. Wariant i wygląd każdej karty specjalnej wybierasz w <a href="/admin">panelu admina</a>
+        (rzadkość „Specjalna” w edycji karty).</p></div>${sections}`;
+}
+
 // ================================================================ ZDARZENIA
 
 function bind() {
@@ -1409,13 +1572,28 @@ function bind() {
 
   $("#cntMinus").addEventListener("click", () => { Sound.click(); setCount(S.count - 1); });
   $("#cntPlus").addEventListener("click", () => { Sound.click(); setCount(S.count + 1); });
-  $("#cratePicker").addEventListener("click", e => {
-    const c = e.target.closest(".shop-tile"); if (!c) return;
-    if (S.crate !== c.dataset.crate) {
-      S.crate = c.dataset.crate; Sound.click(); renderCrates();
-      $("#buyPanel").scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
+  const car = $("#shopCarousel");
+  let swipeX = null, swiped = false;
+  car.addEventListener("click", e => {
+    if (swiped) { swiped = false; return; }   // to był ruch w bok, nie kliknięcie w kafelek
+    const arrow = e.target.closest("[data-car]");
+    if (arrow) return shopRotate(+arrow.dataset.car);
+    const c = e.target.closest(".shop-tile, .car-dot"); if (!c) return;
+    shopTouched();
+    if (S.crate !== c.dataset.crate) { S.crate = c.dataset.crate; Sound.click(); renderCrates(); }
+    else if (c.matches(".shop-tile")) $("#buyPanel").scrollIntoView({ behavior: "smooth", block: "nearest" });
   });
+  // przesunięcie palcem / myszą w bok = następna / poprzednia skrzynka
+  car.addEventListener("pointerdown", e => { swipeX = e.clientX; swiped = false; shopTouched(); });
+  car.addEventListener("pointerup", e => {
+    if (swipeX === null) return;
+    const dx = e.clientX - swipeX; swipeX = null;
+    if (Math.abs(dx) > 45) { swiped = true; shopRotate(dx < 0 ? 1 : -1); }
+  });
+  car.addEventListener("pointerenter", () => { S.shopHover = true; });
+  car.addEventListener("pointerleave", () => { S.shopHover = false; swipeX = null; });
+  $("#buyPanel").addEventListener("pointerdown", shopTouched);   // gracz coś ustawia przy zakupie - karuzela stoi
+  setInterval(shopAutoRotate, SHOP_ROTATE_MS);
   $("#countChips").addEventListener("click", e => {
     const c = e.target.closest(".chip"); if (!c) return;
     Sound.click(); setCount(+c.dataset.n);
@@ -1487,6 +1665,8 @@ function bind() {
     S.inv.limit = INV_PAGE; renderInventory();
   });
   $("#invVariant").addEventListener("change", e => { S.inv.variant = e.target.value; S.inv.limit = INV_PAGE; renderInventory(); });
+  // wyszukiwanie po nazwie (też po wariancie i rzadkości, bez polskich znaków - cardMatches)
+  $("#invSearch").addEventListener("input", e => { S.inv.q = e.target.value; S.inv.limit = INV_PAGE; renderInventory(); });
   $("#invSort").addEventListener("change", e => { S.inv.sort = e.target.value; renderInventory(); });
   $("#invMore").addEventListener("click", () => { S.inv.limit += INV_PAGE; renderInventory(); });
   $("#invGrid").addEventListener("click", async e => {
@@ -1554,6 +1734,9 @@ function bind() {
       if (e.key === "ArrowLeft") flipBinder(-1);
       if (e.key === "ArrowRight") flipBinder(1);
     }
+    if (currentView() === "crates" && $("#modal").hidden && !S.opening && ["ArrowLeft", "ArrowRight"].includes(e.key)) {
+      e.preventDefault(); shopRotate(e.key === "ArrowLeft" ? -1 : 1);
+    }
   });
   document.addEventListener("pointerdown", () => Sound.unlock(), { once: true });
 }
@@ -1579,9 +1762,10 @@ function bind() {
   S.collected = new Set((st.collected || []).map(([p, v]) => `${p}|${v}`));
   S.crate = S.binderCrate = cfg.crateOrder[0];
   try { S.fast = localStorage.getItem("fast") === "1"; } catch (_) {}
-  // podgrzej cache zdjęć, żeby bębny od razu miały obrazki
-  Object.keys(cfg.people).forEach(id => { const im = new Image(); im.src = imgUrl(id); });
+  // podgrzej cache miniatur, żeby bębny od razu miały obrazki
+  Object.keys(cfg.people).forEach(id => { const im = new Image(); im.src = imgUrl(id, null, true); });
   bind();
+  watchCovers();
   renderHeader();
   showRoute("replace");  // widok z adresu strony (/inventory, /player/nazwa...)
   setupInstall();

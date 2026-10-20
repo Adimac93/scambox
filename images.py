@@ -89,6 +89,60 @@ def mimetype(path):
     return EXTS.get(path.rsplit(".", 1)[-1], "image/jpeg")
 
 
+# ---------------------------------------------------------------- lżejsze wersje do wysyłania
+# Małe kafelki (bęben skrzynki, kuźnia, kasyno, rynek) dostają miniaturę WebP zamiast pełnego zdjęcia (500 px, ~100 KB):
+# przeglądarka nie musi dekodować setek dużych zdjęć naraz. Duże pliki (np. PNG wgrane w panelu admina) idą jako lżejszy
+# WebP. Pliki robią się same przy pierwszym użyciu w image_cache/_web (potrzebny Pillow - bez niego wysyłamy oryginał).
+WEB_DIR = os.path.join(CACHE_DIR, "_web")
+THUMB_WIDTH = 240        # kafelki mają do ~150 px szerokości (×1.5 na ekranach o większej gęstości)
+FULL_WIDTH = 600
+BIG_FILE = 120 * 1024    # większe pliki wysyłamy jako WebP
+try:
+    from PIL import Image, ImageOps
+except ImportError:
+    Image = None
+_web_lock = threading.Lock()
+
+
+def web_version(path, thumb=False):
+    """Plik do wysłania przeglądarce: miniatura (thumb) albo lżejszy WebP zamiast dużego pliku - lub sam oryginał."""
+    if Image is None or not path or path.lower().endswith(".gif"):
+        return path
+    try:
+        src = os.stat(path)
+    except OSError:
+        return path
+    if not thumb and src.st_size <= BIG_FILE:
+        return path
+    out = os.path.join(WEB_DIR, os.path.basename(path).replace(".", "_") + ("__thumb" if thumb else "") + ".webp")
+
+    def fresh():
+        try:
+            return os.path.getmtime(out) >= src.st_mtime
+        except OSError:
+            return False
+    if fresh():
+        return out
+    with _web_lock:
+        if fresh():  # w międzyczasie zrobił go inny wątek
+            return out
+        try:
+            with Image.open(path) as im:
+                im = ImageOps.exif_transpose(im)
+                width = THUMB_WIDTH if thumb else FULL_WIDTH
+                if im.width > width:
+                    im = im.resize((width, max(1, round(im.height * width / im.width))), Image.LANCZOS)
+                if im.mode not in ("RGB", "RGBA"):
+                    im = im.convert("RGBA" if im.mode in ("LA", "PA") or "transparency" in im.info else "RGB")
+                os.makedirs(WEB_DIR, exist_ok=True)
+                im.save(out + ".tmp", "WEBP", quality=80 if thumb else 85, method=4)
+            os.replace(out + ".tmp", out)
+            return out
+        except Exception as e:
+            print(f"[zdjęcia] nie udało się zmniejszyć {os.path.basename(path)}: {e}")
+            return path
+
+
 def sniff(blob):
     if blob[:3] == b"\xff\xd8\xff":
         return "jpg"
@@ -341,6 +395,8 @@ def prefetch_all_async():
         with _lock:
             res = fetch(list(catalog.PEOPLE))
         print(f"[zdjęcia] główne: {sum(res.values())}/{len(res)}")
+        for pid in list(catalog.PEOPLE):  # miniatury do bębna i kafelków - od razu, a nie przy pierwszym otwarciu skrzynki
+            web_version(find(pid), thumb=True)
     threading.Thread(target=run, daemon=True).start()
 
 

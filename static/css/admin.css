@@ -137,3 +137,16 @@ fieldset .chk { display: flex; margin: 4px 0; color: var(--text); font-size: 14p
 .a-vphoto-row { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
 .a-vphoto-row .a-img-box { width: 120px; flex: none; }
 .a-vphoto-row .a-grid { flex: 1; min-width: 220px; }
+
+/* karty specjalne i linki do nich */
+.a-special-note { margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid #19e6ff66; background: linear-gradient(90deg, #19e6ff1a, #ff2bd61a); font-size: 13px; }
+fieldset.a-special { border-color: #19e6ff66; }
+.a-link-form { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin: 6px 0 14px; }
+.a-link-form label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; color: var(--muted); }
+.a-link-form select, .a-link-form input { min-width: 160px; }
+.a-links { display: flex; flex-direction: column; gap: 8px; }
+.a-link { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 10px 12px; border-radius: 12px; background: var(--panel2); border: 1px solid var(--line); }
+.a-link.off { opacity: .55; }
+.a-link-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.a-link-url { font-size: 12px; color: #19e6ff; word-break: break-all; user-select: all; }
+.a-link-actions { display: flex; gap: 6px; flex: none; }

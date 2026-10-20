@@ -40,7 +40,7 @@ button { font-family: inherit; cursor: pointer; }
   position: sticky; top: 0; z-index: 50;
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
   padding: 10px 20px;
-  background: #0c0f17e6; backdrop-filter: blur(10px);
+  background: #0c0f17f5;   /* bez backdrop-filter: rozmycie liczyło się od nowa przy każdym przewinięciu / animacji kart */
   border-bottom: 1px solid var(--line);
 }
 .logo { font-family: Bungee, Rubik, sans-serif; font-size: 22px; letter-spacing: .5px; white-space: nowrap; }
@@ -257,15 +257,29 @@ main { max-width: 1400px; margin: 0 auto; padding: 24px 20px 120px; }
   --rc: var(--c-gold);
   --frame: linear-gradient(115deg, #8a5b00, #ffe58a 20%, #c78b00 40%, #fff3c4 55%, #b07a00 75%, #ffe08a);
   --inner: linear-gradient(170deg, #fff9df, #f6dc8a);
-  background-size: 200% 200%; animation: goldShift 4s ease-in-out infinite;
   box-shadow: 0 6px 18px #000a, 0 0 18px #ffc53188;
 }
 .card.r-ultra  {
   --rc: var(--c-ultra);
-  --frame: conic-gradient(from var(--ang, 0deg), #ff3b3b, #ff9f1a, #ffe53b, #3bff6b, #3bd5ff, #6b5bff, #ff3bd8, #ff3b3b);
+  --spin: #ff3b3b, #ff9f1a, #ffe53b, #3bff6b, #3bd5ff, #6b5bff, #ff3bd8, #ff3b3b;   /* kolory obracającej się ramki */
+  --frame: conic-gradient(from 0deg, var(--spin));
   --inner: linear-gradient(160deg, #fff4fd, #e8f3ff 40%, #f2ffe9 70%, #fff6dc);
-  animation: ultraSpin 3s linear infinite;
   box-shadow: 0 6px 18px #000a, 0 0 22px #ff5cf0aa, 0 0 44px #3bd5ff55;
+}
+/* Animowana ramka (mieniące się złoto, obracająca się tęcza / kamienie / galaktyka) jest rysowana w ::before na osobnej
+   warstwie - w każdej klatce przerysowuje się tylko ramka, a nie cała karta ze zdjęciem i napisami (wcześniej każda złota
+   i ULTRA karta na ekranie przerysowywała się w całości 60 razy na sekundę). Obracająca się ramka bierze kolory z --spin,
+   bo kąt (--ang) musi się zmieniać w samym ::before; wariant ze stałą ramką (np. czarno-biała) ustawia --spin: initial.
+   Tajne i flagowe karty mają własne tło - bez ::before (cards2.css). */
+.card:is(.r-gold, .r-ultra, .v-gold, .v-silver, .v-royal, .v-diamond, .v-emerald, .v-ruby, .v-galaxy) { background: none; isolation: isolate; }
+.card:is(.r-gold, .r-ultra, .v-gold, .v-silver, .v-royal, .v-diamond, .v-emerald, .v-ruby, .v-galaxy)::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; will-change: transform;
+  background: var(--frame);
+}
+.card.r-gold::before { background-size: 200% 200%; animation: goldShift 4s ease-in-out infinite; }
+.card.r-ultra::before {
+  background: conic-gradient(from var(--ang, 0deg), var(--spin, transparent 0 0)), var(--frame);
+  animation: ultraSpin 3s linear infinite;
 }
 .card.r-ultra .card-name {
   background: linear-gradient(90deg, #d4004a, #e07a00, #1a9e3f, #0067d6, #8a1fd6);
@@ -321,7 +335,8 @@ main { max-width: 1400px; margin: 0 auto; padding: 24px 20px 120px; }
 
 /* ------------------------------------------------------------ SCENA */
 .stage { position: fixed; inset: 0; z-index: 100; display: flex; }
-.stage-bg { position: absolute; inset: 0; background: radial-gradient(circle at 50% 40%, #1b2140f2, #05060bf7); backdrop-filter: blur(6px); }
+/* nieprzezroczyste tło bez rozmycia - strona pod spodem jest wtedy schowana (body.covered) */
+.stage-bg { position: absolute; inset: 0; background: radial-gradient(circle at 50% 40%, #1b2140, #05060b); }
 .stage-inner { position: relative; flex: 1; display: flex; flex-direction: column; padding: 18px; gap: 14px; min-height: 0; }
 .stage-title { text-align: center; font-family: Bungee, Rubik, sans-serif; font-size: 22px; }
 .reels { flex: 1; display: grid; gap: 12px; align-content: center; min-height: 0; overflow: auto; padding: 4px; }
@@ -357,6 +372,8 @@ main { max-width: 1400px; margin: 0 auto; padding: 24px 20px 120px; }
 .mini.r-gold { box-shadow: inset 0 0 0 2px var(--c-gold), inset 0 -30px 30px -20px var(--c-gold); }
 .mini.r-ultra { border-image: var(--rainbow) 1; box-shadow: inset 0 0 0 2px #fff6; }
 .mini.r-ultra::after { content: ""; position: absolute; inset: 0; background: var(--rainbow); background-size: 200% 100%; opacity: .25; mix-blend-mode: screen; animation: rainbowSlide 2s linear infinite; }
+/* w kręcącym się bębnie błyski kafelków stoją (inaczej cały pasek przerysowywał się w każdej klatce) - ruszają po zatrzymaniu */
+.reel:not(.landed) .mini::after { animation-play-state: paused; }
 .reel.landed { border-color: var(--rc); box-shadow: 0 0 18px var(--rc), inset 0 0 30px color-mix(in srgb, var(--rc) 30%, transparent); }
 .reel.landed .mini.win { transform: scale(1.06); transition: transform .25s; z-index: 1; box-shadow: 0 0 20px var(--rc), inset 0 0 0 2px var(--rc); }
 .reel.landed .mini:not(.win) { opacity: .35; transition: opacity .4s; }
@@ -485,13 +502,13 @@ select { background: var(--panel); color: var(--text); border: 1px solid var(--l
 .sellbar {
   position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 40;
   display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center;
-  background: #161b28f2; backdrop-filter: blur(10px); border: 1px solid var(--line); border-radius: 16px;
+  background: #161b28fa; border: 1px solid var(--line); border-radius: 16px;
   padding: 10px 14px; box-shadow: 0 10px 30px #000a; max-width: calc(100% - 32px);
 }
 #selInfo { color: var(--muted); font-size: 14px; margin-right: 6px; }
 
 /* ------------------------------------------------------------ MODAL */
-.modal { position: fixed; inset: 0; z-index: 150; display: grid; place-items: center; background: #000b; backdrop-filter: blur(6px); padding: 16px; animation: fadeUp .2s; }
+.modal { position: fixed; inset: 0; z-index: 150; display: grid; place-items: center; background: #000000d4; padding: 16px; animation: fadeUp .2s; }
 .modal-box {
   background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 24px;
   display: flex; gap: 26px; flex-wrap: wrap; justify-content: center; max-width: 760px; max-height: 92vh; overflow: auto;
@@ -567,7 +584,7 @@ select { background: var(--panel); color: var(--text); border: 1px solid var(--l
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; order: initial; flex-basis: auto;
     display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0;  /* tyle kolumn, ile zakładek */
     padding: 4px 2px calc(4px + env(safe-area-inset-bottom));
-    background: #0c0f17f2; backdrop-filter: blur(12px); border-top: 1px solid var(--line);
+    background: #0c0f17fa; border-top: 1px solid var(--line);
   }
   a.tab { display: flex; width: 100%; flex-direction: column; align-items: center; gap: 3px; padding: 6px 0 5px; font-size: 10.5px; border-radius: 10px; position: relative; white-space: nowrap; min-width: 0; }
   .tab .ti { font-size: 21px; line-height: 1; margin: 0; }
@@ -647,3 +664,19 @@ select { background: var(--panel); color: var(--text); border: 1px solid var(--l
 .forge-pick-head > span { flex: 1 1 100%; }
 .upg-filters { flex-wrap: wrap; }
 .upg-filters input[type=text] { min-width: 120px; }
+
+/* ------------------------------------------------------------ WYDAJNOŚĆ */
+/* Pełnoekranowa nakładka (otwieranie skrzynek, wielkie odsłonięcie, animacja kuźni, podgląd karty...) zasłania całą stronę:
+   na ten czas strona pod spodem nie jest liczona ani rysowana (klasa body.covered - app.js). "auto none" zapamiętuje
+   wysokość strony, więc po zamknięciu nakładki nic nie skacze i przewinięcie zostaje. */
+body > main, body > .topbar { contain-intrinsic-size: auto none; }
+body.covered > main, body.covered > .topbar, body.covered > .sellbar { content-visibility: hidden; }
+/* Długie listy kart (ekwipunek, zawartość skrzynki, kafelki w kuźni / kasynie / na rynku...): karty poza ekranem
+   są pomijane - bez liczenia układu i bez animacji. overflow-clip-margin: poświata i ozdoby kart wystają poza kartę.
+   Pominięta karta ma tę samą wysokość co narysowana (proporcje karty 63:88), więc nic nie skacze przy przewijaniu. */
+.inv-item, .bulk-card { aspect-ratio: 63 / 88; }
+.inv-item, .contents-grid > .card, .bulk-card {
+  content-visibility: auto; contain-intrinsic-height: auto none; overflow-clip-margin: 48px;
+}
+.mk-item, .hof-card, .feed-item { content-visibility: auto; contain-intrinsic-height: auto 200px; overflow-clip-margin: 48px; }
+.pick-grid > .pick { content-visibility: auto; contain-intrinsic-height: auto var(--pick-h, 130px); }

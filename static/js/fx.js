@@ -5,6 +5,7 @@
 const RAINBOW = ["#ff3b3b", "#ff9f1a", "#ffe53b", "#3bff6b", "#3bd5ff", "#6b5bff", "#ff3bd8"];
 const GOLDS = ["#ffc531", "#ffe58a", "#fff6cf", "#ffb300", "#ffffff"];
 const SECRET_COLORS = ["#fff6d0", "#f3e3b0", "#ffd54a", "#ffffff", "#ffe9a8"];
+const SPECIAL_COLORS = ["#19e6ff", "#ff2bd6", "#ffd54a", "#7dff6b", "#ffffff"];   // karty specjalne (Joker...)
 
 // ================================================================ CZĄSTECZKI
 
@@ -98,13 +99,13 @@ function epicReveal(drop, { fast = false, auto = false } = {}) {
   if (person(drop.person).rarity === "secret") return secretReveal(drop, { fast });
   return new Promise(resolve => {
     const p = person(drop.person);
-    const ultra = p.rarity === "ultra";
-    const title = ultra ? "ULTRA LEGENDARNA!" : "LEGENDARNA!";
-    const colors = ultra ? RAINBOW : GOLDS;
+    const ultra = p.rarity === "ultra", special = p.rarity === "special";
+    const title = ultra ? "ULTRA LEGENDARNA!" : special ? (baseVariant(drop.variant) === "joker" ? "🃏 JOKER!" : "SPECJALNA!") : "LEGENDARNA!";
+    const colors = ultra ? RAINBOW : special ? SPECIAL_COLORS : GOLDS;
     const chargeMs = ultra ? (fast ? 1300 : 2700) : (fast ? 800 : 1700);
 
     const el = document.createElement("div");
-    el.className = `epic ${ultra ? "ultra" : "gold"}`;
+    el.className = `epic ${ultra ? "ultra" : special ? "special" : "gold"}`;
     el.style.setProperty("--charge", chargeMs + "ms");
     el.innerHTML = `
       <div class="epic-bg"></div>
@@ -166,7 +167,7 @@ function epicReveal(drop, { fast = false, auto = false } = {}) {
         setTimeout(() => P.burst(x, y, 260, RAINBOW, { speed: 28, g: 0.05, life: [80, 160], stars: 0.4 }), 350);
         setTimeout(() => confetti(RAINBOW, 260), 500);
       } else {
-        setTimeout(() => confetti(GOLDS, 140), 450);
+        setTimeout(() => confetti(colors, special ? 200 : 140), 450);
       }
       // delikatne iskry unoszące się wokół karty
       ambient = setInterval(() => {
@@ -224,7 +225,10 @@ function openViewer(pid, variant = "normal") {
       </div>
     </div>`;
   // skrzynki, z których można zdobyć tę kartę (widać tylko w podglądzie, nie na samej karcie)
-  const cratesRow = `<tr><td>Ze skrzynek</td><td>${(p.crates || [p.crate]).map(crateOf).filter(Boolean)
+  // karta specjalna: nie ze skrzynek, tylko z kasyna albo z linku od admina
+  const cratesRow = isSpecialCard(p)
+    ? `<tr><td>Skąd</td><td>${esc(S.cfg.specialSources[p.source] || "")}</td></tr>`
+    : `<tr><td>Ze skrzynek</td><td>${(p.crates || [p.crate]).map(crateOf).filter(Boolean)
     .map(c => `${esc(c.emoji)} ${esc(c.name)}`).join("<br>")}</td></tr>`;
   if (p.masked) {
     const share = rarityShare(p.crate, "secret");
@@ -265,7 +269,8 @@ function openViewer(pid, variant = "normal") {
           ${abilitiesOf(p).map((a, i, all) => `<tr><td>${a.kind !== "off" ? kindIcon(a.kind) + " " : ""}${KIND_LABELS[a.kind] || "Atak"}${all.length > 1 ? " " + (i + 1) : ""}</td><td>${esc(a.name)} <b>${a.value}</b></td></tr>`).join("")}
           <tr><td>Słabość / odporność</td><td>${S.cfg.types[type.weak].icon} ×2 · ${S.cfg.types[type.resist].icon} −20</td></tr>
           <tr><td>Wartość</td><td><b>${fmt(cardValue(pid, variant))}</b> <span class="muted">(×${String(S.cfg.variants[variant].mult).replace(".", ",")})</span></td></tr>
-          <tr><td>Szansa z 1 skrzynki</td><td>${chance ? "1 na " + Math.round(1 / chance).toLocaleString("pl-PL") : "—"}</td></tr>
+          ${isSpecialCard(p) ? `<tr><td>Karta specjalna</td><td>tylko w wariancie ${esc(variantName(p.fixedVariant))} · nie da się jej sprzedać grze, postawić ani zużyć</td></tr>`
+            : `<tr><td>Szansa z 1 skrzynki</td><td>${chance ? "1 na " + Math.round(1 / chance).toLocaleString("pl-PL") : "—"}</td></tr>`}
           ${cratesRow}
           <tr><td>Posiadasz</td><td>${owned || '<span class="muted">brak</span>'}</td></tr>
         </table>

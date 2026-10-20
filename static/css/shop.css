@@ -1,7 +1,43 @@
 /* ============================================================ SKLEP */
 .shop-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
 .shop-head h2 { margin: 0; font-family: Bungee, Rubik, sans-serif; font-weight: 400; font-size: 22px; }
-.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+
+/* karuzela skrzynek ("rotacja sklepu"): środkowa skrzynka = wybrana, pozostałe po bokach w 3D; --off = miejsce względem
+   wybranej (-2 ... 2), --abs = |--off| (app.js: placeCarousel). Zmiana skrzynki = przesunięcie (transition). */
+.shop-carousel { position: relative; padding: 0 0 30px; user-select: none; touch-action: pan-y; }
+.car-track { position: relative; height: 330px; perspective: 1100px; overflow: hidden; }
+.car-track::before {   /* obracające się promienie światła za wybraną skrzynką */
+  content: ""; position: absolute; left: 50%; top: 50%; width: 560px; aspect-ratio: 1; translate: -50% -50%; pointer-events: none;
+  background: repeating-conic-gradient(#ffcf3f1c 0 7deg, transparent 7deg 22deg);
+  -webkit-mask: radial-gradient(closest-side, #000 20%, transparent); mask: radial-gradient(closest-side, #000 20%, transparent);
+  animation: spin 40s linear infinite;
+}
+.car-track::after {    /* plama światła pod wybraną skrzynką */
+  content: ""; position: absolute; left: 50%; bottom: 0; width: 340px; height: 56px; translate: -50% 0; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 100%, #ffcf3f30, transparent 70%);
+}
+.car-track > .shop-tile {
+  position: absolute; left: 50%; top: 18px; width: 236px; margin-left: -118px; z-index: calc(20 - var(--abs, 0));
+  transform: translateX(calc(var(--off, 0) * 84%)) translateZ(calc(var(--abs, 0) * -150px)) rotateY(calc(var(--off, 0) * -18deg));
+  opacity: calc(1 - var(--abs, 0) * .25); filter: brightness(calc(1 - var(--abs, 0) * .2));
+  transition: transform .7s cubic-bezier(.2, .85, .25, 1), opacity .5s, filter .5s, scale .5s, border-color .2s, box-shadow .2s;
+}
+.car-track > .shop-tile:hover { transform: translateX(calc(var(--off, 0) * 84%)) translateZ(calc(var(--abs, 0) * -150px)) rotateY(calc(var(--off, 0) * -18deg)); }
+.car-track > .shop-tile:not(.selected):hover { filter: brightness(1); }
+.car-track > .shop-tile.selected { scale: 1.07; }
+.car-track > .shop-tile.far { opacity: 0; pointer-events: none; }
+.car-track > .empty { position: absolute; inset: 0; display: grid; place-items: center; }
+.car-arrow {
+  position: absolute; top: 150px; z-index: 30; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center;
+  border: 2px solid var(--line); background: #161b28e6; color: var(--text); font-size: 28px; line-height: 1; padding: 0 0 3px;
+  box-shadow: 0 6px 18px #0009; transition: transform .15s, border-color .15s;
+}
+.car-arrow:hover { transform: scale(1.1); border-color: var(--accent); }
+.car-arrow.prev { left: 6px; } .car-arrow.next { right: 6px; }
+.car-dots { position: absolute; left: 0; right: 0; bottom: 4px; display: flex; gap: 8px; justify-content: center; }
+.car-dot { width: 10px; height: 10px; border-radius: 99px; border: none; padding: 0; background: #ffffff30; transition: width .3s, background .3s; }
+.car-dot.active { width: 28px; background: linear-gradient(90deg, var(--accent), var(--c1, var(--accent))); }
+.shop-carousel.single .car-arrow, .shop-carousel.single .car-dots { display: none; }
 
 .shop-tile {
   position: relative; cursor: pointer; border-radius: 18px; padding: 16px 14px 14px; text-align: center;
@@ -63,7 +99,11 @@
 #view-crates > .stats { margin-top: 14px; }
 
 @media (max-width: 700px) {
-  .shop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .car-track { height: 296px; }
+  .car-track > .shop-tile { width: 200px; margin-left: -100px; }
+  .car-track > .shop-tile, .car-track > .shop-tile:hover {
+    transform: translateX(calc(var(--off, 0) * 74%)) translateZ(calc(var(--abs, 0) * -150px)) rotateY(calc(var(--off, 0) * -20deg)); }
+  .car-arrow { top: 130px; width: 38px; height: 38px; font-size: 24px; }
   .shop-tile .crate-art { width: 100px; height: 86px; }
   .bp-art { width: 100%; }
 }

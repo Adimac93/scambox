@@ -144,9 +144,9 @@
 /* Golden - cała karta ze złota, zdjęcie w złotej sepii */
 .card.v-gold {
   --frame: linear-gradient(115deg, #7a5200, #ffe9a0 18%, #b8860b 36%, #fff6cf 50%, #a87400 66%, #ffe08a 84%, #7a5200);
-  background-size: 250% 250%; animation: goldShift 3s ease-in-out infinite;
   box-shadow: 0 6px 18px #000a, 0 0 24px #ffcf3fbb;
 }
+.card.v-gold::before { background: var(--frame); background-size: 250% 250%; animation: goldShift 3s ease-in-out infinite; }  /* ramka: style.css */
 .card.v-gold .card-inner {
   background: repeating-linear-gradient(90deg, #ffffff14 0 1px, transparent 1px 3px),
               linear-gradient(160deg, #fff4c8, #e8b84a 35%, #fff1b8 55%, #c9952c 80%, #ffe9a8);
@@ -301,7 +301,7 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 .odd.odd-v.vt-silver { border-left-color: #c9d1dc; }
 
 /* Czarno-biała - cała karta w czerni i bieli, mocny kontrast, czarna ramka */
-.card.v-bw { filter: grayscale(1) contrast(1.18); --frame: linear-gradient(145deg, #2a2a2a, #000 50%, #2a2a2a); box-shadow: 0 6px 18px #000a, 0 0 0 1px #fff4; }
+.card.v-bw { filter: grayscale(1) contrast(1.18); --frame: linear-gradient(145deg, #2a2a2a, #000 50%, #2a2a2a); --spin: initial; box-shadow: 0 6px 18px #000a, 0 0 0 1px #fff4; }
 .card.v-bw .card-inner { background: linear-gradient(170deg, #ffffff, #dcdcdc); }
 .card.v-bw .card-photo { border-image: none; border-color: #000; }
 .card.v-bw .card-photo img, .r-secret.v-bw .sc-art img { filter: contrast(1.25) brightness(1.05); }
@@ -311,9 +311,9 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 /* Srebrna - srebrny metal, zdjęcie w chłodnej szarości */
 .card.v-silver {
   --frame: linear-gradient(115deg, #5d6673, #f4f7fb 18%, #8f9aa8 36%, #ffffff 50%, #7c8796 66%, #e3e8ef 84%, #5d6673);
-  background-size: 250% 250%; animation: goldShift 3.5s ease-in-out infinite;
   box-shadow: 0 6px 18px #000a, 0 0 22px #dfe6f0aa;
 }
+.card.v-silver::before { background: var(--frame); background-size: 250% 250%; animation: goldShift 3.5s ease-in-out infinite; }
 .card.v-silver .card-inner {
   background: repeating-linear-gradient(90deg, #ffffff20 0 1px, transparent 1px 3px),
               linear-gradient(160deg, #f6f8fb, #c4ccd7 35%, #f1f4f8 55%, #a8b2bf 80%, #e9edf2);
@@ -346,9 +346,13 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
   --gem-t1: #ff1e3c; --gem-t2: #ff6f86; --gem-t3: #a3001a; --gem-glint: #ff4f6d; --gem-hue: 325deg;
 }
 .card.v-diamond, .card.v-emerald, .card.v-ruby {
-  --frame: conic-gradient(from var(--ang, 0deg), var(--gem-1), var(--gem-3), #ffffff, var(--gem-5), var(--gem-7), var(--gem-4), var(--gem-1));
-  animation: ultraSpin 4s linear infinite;
+  --spin: var(--gem-1), var(--gem-3), #ffffff, var(--gem-5), var(--gem-7), var(--gem-4), var(--gem-1);
+  --frame: conic-gradient(from 0deg, var(--spin));
   box-shadow: 0 6px 18px #000a, 0 0 26px color-mix(in srgb, var(--gem-2) 87%, transparent), 0 0 60px color-mix(in srgb, var(--gem-6) 53%, transparent);
+}
+:is(.card.v-diamond, .card.v-emerald, .card.v-ruby)::before {   /* obracająca się ramka (style.css) */
+  background: conic-gradient(from var(--ang, 0deg), var(--spin, transparent 0 0)), var(--frame);
+  animation: ultraSpin 4s linear infinite;
 }
 :is(.card.v-diamond, .card.v-emerald, .card.v-ruby) .card-inner {
   background:
@@ -447,7 +451,7 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 
 /* ============================================================ PRZEZROCZYSTA - szklana karta: przez ramkę i tło widać podłoże */
 .card.v-clear {
-  --frame: linear-gradient(135deg, #ffffff66, #ffffff14 38%, #ffffff40 62%, #ffffff10);
+  --frame: linear-gradient(135deg, #ffffff66, #ffffff14 38%, #ffffff40 62%, #ffffff10); --spin: initial;
   backdrop-filter: blur(2px);
   box-shadow: 0 6px 18px #0006, inset 0 0 0 1px #ffffffaa, 0 0 18px #bfefff55;
 }
@@ -535,9 +539,9 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 .card.v-royal {
   padding: 4.6%;   /* trochę grubsza rama, żeby zmieściły się ornamenty */
   --frame: linear-gradient(115deg, #6b4500, #ffe08a 14%, #b8860b 28%, #fff3c4 42%, #9c6b00 58%, #ffd75e 76%, #6b4500);
-  background-size: 250% 250%; animation: goldShift 3s ease-in-out infinite;
   box-shadow: 0 6px 18px #000a, 0 0 22px #ffcf3fbb;
 }
+.card.v-royal::before { background: var(--frame); background-size: 250% 250%; animation: goldShift 3s ease-in-out infinite; }
 .royal-border {
   position: absolute; inset: 0; z-index: 5; pointer-events: none; border-radius: inherit;
   background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 630 880' preserveAspectRatio='none'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23fff4bf'/><stop offset='.3' stop-color='%23f0c437'/><stop offset='.55' stop-color='%23a8740a'/><stop offset='.8' stop-color='%23f7d873'/><stop offset='1' stop-color='%23b8860b'/></linearGradient></defs><rect x='3' y='3' width='624' height='874' rx='26' fill='none' stroke='%235a3a00' stroke-width='3'/><rect x='15' y='15' width='600' height='850' rx='17' fill='none' stroke='%235a3a00' stroke-width='5' opacity='.45'/><rect x='15' y='15' width='600' height='850' rx='17' fill='none' stroke='%23fff4bf' stroke-width='1.6' opacity='.9'/><rect x='28' y='28' width='574' height='824' rx='12' fill='none' stroke='%235a3a00' stroke-width='2.5' opacity='.7'/><g fill='none' stroke-linecap='round' stroke-linejoin='round'><g stroke='%234a2f00' stroke-width='9' opacity='.55'><g transform='scale(.8)'><path d='M10 120 C10 52 52 10 120 10'/><path d='M120 10 C148 10 162 24 156 40 C151 52 134 50 137 38 C139 31 147 31 148 37'/><path d='M10 120 C10 148 24 162 40 156 C52 151 50 134 38 137 C31 139 31 147 37 148'/><path d='M30 72 C40 50 52 38 74 28'/><path d='M22 22 C40 30 46 40 50 50 C40 46 30 40 22 22 Z' fill='url(%23g)'/></g><g transform='translate(630 0) scale(-1 1)'><g transform='scale(.8)'><path d='M10 120 C10 52 52 10 120 10'/><path d='M120 10 C148 10 162 24 156 40 C151 52 134 50 137 38 C139 31 147 31 148 37'/><path d='M10 120 C10 148 24 162 40 156 C52 151 50 134 38 137 C31 139 31 147 37 148'/><path d='M30 72 C40 50 52 38 74 28'/><path d='M22 22 C40 30 46 40 50 50 C40 46 30 40 22 22 Z' fill='url(%23g)'/></g></g><g transform='translate(0 880) scale(1 -1)'><g transform='scale(.8)'><path d='M10 120 C10 52 52 10 120 10'/><path d='M120 10 C148 10 162 24 156 40 C151 52 134 50 137 38 C139 31 147 31 148 37'/><path d='M10 120 C10 148 24 162 40 156 C52 151 50 134 38 137 C31 139 31 147 37 148'/><path d='M30 72 C40 50 52 38 74 28'/><path d='M22 22 C40 30 46 40 50 50 C40 46 30 40 22 22 Z' fill='url(%23g)'/></g></g><g transform='translate(630 880) scale(-1 -1)'><g transform='scale(.8)'><path d='M10 120 C10 52 52 10 120 10'/><path d='M120 10 C148 10 162 24 156 40 C151 52 134 50 137 38 C139 31 147 31 148 37'/><path d='M10 120 C10 148 24 162 40 156 C52 151 50 134 38 137 C31 139 31 147 37 148'/><path d='M30 72 C40 50 52 38 74 28'/><path d='M22 22 C40 30 46 40 50 50 C40 46 30 40 22 22 Z' fill='url(%23g)'/></g></g></g><g stroke='url(%23g)' stroke-width='5'><g transform='scale(.8)'><path d='M10 120 C10 52 52 10 120 10'/><path d='M120 10 C148 10 162 24 156 40 C151 52 134 50 137 38 C139 31 147 31 148 37'/><path d='M10 120 C10 148 24 162 40 156 C52 151 50 134 38 137 C31 139 31 147 37 148'/><path d='M30 72 C40 50 52 38 74 28'/><path d='M22 22 C40 30 46 40 50 50 C40 46 30 40 22 22 Z' fill='url(%23g)'/></g><g transform='translate(630 0) scale(-1 1)'><g transform='scale(.8)'><path d='M10 120 C10 52 52 10 120 10'/><path d='M120 10 C148 10 162 24 156 40 C151 52 134 50 137 38 C139 31 147 31 148 37'/><path d='M10 120 C10 148 24 162 40 156 C52 151 50 134 38 137 C31 139 31 147 37 148'/><path d='M30 72 C40 50 52 38 74 28'/><path d='M22 22 C40 30 46 40 50 50 C40 46 30 40 22 22 Z' fill='url(%23g)'/></g></g><g transform='translate(0 880) scale(1 -1)'><g transform='scale(.8)'><path d='M10 120 C10 52 52 10 120 10'/><path d='M120 10 C148 10 162 24 156 40 C151 52 134 50 137 38 C139 31 147 31 148 37'/><path d='M10 120 C10 148 24 162 40 156 C52 151 50 134 38 137 C31 139 31 147 37 148'/><path d='M30 72 C40 50 52 38 74 28'/><path d='M22 22 C40 30 46 40 50 50 C40 46 30 40 22 22 Z' fill='url(%23g)'/></g></g><g transform='translate(630 880) scale(-1 -1)'><g transform='scale(.8)'><path d='M10 120 C10 52 52 10 120 10'/><path d='M120 10 C148 10 162 24 156 40 C151 52 134 50 137 38 C139 31 147 31 148 37'/><path d='M10 120 C10 148 24 162 40 156 C52 151 50 134 38 137 C31 139 31 147 37 148'/><path d='M30 72 C40 50 52 38 74 28'/><path d='M22 22 C40 30 46 40 50 50 C40 46 30 40 22 22 Z' fill='url(%23g)'/></g></g></g><g stroke='url(%23g)' stroke-width='4'><path d='M14 410 C26 425 26 455 14 470 C2 455 2 425 14 410 Z' fill='url(%23g)'/><path d='M14 384 V402 M14 478 V496'/><g transform='translate(630 0) scale(-1 1)'><path d='M14 410 C26 425 26 455 14 470 C2 455 2 425 14 410 Z' fill='url(%23g)'/><path d='M14 384 V402 M14 478 V496'/></g><path d='M290 866 C305 856 325 856 340 866 C325 876 305 876 290 866 Z' fill='url(%23g)'/><path d='M262 866 H282 M348 866 H368'/></g></g></svg>") center / 100% 100% no-repeat;
@@ -607,7 +611,7 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 /* ============================================================ RYSUNKOWA - szkic ołówkiem
    zdjęcie przez filtr SVG #inkSketch (szkic ołówkiem, templates/index.html), biały papier, podwójna linia, odręczny podpis (Caveat) */
 .card.v-sketch {
-  --frame: linear-gradient(160deg, #f2f0ea, #dcd8cc 60%, #f2f0ea);
+  --frame: linear-gradient(160deg, #f2f0ea, #dcd8cc 60%, #f2f0ea); --spin: initial;
   box-shadow: 0 6px 18px #000a, 0 0 0 1px #2a2420;
 }
 .card.v-sketch .card-inner {
@@ -644,10 +648,14 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
    w magentę i róż, niebieska poświata, losowe gwiazdy (pojedyncze, gromady, iskry), ta sama galaktyka na zdjęciu;
    cała karta półprzezroczysta; co jakiś czas spadająca gwiazda */
 .card.v-galaxy {
-  --frame: conic-gradient(from var(--ang, 0deg), #1a0640, #6a1fb8, #ff5fc8, #4a8cff, #8a2be2, #1a0640);
-  animation: ultraSpin 7s linear infinite;
+  --spin: #1a0640, #6a1fb8, #ff5fc8, #4a8cff, #8a2be2, #1a0640;
+  --frame: conic-gradient(from 0deg, var(--spin));
   box-shadow: 0 6px 18px #000a, 0 0 26px #b03cffaa, 0 0 60px #ff5fc855;
   opacity: .88;   /* cała karta półprzezroczysta */
+}
+.card.v-galaxy::before {   /* obracająca się ramka (style.css) */
+  background: conic-gradient(from var(--ang, 0deg), var(--spin, transparent 0 0)), var(--frame);
+  animation: ultraSpin 7s linear infinite;
 }
 .card.v-galaxy .card-inner {
   background:
@@ -747,7 +755,7 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
    nietoperze przelatujące nad kartą (symbole SVG #hw-* z templates/index.html). W połączeniu z innym wariantem
    (np. halloween+gold) środek karty wygląda jak tamten wariant, a Halloween dodaje ramkę i ozdoby. */
 .card.v-halloween {
-  --frame: linear-gradient(145deg, #ffb347, #ff7a00 30%, #5a1a7a 65%, #ff7a00 90%);
+  --frame: linear-gradient(145deg, #ffb347, #ff7a00 30%, #5a1a7a 65%, #ff7a00 90%); --spin: initial;
   box-shadow: 0 6px 18px #000a, 0 0 22px #ff7a00aa, 0 0 50px #8a2be244;
 }
 .card.v-halloween:not(.v-combo) .card-inner {
@@ -808,7 +816,7 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 /* ============================================================ LAMPIONOWA (rzadszy wariant halloweenowy)
    czarna karta oświetlona migoczącą świecą, zdjęcie w blasku dyni, iskry i dwie dynie w dolnych rogach.
    W połączeniu (lantern+gold) środek wygląda jak tamten wariant, a Lampionowa dodaje ramkę, blask, iskry i dynie. */
-.card.v-lantern { --frame: linear-gradient(145deg, #2a160a, #0c0705 50%, #2a160a); box-shadow: 0 6px 18px #000a, 0 0 26px #ff7a00aa; }
+.card.v-lantern { --frame: linear-gradient(145deg, #2a160a, #0c0705 50%, #2a160a); --spin: initial; box-shadow: 0 6px 18px #000a, 0 0 26px #ff7a00aa; }
 .card.v-lantern.v-combo { --frame: linear-gradient(145deg, #ffb347, #3a1a06 50%, #ffb347); }
 .card.v-lantern:not(.v-combo) .card-inner { background: radial-gradient(ellipse at 50% 100%, #ff7a0088, transparent 60%), #0e0806; color: #ffd9a0; animation: hwGlow 1.8s ease-in-out infinite alternate; }
 .card.v-lantern:not(.v-combo) :is(.card-sub, .card-stats, .card-stats b, .card-foot, .atk-name, .card-hp) { color: #ffcf8a; }
@@ -837,7 +845,7 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 /* ============================================================ DIABELSKA (najrzadszy wariant halloweenowy)
    czerń przechodząca w karmazyn, płomienie od dołu (pod napisami), rogi wystające nad kartę, zdjęcie w krwistej czerwieni.
    W połączeniu (devil+gold) środek wygląda jak tamten wariant, a Diabelska dodaje ramkę, płomienie i rogi. */
-.card.v-devil { --frame: linear-gradient(160deg, #3a0006, #b3001b 45%, #ff5a1a 80%, #3a0006); box-shadow: 0 6px 18px #000a, 0 0 26px #ff1a1aaa, 0 0 60px #ff5a1a55; }
+.card.v-devil { --frame: linear-gradient(160deg, #3a0006, #b3001b 45%, #ff5a1a 80%, #3a0006); --spin: initial; box-shadow: 0 6px 18px #000a, 0 0 26px #ff1a1aaa, 0 0 60px #ff5a1a55; }
 .card.v-devil .card-inner > :is(.card-head, .card-photo, .card-sub, .card-attack, .card-stats, .card-foot) { position: relative; z-index: 1; }
 .card.v-devil:not(.v-combo) .card-inner { background: linear-gradient(180deg, #120002, #2a0207 50%, #5a0a0a); color: #ffd9cc; }
 .card.v-devil:not(.v-combo) :is(.card-sub, .card-stats, .card-stats b, .card-foot, .atk-name, .card-hp) { color: #ffd9cc; }
@@ -868,3 +876,14 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 .vchip.vt-devil.active { background: linear-gradient(90deg, #3a0006, #d10a1e, #ff5a1a); color: #fff; }
 :is(.vdot, .vchip, .hof-vtag).vt-combo.vt-l-devil { box-shadow: 0 0 0 2px #120002, 0 0 0 3.5px #ff1a1a; }
 .ph.vt-combo.vt-l-devil { box-shadow: 0 0 0 1.5px #120002, 0 0 0 3px #ff1a1a; }
+
+/* ============================================================ WYDAJNOŚĆ
+   Tajne i flagowe karty mają własne tło (czarne / flaga) - bez animowanej ramki w ::before (style.css). */
+.card:is(.r-secret, .v-flag)::before { content: none; }
+/* Animowane nakładki kart (holo, reverse, połysk, kamienie, flaga, ramka tajnej karty, plakietki...) na osobnych
+   warstwach: w każdej klatce przerysowuje się tylko sama nakładka, a nie cała karta pod nią. */
+.holo-layer, .card.holo .card-photo::after, .rev-foil, .gold-sheen, .diamond-layer, .clear-sheen, .neg-grain, .flag-wave,
+.sc-border, .holo-tag, .var-tag, .pick .ph, .pick::after, .mini::after, .mini-secret::after,
+:is(.card, .r-secret):is(.v-diamond, .v-emerald, .v-ruby) :is(.card-photo, .sc-art)::after {
+  will-change: transform;
+}

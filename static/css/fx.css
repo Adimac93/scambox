@@ -211,7 +211,7 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 .viewer {
   position: fixed; inset: 0; z-index: 300; display: flex; flex-wrap: wrap; gap: 36px; padding: 24px;
   justify-content: safe center; align-content: safe center; align-items: center; overflow: auto;
-  background: radial-gradient(circle, #1b2140f0, #05060bf8); backdrop-filter: blur(8px);
+  background: radial-gradient(circle, #1b2140, #05060b);   /* strona pod spodem jest schowana (body.covered) */
   animation: fadeIn .25s;
 }
 .viewer-stage {
@@ -319,12 +319,14 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
   position: absolute; left: 50%; top: 50%; width: 260px; height: 260px; border-radius: 50%; z-index: 1;
   background: radial-gradient(circle, #fff 0%, var(--nc) 30%, color-mix(in srgb, var(--nc) 40%, transparent) 55%, transparent 70%);
   transform: translate(-50%, -50%) scale(.2); opacity: .3; animation: orbPulse .25s ease-in-out infinite alternate;
+  will-change: transform, opacity, filter;
 }
 @keyframes orbPulse { to { filter: brightness(1.5) blur(3px); } }
 .fa-orb.pop { animation: orbPop .7s ease-out forwards; }
 @keyframes orbPop { to { transform: translate(-50%, -50%) scale(5); opacity: 0; } }
 .fa-ring { position: absolute; inset: 0; z-index: 2; }
-.fa-card { position: absolute; left: 50%; top: 50%; width: min(150px, 22vw); transform: translate(-50%, -50%); }
+/* will-change: karty krążą i świecą (filter) w każdej klatce - osobna warstwa, bez przerysowywania karty */
+.fa-card { position: absolute; left: 50%; top: 50%; width: min(150px, 22vw); transform: translate(-50%, -50%); will-change: transform, opacity, filter; }
 .fa-card .card { width: 100%; --cw: 100%; }
 .fa-reel { position: absolute !important; left: 50%; top: 50%; translate: -50% -50%; width: min(900px, 94vw); z-index: 2; animation: fadeIn .3s; }
 .fa-result { position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 16px; }

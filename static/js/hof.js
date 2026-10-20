@@ -3,7 +3,7 @@
 // kiedy (i skąd: skrzynka / kontrakt / ulepszacz) oraz ile takich kart w ogóle wypadło. Dane: /api/halloffame.
 
 const HOF = { data: null, at: 0, crate: "all", q: "", show: "all", sort: "number" };
-const HOF_SOURCES = { drop: "📦 ze skrzynki", contract: "📜 z kontraktu", upgrade: "⬆️ z ulepszacza" };
+const HOF_SOURCES = { drop: "📦 ze skrzynki", contract: "📜 z kontraktu", upgrade: "⬆️ z ulepszacza", joker: "🎰 z kasyna", link: "🔗 z linku" };
 
 // po zdobyciu karty: "jesteś pierwszy w grze!" (serwer oznacza takie karty polem first)
 function announceFirsts(items) {
@@ -25,7 +25,7 @@ function hofUser(id) {
 function hofThumb(pid) {
   const p = person(pid);
   return `<div class="hof-thumb${p.masked ? " masked" : ""}" ${p.masked ? "" : `data-hof-view="${pid}"`} style="--rc:${S.cfg.rarities[p.rarity].color}">
-    <img src="${p.masked ? `/img/${pid}` : imgUrl(pid)}" alt="" loading="lazy"></div>`;
+    <img src="${p.masked ? `/img/${pid}` : imgUrl(pid, null, true)}" alt="" loading="lazy"></div>`;
 }
 
 async function renderHallOfFame() {

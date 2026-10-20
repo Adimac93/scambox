@@ -13,14 +13,14 @@ const FORGE = {
 };
 const MAX_BULK_CONTRACTS = 50;  // tyle przyjmie serwer w jednym zapytaniu
 const PICK_LIMIT = 300;
-// ulubione karty (⭐) nie trafiają do kuźni
-const forgeItems = () => S.items.filter(i => !i.fav);
-const PICK_TAGS = { bw: "B&W", reverse: "REV", silver: "SILV", holo: "HOLO", gold: "GOLD", flag: "🏳️", halloween: "🎃", lantern: "🏮", devil: "😈", clear: "🫧", sketch: "✒️", emerald: "💚", ruby: "❤️", royal: "👑", diamond: "💎", galaxy: "🌌", negative: "◐", rzulty: "💛" };
+// ulubione karty (⭐) i karty specjalne nie trafiają do kuźni
+const forgeItems = () => S.items.filter(i => !i.fav && !isSpecialCard(i.person));
+const PICK_TAGS = { bw: "B&W", reverse: "REV", silver: "SILV", holo: "HOLO", gold: "GOLD", flag: "🏳️", halloween: "🎃", lantern: "🏮", devil: "😈", joker: "🃏", jeans: "👖", clear: "🫧", sketch: "✒️", emerald: "💚", ruby: "❤️", royal: "👑", diamond: "💎", galaxy: "🌌", negative: "◐", rzulty: "💛" };
 
 function pickHTML(item, { sel = false, extra = "" } = {}) {
   const p = person(item.person);
   const v = item.variant || "normal";
-  const img = p.rarity === "secret" && p.masked ? `/img/${p.id}` : imgUrl(p.id, v);
+  const img = p.rarity === "secret" && p.masked ? `/img/${p.id}` : imgUrl(p.id, v, true);
   return `<div class="pick r-${p.rarity} ${vClass(v)}${sel ? " sel" : ""}" data-id="${item.id}" style="--rc:${S.cfg.rarities[p.rarity].color}">
     <img src="${img}" alt="" loading="lazy" draggable="false">
     ${isSpecial(v) ? `<span class="ph ${vtClass(v)}">${isCombo(v) ? PICK_TAGS[variantParts(v)[0]] : ""}${PICK_TAGS[baseVariant(v)]}</span>` : ""}
@@ -91,11 +91,11 @@ function renderContract() {
       ids.forEach(id => { chance[id] = (chance[id] || 0) + sh / ids.length; });
     });
     outcomes = Object.entries(chance).sort((a, b) => b[1] - a[1]).map(([id, ch]) =>
-      `<div class="oc" title="${esc(person(id).name)}"><img src="${person(id).masked ? `/img/${id}` : imgUrl(id)}" alt=""><span>${pct(ch)}</span></div>`).join("")
+      `<div class="oc" title="${esc(person(id).name)}"><img src="${person(id).masked ? `/img/${id}` : imgUrl(id, null, true)}" alt=""><span>${pct(ch)}</span></div>`).join("")
       || `<div class="muted small">W skrzynkach ze sklepu nie ma kart wyższej rzadkości.</div>`;
   }
 
-  $("#forgeBody").innerHTML = `
+  keepScroll($("#forgeBody"), () => $("#forgeBody").innerHTML = `
   <div class="forge-cols">
     <div class="panel forge-pick">
       <div class="tier-chips">${tiers.map(t => {
@@ -104,7 +104,7 @@ function renderContract() {
       }).join("")}</div>
       <div class="forge-pick-head"><span class="muted small">Kliknij kartę, aby dodać ją do kontraktu.</span>
         <input type="text" data-fq="contract" placeholder="🔍 Szukaj…" value="${esc(FORGE.q)}">${sortSelectHTML(FORGE.sort, 'data-fsort="contract"')}</div>
-      <div class="pick-grid">${eligible.length ? eligible.slice(0, PICK_LIMIT).map(i => pickHTML(i)).join("") : FORGE.q.trim()
+      <div class="pick-grid" data-keep="contract">${eligible.length ? eligible.slice(0, PICK_LIMIT).map(i => pickHTML(i)).join("") : FORGE.q.trim()
         ? '<div class="empty">Żadna karta nie pasuje do wyszukiwania.</div>' : `<div class="empty">Nie masz więcej kart rzadkości „${R.name}”.</div>`}</div>
     </div>
     <div class="panel contract" style="--rc:${R.color}; --nc:${NR.color}">
@@ -129,7 +129,7 @@ function renderContract() {
       ${bulkPanelHTML(tier, need)}
       ${outcomes ? `<div class="outcomes-title muted small">Możliwe wyniki:</div><div class="outcomes">${outcomes}</div>` : ""}
     </div>
-  </div>`;
+  </div>`);
 }
 
 // ---------------------------------------------------------------- wiele kontraktów naraz
@@ -430,14 +430,14 @@ function renderUpgrader() {
   // wybrane karty zostają na liście także wtedy, gdy nie pasują do wyszukiwania (żeby dało się je odznaczyć)
   const mine = sortCards(forgeItems().filter(i => u.inputs.has(i.id) || cardMatches(i, u.qMine)), u.sortMine);
 
-  $("#forgeBody").innerHTML = `
+  keepScroll($("#forgeBody"), () => $("#forgeBody").innerHTML = `
   <div class="upg-cols">
     <div class="panel upg-side">
       <h3>Twoje karty <small class="muted">(max ${S.cfg.upgradeMaxItems})</small></h3>
       <div class="upg-sum">Wkład: <b>${fmt(stake)}</b> · ${u.inputs.size} ${plural(u.inputs.size, "karta", "karty", "kart")}
         ${u.inputs.size ? '<button class="btn tiny" id="uClear">Wyczyść</button>' : ""}</div>
       <div class="upg-filters"><input type="text" data-fq="mine" placeholder="🔍 Szukaj…" value="${esc(u.qMine)}">${sortSelectHTML(u.sortMine, 'data-fsort="mine"')}</div>
-      <div class="pick-grid">${mine.length ? mine.slice(0, PICK_LIMIT).map(i => pickHTML(i, { sel: u.inputs.has(i.id) })).join("")
+      <div class="pick-grid" data-keep="mine">${mine.length ? mine.slice(0, PICK_LIMIT).map(i => pickHTML(i, { sel: u.inputs.has(i.id) })).join("")
         : `<div class="empty">${u.qMine.trim() ? "Żadna karta nie pasuje do wyszukiwania." : "Nie masz kart."}</div>`}</div>
     </div>
 
@@ -476,11 +476,11 @@ function renderUpgrader() {
           `<option value="${v}"${u.variant === v ? " selected" : ""}>${n}</option>`).join("")}</select>
         ${sortSelectHTML(u.sortTarget, 'data-fsort="target"', CARD_SORTS.filter(([k]) => k !== "new"))}
       </div>
-      <div class="pick-grid">${targets.length ? sortCards(targets, u.sortTarget).slice(0, PICK_LIMIT).map(t => pickHTML({ id: t.key, person: t.person, variant: t.variant, value: t.value },
+      <div class="pick-grid" data-keep="target">${targets.length ? sortCards(targets, u.sortTarget).slice(0, PICK_LIMIT).map(t => pickHTML({ id: t.key, person: t.person, variant: t.variant, value: t.value },
         { sel: t.key === u.target, extra: stake ? `<span class="pc">${pct(upgChance(stake, t.value))}</span>` : "" })).join("")
         : '<div class="empty">Brak celów — twój wkład jest już wart więcej niż każda karta!</div>'}</div>
     </div>
-  </div>`;
+  </div>`);
   drawUpgWheel(chance);
 }
 
@@ -616,7 +616,7 @@ function bindForge() {
     }
     if (FORGE.mode === "contract") {
       const tierBtn = t.closest("[data-tier]");
-      if (tierBtn) { FORGE.tier = tierBtn.dataset.tier; FORGE.slots = []; Sound.click(); return renderContract(); }
+      if (tierBtn) { FORGE.tier = tierBtn.dataset.tier; FORGE.slots = []; Sound.click(); resetKeep("contract"); return renderContract(); }
       const pick = t.closest(".pick");
       if (pick) {
         if (FORGE.slots.length >= S.cfg.contractSize[FORGE.tier]) { Sound.error(); return toast("Kontrakt jest pełny", true); }
@@ -660,20 +660,23 @@ function bindForge() {
     if (e.target.id === "uSearch") {
       FORGE.upg.search = e.target.value;
       const pos = e.target.selectionStart;
+      resetKeep("target");
       renderUpgrader();
       const inp = $("#uSearch"); inp.focus(); inp.setSelectionRange(pos, pos);
     }
     const fq = e.target.dataset.fq;
     if (fq) {
       const pos = e.target.selectionStart;
+      resetKeep(fq);
       if (fq === "contract") { FORGE.q = e.target.value; renderContract(); }
       else { FORGE.upg.qMine = e.target.value; renderUpgrader(); }
       const inp = $(`[data-fq=${fq}]`); inp.focus(); inp.setSelectionRange(pos, pos);
     }
   });
   $("#forgeBody").addEventListener("change", e => {
-    if (e.target.id === "uVariant") { FORGE.upg.variant = e.target.value; renderUpgrader(); }
+    if (e.target.id === "uVariant") { FORGE.upg.variant = e.target.value; resetKeep("target"); renderUpgrader(); }
     const fs = e.target.dataset.fsort;
+    if (fs) resetKeep(fs);
     if (fs === "contract") { FORGE.sort = e.target.value; renderContract(); }
     if (fs === "mine") { FORGE.upg.sortMine = e.target.value; renderUpgrader(); }
     if (fs === "target") { FORGE.upg.sortTarget = e.target.value; renderUpgrader(); }

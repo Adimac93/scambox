@@ -17,7 +17,12 @@ const CS = {
 };
 const CS_PICK_LIMIT = 240;
 
-function csItems() { return S.items.filter(i => !i.fav); }
+function csItems() { return S.items.filter(i => !i.fav && !isSpecialCard(i.person)); }   // bez ⭐ i kart specjalnych
+// szansa na kartę specjalną z kasyna (Joker) przy wygranej - jak na serwerze (casino_special_drop); 0, gdy nie ma takich kart
+function csSpecialChance(payout) {
+  const C = S.cfg.casinoSpecial;
+  return Object.values(S.cfg.people).some(p => isSpecialCard(p) && p.source === "casino") ? Math.min(C.max, payout / C.per) : 0;
+}
 function csStake(set) { return S.items.filter(i => set.has(i.id)).reduce((a, i) => a + i.value, 0); }
 function csPct(x) { return (x * 100).toLocaleString("pl-PL", { maximumFractionDigits: x < 0.1 ? 1 : 0 }) + "%"; }
 
@@ -29,8 +34,8 @@ function csPickerHTML(set, q, max, zone) {
       ${sortSelectHTML(CS.sorts[zone], `data-cssort="${zone}"`)}
       <span class="muted small">${set.size}/${max} kart · ${fmt(csStake(set))}</span>
       ${set.size ? `<button class="btn tiny" data-csclear="${zone}">Wyczyść</button>` : ""}</div>
-    <div class="pick-grid cs-grid" data-zone="${zone}">${list.slice(0, CS_PICK_LIMIT).map(i => pickHTML(i, { sel: set.has(i.id) })).join("")
-      || '<div class="empty">Nie masz kart (ulubionych ⭐ nie można postawić).</div>'}</div>`;
+    <div class="pick-grid cs-grid" data-zone="${zone}" data-keep="${zone}">${list.slice(0, CS_PICK_LIMIT).map(i => pickHTML(i, { sel: set.has(i.id) })).join("")
+      || '<div class="empty">Nie masz kart (ulubionych ⭐ i specjalnych 🃏 nie można postawić).</div>'}</div>`;
 }
 
 function renderCasino() {
@@ -95,7 +100,7 @@ function drawRoulette() {
   const stake = csStake(CS.sel);
   const chance = bet.numbers.length / 37;
   const last = CS.last;
-  $("#casinoBody").innerHTML = `
+  keepScroll($("#casinoBody"), () => $("#casinoBody").innerHTML = `
   <div class="rl-cols">
     <div class="panel rl-left">
       <div class="rl-wheel-wrap">
@@ -113,13 +118,14 @@ function drawRoulette() {
           <span>Zakład: <b>${esc(bet.name)}</b></span>
           <span>Wypłata: <b>${bet.pays}:1</b> (karty wracają + ${fmt(stake * bet.pays)} w kartach)</span>
           <span>Szansa: <b>${csPct(chance)}</b></span>
+          ${stake && csSpecialChance(stake * bet.pays) ? `<span class="rl-joker" title="Karta specjalna z kasyna wypada przy wygranej — szansa rośnie z wygraną">🃏 Przy wygranej szansa na kartę specjalną: <b>${csPct(csSpecialChance(stake * bet.pays))}</b></span>` : ""}
         </div>
         <button class="big-btn rl-spin" id="rlSpin"${CS.sel.size && !CS.spinning ? "" : " disabled"}>🎡 ZAKRĘĆ${stake ? ` · stawka ${fmt(stake)}` : ""}</button>
         <div class="muted small">Wygrana: twoje karty zostają, a dostajesz karty o wartości stawki × wypłata (losowe karty ze skrzynek w sklepie; końcówka w groszach). Przegrana: postawione karty przepadają.</div>
       </div>
       <div class="panel cs-pick">${csPickerHTML(CS.sel, CS.q, S.cfg.roulette.maxCards, "rl")}</div>
     </div>
-  </div>`;
+  </div>`);
 }
 
 function rlResultHTML(r) {
@@ -128,7 +134,8 @@ function rlResultHTML(r) {
     <div>${r.win ? `<b class="pos-txt">WYGRANA! +${fmt(r.payout)}</b><div class="muted small">${r.items.length} ${plural(r.items.length, "karta", "karty", "kart")}${r.money ? ` + ${fmt(r.money)}` : ""} · kliknij kartę, aby obejrzeć</div>`
       : `<b class="neg-txt">PRZEGRANA −${fmt(r.stake)}</b>`}</div>
   </div>
-  ${r.win && r.items.length ? `<div class="pick-grid rl-won">${r.items.map(i => pickHTML(i)).join("")}</div>` : ""}`;
+  ${r.special ? `<div class="rl-special">🃏 <b>Karta specjalna!</b> ${esc(person(r.special.person).name)} — ${esc(variantName(r.special.variant))}</div>` : ""}
+  ${r.win && (r.items.length || r.special) ? `<div class="pick-grid rl-won">${[...(r.special ? [r.special] : []), ...r.items].map(i => pickHTML(i)).join("")}</div>` : ""}`;
 }
 
 async function spinRoulette() {
@@ -177,7 +184,13 @@ async function spinRoulette() {
     CS.sel.clear();
     Sound.fail();
   }
+  if (res.special) { S.items = [res.special, ...S.items]; noteCollected([res.special]); }
   applyState(res.state);
+  if (res.special) {   // karta specjalna z kasyna (Joker) - wielkie odsłonięcie
+    await sleep(fast ? 300 : 700);
+    await epicReveal(res.special, { fast });
+    announceFirsts([res.special]);
+  }
   CS.spinning = false;
   if (currentView() === "casino" && CS.tab === "roulette") drawRoulette();
 }
@@ -319,7 +332,7 @@ function drawJackpot() {
   const jp = CS.jp, d = jp.data;
   if (!d) return;
   if (d.current) {
-    $("#casinoBody").innerHTML = jpRoomHTML(d.current);
+    keepScroll($("#casinoBody"), () => $("#casinoBody").innerHTML = jpRoomHTML(d.current));
     return;
   }
   const lobbies = d.lobbies.slice().sort((a, b) => (b.invited - a.invited) || (!!a.joiner - !!b.joiner) || b.id - a.id);
@@ -466,7 +479,7 @@ function bindCasino() {
     const L = CS.jp.data?.current;
     // ruletka
     const won = t.closest(".rl-won .pick");
-    if (won) { const it = CS.last?.items?.find(i => i.id === +won.dataset.id); if (it) openViewer(it.person, it.variant); return; }
+    if (won) { const it = [CS.last?.special, ...(CS.last?.items || [])].find(i => i?.id === +won.dataset.id); if (it) openViewer(it.person, it.variant); return; }
     const pick = t.closest(".cs-grid .pick");
     if (pick) {
       const zone = pick.closest(".cs-grid").dataset.zone, id = +pick.dataset.id;
@@ -526,6 +539,7 @@ function bindCasino() {
     const t = e.target;
     if (t.dataset.csq) {
       const pos = t.selectionStart, zone = t.dataset.csq;
+      resetKeep(zone);
       if (zone === "rl") { CS.q = t.value; drawRoulette(); } else { CS.jp.q = t.value; drawJackpot(); }
       const again = $(`[data-csq=${zone}]`); again.focus(); again.setSelectionRange(pos, pos);
     }
@@ -533,7 +547,7 @@ function bindCasino() {
   });
   body.addEventListener("change", e => {
     const zone = e.target.dataset.cssort;
-    if (zone) { CS.sorts[zone] = e.target.value; return zone === "rl" ? drawRoulette() : drawJackpot(); }
+    if (zone) { CS.sorts[zone] = e.target.value; resetKeep(zone); return zone === "rl" ? drawRoulette() : drawJackpot(); }
   });
   body.addEventListener("keydown", e => {
     if (e.key === "Enter" && e.target.matches("[data-jinv]")) { e.preventDefault(); $("[data-jinvgo]")?.click(); }

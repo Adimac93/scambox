@@ -59,6 +59,14 @@ VARIANTS = {
     # Może mieć własne zdjęcie (panel admina, edycja karty).
     "rzulty":  {"name": "Rzulty",       "chance": 2137 / 2_137_420, "mult": 31.0, "exclusive": True, "cards": ["pl_secret"],
                 "desc": "Wariant tylko jednej karty (Jan Paweł II) - własne zdjęcie."},   # najrzadszy
+    # warianty kart SPECJALNYCH (rzadkość "special"): karta specjalna istnieje tylko w jednym wariancie, który admin wybiera
+    # w panelu (pole karty "fixedVariant") razem z wyglądem 1-6 ("style", makiety: /mockups). Nie wypadają ze skrzynek.
+    "joker":   {"name": "Jokerowa",     "chance": 0.0, "mult": 1.0, "exclusive": True, "special": True,
+                "styles": ["Klasyczny", "Dworski", "Retro", "Nocny", "Złoty", "Fioletowy"],
+                "desc": "Karta jak Joker z talii kart - osoba ze zdjęcia w czapce i kołnierzu błazna."},
+    "jeans":   {"name": "Dżinsowa",     "chance": 0.0, "mult": 1.0, "exclusive": True, "special": True,
+                "styles": ["Klasyczny dżins"],
+                "desc": "Karta z dżinsu - pomarańczowe przeszycia i miedziane nity."},
 }
 # Warstwy (na razie tylko Flagowy): wszystkie warianty leżą na jednej warstwie, a flaga na osobnej. Gdy wypadnie
 # flagowa karta, z szansą "extraChance" dostaje jeszcze jeden wariant - losowany z tymi samymi szansami co zwykle
@@ -67,7 +75,7 @@ VARIANTS = {
 # Połączenia warstw z "noCombo" (Lampionowa / Diabelska) też istnieją - tylko dla kart, które wypadły przed tą zmianą.
 for _layer in [v for v, x in VARIANTS.items() if x.get("layer")]:
     for _base, _x in list(VARIANTS.items()):
-        if _base == "normal" or _x.get("layer") or _x.get("combo"):
+        if _base == "normal" or _x.get("layer") or _x.get("combo") or _x.get("special"):
             continue
         VARIANTS[f"{_layer}+{_base}"] = {
             "name": f"{VARIANTS[_layer]['name']} + {_x['name']}", "chance": 0.0,
@@ -78,7 +86,9 @@ VARIANT_ORDER = sorted(VARIANTS, key=lambda v: VARIANTS[v]["mult"])   # od najta
 # nie da się ich dostać z kontraktu ani z ulepszacza.
 EXCLUSIVE_VARIANTS = [v for v, x in VARIANTS.items() if x.get("exclusive")]
 # te można włączać w skrzynkach (panel admina); warianty z polem "cards" należą do konkretnych kart
-CRATE_VARIANTS = [v for v in EXCLUSIVE_VARIANTS if not VARIANTS[v].get("cards") and not VARIANTS[v].get("combo")]
+CRATE_VARIANTS = [v for v in EXCLUSIVE_VARIANTS if not VARIANTS[v].get("cards") and not VARIANTS[v].get("combo")
+                  and not VARIANTS[v].get("special")]
+SPECIAL_VARIANTS = [v for v, x in VARIANTS.items() if x.get("special")]   # warianty kart specjalnych (do wyboru w panelu)
 
 
 def combine_variant(layer, base):
@@ -110,10 +120,11 @@ MAX_DEPOSIT = 1_000_000
 
 # Skrzynki z pieniędzmi (codzienna nagroda za logowanie).
 # Wylosowana kwota = min + (max - min) * los^curve  ->  im większe curve, tym rzadsze wysokie kwoty.
+# (wersja 7: wszystkie kwoty ×5 - codzienna daje co najmniej 5000 gr)
 MONEY_CHESTS = {
-    "daily": {"name": "Codzienna skrzynka", "emoji": "🎁", "min": 1_000, "max": 20_000, "curve": 2.2,
+    "daily": {"name": "Codzienna skrzynka", "emoji": "🎁", "min": 5_000, "max": 100_000, "curve": 2.2,
               "color1": "#3ddc84", "color2": "#0f5a32"},
-    "mega":  {"name": "MEGA skrzynka", "emoji": "💎", "min": 5_000, "max": 50_000, "curve": 2.0,
+    "mega":  {"name": "MEGA skrzynka", "emoji": "💎", "min": 25_000, "max": 250_000, "curve": 2.0,
               "color1": "#ffd54a", "color2": "#8a5b00"},
 }
 JACKPOT_WEEKDAY = 6       # w ten dzień tygodnia zamiast zwykłej jest MEGA skrzynka (0 = pon ... 6 = niedziela)
@@ -128,6 +139,9 @@ RARITIES = {
     "purple": {"name": "Epicka",           "weight": 12.0, "value": 90,   "color": "#a35bff"},
     "red":    {"name": "Mityczna",         "weight": 5.5,  "value": 300,  "color": "#ff4040"},
     "gold":   {"name": "Legendarna",       "weight": 1.0,  "value": 1000, "color": "#ffc531"},
+    # karty specjalne: NIE wypadają ze skrzynek (waga 0) - tylko z kasyna albo z linku od admina (pole karty "source");
+    # zawsze w jednym wariancie (Jokerowa, Dżinsowa...), nie da się ich sprzedać grze, postawić ani zużyć w kuźni
+    "special": {"name": "Specjalna",       "weight": 0.0,  "value": 2500, "color": "#19e6ff"},
     "ultra":  {"name": "ULTRA LEGENDARNA", "weight": 0.2,  "value": 4000, "color": "#ff5cf0"},
     "secret": {"name": "TAJNA",            "weight": 0.0,  "value": 25000, "color": "#f3e3b0"},
 }
@@ -365,7 +379,20 @@ CRATES = {
     "halloween": {"name": "Skrzynia Halloween", "short": "Halloween", "code": "HW", "emoji": "🎃",
                   "color1": "#ff7a00", "color2": "#2b0a3d", "price": 300, "shop": True, "restricted": False,
                   "desc": "każda karta w wersji halloweenowej", "shared": ["pl_tusk"], "people": []},
+    # karty specjalne (rzadkość Specjalna) - admin dodaje je w panelu. "special": tej skrzynki nie da się kupić ani
+    # otworzyć (nawet adminowi) i nie ma jej w sklepie; jest w klaserze i w filtrach ekwipunku
+    "specjalne": {"name": "Karty specjalne", "short": "Specjalne", "code": "SP", "emoji": "🃏",
+                  "color1": "#19e6ff", "color2": "#3a0a5a", "price": CRATE_PRICE, "shop": False, "restricted": False,
+                  "special": True, "desc": "tylko z kasyna albo z linku od admina", "people": []},
 }
+SPECIAL_CRATE = "specjalne"
+# skąd gracz może dostać kartę specjalną (pole karty "source", wybór w panelu admina)
+SPECIAL_SOURCES = {"casino": "🎰 Kasyno — wygrane w grach, które dają nowe karty (ruletka)",
+                   "link": "🔗 Link od admina — każdy gracz może go użyć raz"}
+# Karta specjalna z kasyna: przy każdej WYGRANEJ w ruletce (i innych grach, które dają nowe karty) szansa
+# = wygrana w groszach / "per", najwyżej "max". Szansa rośnie z wygraną, więc małymi zakładami nie da się jej "wyfarmić":
+# średnio kosztuje to tyle, ile jest warta (przewaga kasyna 1/37 · per / szansa na wygraną).
+CASINO_SPECIAL = {"per": 50_000, "max": 0.05}
 
 # Drugie zdolności - mają je wszystkie karty legendarne, ULTRA i tajne
 SECOND_ATTACKS = {
@@ -403,7 +430,7 @@ def card_value(person, variant="normal"):
 ARENA = {
     "deckSize": 8, "boardSlots": 4, "actions": 2, "maxCoins": 10,
     # koszt wystawienia karty z ławki na planszę (złote monety) - z rzadkości
-    "cardCost": {"green": 1, "uncommon": 1, "blue": 2, "purple": 3, "red": 4, "gold": 5, "ultra": 6, "secret": 7},
+    "cardCost": {"green": 1, "uncommon": 1, "blue": 2, "purple": 3, "red": 4, "gold": 5, "special": 5, "ultra": 6, "secret": 7},
     # domyślny koszt zdolności (monety) z jej wartości: [(od wartości, koszt)] - słabe za darmo
     "abilityCost": [[0, 0], [150, 1], [250, 2]],
     # nagrody: skrzynka z pieniędzmi (MONEY_CHESTS) za 1., 3. i 9. wygraną dnia
@@ -506,6 +533,28 @@ JACKPOT = {"maxCards": 20, "expireHours": 24}
 # ============================================================ LISTA ZMIAN (pokazywana raz po aktualizacji)
 # Najnowsza na górze. "v" musi rosnąć z każdą nową wersją - gracz zobaczy wpisy nowsze niż ostatnio obejrzany.
 PATCH_NOTES = [
+    {"v": 8, "date": "2026-10-21", "title": "Karty specjalne i nowy sklep",
+     "items": [
+         "🃏 Nowa rzadkość <b>Specjalna</b> — między Legendarną a ULTRA. Kart specjalnych nie ma w skrzynkach!",
+         "🎰 <b>Joker</b>: przy każdej <b>wygranej w ruletce</b> możesz dostać dodatkowo kartę specjalną w wariancie "
+         "<b>Jokerowa</b>. Im większa wygrana, tym większa szansa (do 5%).",
+         "🔗 Niektóre karty specjalne (np. w wariancie <b>Dżinsowa</b> 👖) rozdajemy linkiem — każdy gracz może go użyć raz.",
+         "🔒 Kart specjalnych nie da się sprzedać grze, postawić w kasynie ani zużyć w kuźni — możesz je wymienić "
+         "ze znajomym albo sprzedać na 🏪 Rynku.",
+         "🎠 Sklep ze skrzynkami to teraz <b>karuzela</b> — skrzynki same się obracają, możesz je przesuwać strzałkami, "
+         "palcem albo klawiszami ← →.",
+         "🔍 W ekwipunku możesz wyszukać kartę po nazwie.",
+     ]},
+    {"v": 7, "date": "2026-10-20", "title": "Większe nagrody i płynniejsza gra",
+     "items": [
+         "🎁 <b>Codzienna skrzynka</b> daje teraz od <b>5 000 gr</b> do <b>100 000 gr</b>, a <b>MEGA skrzynka</b> 💎 "
+         "(w niedzielę) od <b>25 000 gr</b> do <b>250 000 gr</b> — pięć razy więcej niż wcześniej.",
+         "⚡ Gra działa dużo płynniej: otwieranie skrzynek, ekwipunek, kuźnia i kasyno nie zacinają się już, "
+         "nawet gdy masz tysiące kart.",
+         "🖼️ Zdjęcia w bębnach i na listach kart ładują się szybciej (lżejsze miniatury), a ekwipunek pobiera się "
+         "kilkanaście razy szybciej.",
+         "📜 Kliknięcie karty w kuźni albo w kasynie nie przewija już listy kart z powrotem na górę.",
+     ]},
     {"v": 6, "date": "2026-10-19", "title": "Wyszukiwanie kart",
      "items": [
          "🏮😈 Karty <b>Lampionowe</b> i <b>Diabelskie</b> nie łączą się już z innymi wariantami (np. Diabelska + Złota) — "

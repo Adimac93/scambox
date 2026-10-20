@@ -33,6 +33,7 @@ async function load() {
   loadUsers();
   loadLog();
   A.cat = await api("/api/admin/catalog");
+  loadLinks();
   if (!A.crate || !A.cat.crates.some(c => c.id === A.crate)) A.crate = A.cat.crates.find(c => !c.hidden)?.id || null;
   render();
 }
@@ -92,7 +93,9 @@ function crateFormHTML(c) {
       <label>Cena skrzynki (gr)<input type="number" name="price" value="${esc(c.price)}" min="1" max="1000000"></label>
       <label class="wide">Opis<input type="text" name="desc" value="${esc(c.desc)}" maxlength="120" placeholder="krótki opis pod nazwą"></label>
     </div>
-    <fieldset>
+    ${c.special ? `<p class="a-special-note">🃏 Skrzynka kart specjalnych — nie ma jej w sklepie i nie da się jej otworzyć ani kupić.
+      Karty z niej gracze dostają tylko w kasynie albo z linku od admina. Dodaj tu kartę z rzadkością „Specjalna”.</p>` : ""}
+    <fieldset ${c.special ? "hidden" : ""}>
       <legend>🛒 Sklep i dostęp</legend>
       <label class="chk"><input type="checkbox" name="shop" ${c.shop !== false ? "checked" : ""}> Dostępna w sklepie (można ją kupić)</label>
       <label class="chk"><input type="checkbox" name="restricted" ${c.restricted ? "checked" : ""}> 🔒 Tylko dla wybranych graczy</label>
@@ -102,15 +105,15 @@ function crateFormHTML(c) {
       </div>
       <p class="muted small">Skrzynki, które gracz ma w ekwipunku, zawsze może otworzyć — nawet gdy skrzynki nie ma w sklepie.</p>
     </fieldset>
-    <fieldset>
+    <fieldset ${c.special ? "hidden" : ""}>
       <legend>✨ Wyjątkowe warianty <small class="muted">(wypadają tylko ze skrzynek, w których są włączone)</small></legend>
       ${A.cat.exclusiveVariants.map(v => { const V = A.cat.variants[v]; return `<label class="chk"><input type="checkbox" name="variants" value="${v}" ${(c.variants || []).includes(v) ? "checked" : ""}>
         <b>${esc(V.name)}</b> <span class="muted small">· szansa ${+(V.chance * 100).toFixed(2)}% · wartość ×${V.mult} — ${esc(V.desc || "")}</span></label>`; }).join("")}
       <p class="muted small">Nie da się ich zrobić w kontrakcie ani ulepszaczu. Przy wariancie Flagowym ustaw każdej karcie tej skrzynki kraj (np. PL) w jej edycji.</p>
     </fieldset>
-    <fieldset>
+    <fieldset ${c.special ? "hidden" : ""}>
       <legend>🎲 Szanse rzadkości (puste = domyślne)</legend>
-      <div class="a-grid a-weights">${A.cat.rarityOrder.map(r => `<label style="--rc:${A.cat.rarities[r].color}"><span class="a-wname">${A.cat.rarities[r].name}</span>
+      <div class="a-grid a-weights">${A.cat.rarityOrder.filter(r => r !== "special").map(r => `<label style="--rc:${A.cat.rarities[r].color}"><span class="a-wname">${A.cat.rarities[r].name}</span>
         <input type="number" name="w_${r}" min="0" max="1000" step="any" value="${(c.customWeights || {})[r] ?? ""}" placeholder="${+A.cat.rarities[r].weight.toFixed(4)}"></label>`).join("")}</div>
       <p class="muted small">To wagi, nie procenty — liczy się ich stosunek. Rzadkość bez kart w tej skrzynce jest pomijana.</p>
     </fieldset>
@@ -173,8 +176,10 @@ function countryNeeded(crateIds) {
 }
 
 function openCardForm(id) {
+  const inSpecial = A.crate === A.cat.specialCrate;
   const c = id ? A.cat.cards.find(x => x.id === id)
-    : { id: "", name: "", crate: A.crate, crates: [A.crate], rarity: "green", type: "polityka", hp: 60, attack: "", dmg: 40, wiki: null, builtin: false };
+    : { id: "", name: "", crate: A.crate, crates: [A.crate], rarity: inSpecial ? "special" : "green", type: "polityka", hp: 60, attack: "",
+        dmg: 40, wiki: null, builtin: false, source: "casino", fixedVariant: "joker", style: 1 };
   if (id && hiddenSecret(c) && !confirm("To tajna karta. Pokazać, kto to jest?")) return;
   const isNew = !id;
   const opt = (obj, sel) => Object.entries(obj).map(([k, v]) => `<option value="${k}"${k === sel ? " selected" : ""}>${esc(v)}</option>`).join("");
@@ -187,12 +192,13 @@ function openCardForm(id) {
       <input type="hidden" name="id" value="${esc(c.id)}">
       <div class="a-grid">
         <label class="wide">Imię i nazwisko / nazwa<input type="text" name="name" value="${esc(c.name)}" required maxlength="60"></label>
-        <div class="wide a-crate-checks"><span class="muted small">Skrzynki (karta może być w kilku; pierwsza zaznaczona to skrzynka główna — jej kod jest na karcie):</span>
-          ${A.cat.crates.filter(x => !x.hidden).map(x => `<label class="chk"><input type="checkbox" name="crates" value="${esc(x.id)}" ${(c.crates || [c.crate]).includes(x.id) ? "checked" : ""}> ${esc(x.emoji)} ${esc(x.name)}${(x.variants || []).includes("flag") ? ' <small title="Skrzynka z wariantem Flagowym">🏳️</small>' : ""}</label>`).join("")}</div>
+        <div class="wide a-crate-checks" ${c.rarity === "special" ? "hidden" : ""}><span class="muted small">Skrzynki (karta może być w kilku; pierwsza zaznaczona to skrzynka główna — jej kod jest na karcie):</span>
+          ${A.cat.crates.filter(x => !x.hidden && !x.special).map(x => `<label class="chk"><input type="checkbox" name="crates" value="${esc(x.id)}" ${(c.crates || [c.crate]).includes(x.id) ? "checked" : ""}> ${esc(x.emoji)} ${esc(x.name)}${(x.variants || []).includes("flag") ? ' <small title="Skrzynka z wariantem Flagowym">🏳️</small>' : ""}</label>`).join("")}</div>
         <label class="wide a-country" ${countryNeeded(c.crates || [c.crate]) || c.country ? "" : "hidden"}>🏳️ Kraj <small class="muted">(kod ISO, np. PL, DE, US, GB-ENG — flaga do wariantu Flagowego)</small>
           <span class="a-country-row"><input type="text" name="country" value="${esc((c.country || "").toUpperCase())}" maxlength="6" placeholder="PL">
           <img class="a-flag" src="${c.country ? `/flag/${esc(c.country)}.svg` : ""}" alt="" ${c.country ? "" : "hidden"}></span></label>
         <label>Rzadkość<select name="rarity">${opt(Object.fromEntries(A.cat.rarityOrder.map(r => [r, A.cat.rarities[r].name])), c.rarity)}</select></label>
+        ${specialFieldsHTML(c)}
         <label>Typ<select name="type">${opt(Object.fromEntries(Object.entries(A.cat.types).map(([k, t]) => [k, `${t.icon} ${t.name}`])), c.type)}</select></label>
         <label>HP<input type="number" name="hp" value="${c.hp}" min="0" max="9999"></label>
         <label>Nazwa ataku<input type="text" name="attack" value="${esc(c.attack)}" maxlength="40"></label>
@@ -249,6 +255,27 @@ function openCardForm(id) {
     </div>`;
   $("#cardModal").hidden = false;
   arenaRefresh();
+}
+
+// karta specjalna (rzadkość Specjalna): skąd ją zdobyć, jej jedyny wariant i wygląd (makiety: /mockups)
+function specialFieldsHTML(c) {
+  const variant = c.fixedVariant || "joker";
+  return `<fieldset class="wide a-special" ${c.rarity === "special" ? "" : "hidden"}>
+    <legend>🃏 Karta specjalna <small class="muted">(nie wypada ze skrzynek, nie da się jej sprzedać grze, postawić ani zużyć w kuźni)</small></legend>
+    <div class="a-grid">
+      <label class="wide">Skąd gracze ją dostają<select name="source">${Object.entries(A.cat.specialSources).map(([k, v]) =>
+        `<option value="${k}"${k === (c.source || "casino") ? " selected" : ""}>${esc(v)}</option>`).join("")}</select></label>
+      <label>Jedyny wariant karty<select name="fixed_variant">${A.cat.specialVariants.map(v =>
+        `<option value="${v}"${v === variant ? " selected" : ""}>${esc(A.cat.variants[v].name)}</option>`).join("")}</select></label>
+      <label class="a-style" ${(A.cat.variants[variant]?.styles || []).length > 1 ? "" : "hidden"}>Wygląd<select name="style">${styleOpts(variant, c.style)}</select></label>
+    </div>
+    <p class="muted small">Wszystkie wyglądy zobaczysz na stronie <a href="/mockups" target="_blank">🎴 makiety</a> (tylko dla adminów). Karta trafi do skrzynki „Karty specjalne”.
+      Kartę z linku rozdajesz w sekcji 🔗 Linki do kart specjalnych.</p>
+  </fieldset>`;
+}
+function styleOpts(variant, sel) {
+  return (A.cat.variants[variant]?.styles || ["—"]).map((name, i) =>
+    `<option value="${i + 1}"${i + 1 === (+sel || 1) ? " selected" : ""}>${i + 1}. ${esc(name)}</option>`).join("");
 }
 
 function kindOpts(sel) {
@@ -366,6 +393,37 @@ async function loadUsers() {
   loadLog();
 }
 
+// ================================================================ LINKI DO KART SPECJALNYCH
+// Gracz, który otworzy link, dostaje kartę specjalną (każdy gracz raz na link). Adres: <adres gry>/link/<kod>.
+
+// schowek działa tylko przez https albo localhost - w sieci lokalnej (http) pokazujemy link do skopiowania ręcznie
+async function copyText(text, msg) {
+  try { await navigator.clipboard.writeText(text); toast(msg); }
+  catch (_) { prompt("Skopiuj link:", text); }
+}
+
+async function loadLinks() {
+  try { A.links = await api("/api/admin/links"); } catch (e) { return toast(e.message, true); }
+  const { cards, links } = A.links;
+  $("#linkForm").innerHTML = cards.length ? `
+    <label>Karta<select name="person">${cards.map(c => `<option value="${esc(c.id)}">${esc(c.name)} · ${esc(A.cat?.variants?.[c.variant]?.name || c.variant)}</option>`).join("")}</select></label>
+    <label>Notatka <small class="muted">(np. dla kogo)</small><input type="text" name="note" maxlength="80" placeholder="np. turniej 20.10"></label>
+    <label>Limit graczy <small class="muted">(0 = bez limitu)</small><input type="number" name="maxUses" value="0" min="0" max="100000"></label>
+    <button class="btn primary" type="submit">🔗 Utwórz link</button>`
+    : `<p class="muted small">Najpierw dodaj kartę specjalną ze źródłem „🔗 Link od admina” (skrzynka „Karty specjalne” → + Nowa karta).</p>`;
+  const when = t => new Date(t * 1000).toLocaleString("pl-PL", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  $("#linkList").innerHTML = links.map(l => `<div class="a-link${l.active ? "" : " off"}" data-link="${l.id}">
+      <div class="a-link-main"><b>${esc(l.name)}</b>${l.note ? ` <span class="muted">· ${esc(l.note)}</span>` : ""}
+        <code class="a-link-url">${esc(location.origin + l.path)}</code>
+        <small class="muted">utworzył ${esc(l.createdBy || "?")} · ${when(l.created)} · odebrało: <b>${l.uses}</b>${l.maxUses ? ` / ${l.maxUses}` : ""}
+          ${l.claimedBy.length ? ` (${l.claimedBy.slice(0, 12).map(esc).join(", ")}${l.claimedBy.length > 12 ? "…" : ""})` : ""}</small></div>
+      <span class="a-link-actions">
+        <button class="btn tiny" data-lact="copy">📋 Kopiuj</button>
+        <button class="btn tiny ${l.active ? "danger" : ""}" data-lact="toggle">${l.active ? "⛔ Wyłącz" : "✅ Włącz"}</button>
+      </span>
+    </div>`).join("") || '<div class="muted small">Brak linków.</div>';
+}
+
 // ================================================================ DZIENNIK ADMINÓW
 
 const LOG_ACTIONS = {
@@ -374,6 +432,7 @@ const LOG_ACTIONS = {
   password: "🔑 Zmiana hasła", user_delete: "🗑 Usunięte konto", ranking_hide: "🙈 Ukrył w rankingu", ranking_show: "🏆 Pokazał w rankingu",
   crate_save: "📦 Zapis skrzynki", crate_delete: "📦 Usunięcie skrzynki", crate_restore: "📦 Przywrócenie skrzynki",
   card_save: "🎴 Zapis karty", card_delete: "🎴 Usunięcie karty", card_restore: "🎴 Przywrócenie karty",
+  link_create: "🔗 Nowy link do karty", link_on: "🔗 Włączył link", link_off: "🔗 Wyłączył link",
 };
 
 async function loadLog() {
@@ -553,6 +612,25 @@ function openAccessDialog(id, name) {
 // ================================================================ ZDARZENIA
 
 function bind() {
+  $("#linkForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    try {
+      const res = await api("/api/admin/links", { method: "POST", json: { person: f.person, note: f.note, maxUses: +f.maxUses || 0 } });
+      await copyText(location.origin + res.path, "🔗 Link utworzony i skopiowany");
+      loadLinks(); loadLog();
+    } catch (err) { toast(err.message, true); }
+  });
+  $("#linkList").addEventListener("click", async e => {
+    const b = e.target.closest("[data-lact]"); if (!b) return;
+    const l = A.links.links.find(x => String(x.id) === b.closest("[data-link]").dataset.link);
+    try {
+      if (b.dataset.lact === "copy") return copyText(location.origin + l.path, "📋 Skopiowano link");
+      await api(`/api/admin/links/${l.id}`, { method: "POST", json: { active: !l.active } });
+      toast(l.active ? "⛔ Link wyłączony" : "✅ Link włączony");
+      loadLinks(); loadLog();
+    } catch (err) { toast(err.message, true); }
+  });
   $("#logFilter").addEventListener("change", renderLog);
   $("#logSearch").addEventListener("input", renderLog);
   $("#logRefresh").addEventListener("click", loadLog);
@@ -638,6 +716,15 @@ function bind() {
   });
   $("#cardForm").addEventListener("change", e => {
     const inp = e.target;
+    if (inp.name === "rarity") {   // karta specjalna: własne pola zamiast skrzynek
+      const sp = inp.value === "special";
+      $("#cardForm .a-special").hidden = !sp;
+      $("#cardForm .a-crate-checks").hidden = sp;
+    }
+    if (inp.name === "fixed_variant") {   // wariant z jednym wyglądem (Dżinsowa) - bez wyboru wyglądu
+      $("#cardForm [name=style]").innerHTML = styleOpts(inp.value, 1);
+      $("#cardForm .a-style").hidden = (A.cat.variants[inp.value]?.styles || []).length < 2;
+    }
     if (inp.name === "crates") {
       const box = $("#cardForm .a-country");
       box.hidden = !countryNeeded($$("#cardForm [name=crates]:checked").map(x => x.value)) && !$("#cardForm [name=country]").value;
@@ -650,7 +737,8 @@ function bind() {
   });
   $("#cardForm").addEventListener("submit", async e => {
     e.preventDefault();
-    if (!new FormData(e.target).getAll("crates").length) return toast("Zaznacz co najmniej jedną skrzynkę", true);
+    const fdata = new FormData(e.target);
+    if (fdata.get("rarity") !== "special" && !fdata.getAll("crates").length) return toast("Zaznacz co najmniej jedną skrzynkę", true);
     const btn = $("button[type=submit]", e.target);
     $("#cardForm [name=arena_json]").value = JSON.stringify(arenaCollect());
     btn.disabled = true; btn.textContent = "Zapisuję…";

@@ -16,7 +16,7 @@ import data
 CRATE_FIELDS = ("name", "short", "code", "emoji", "color1", "color2", "price", "desc", "shop", "restricted", "weights",
                 "variants")
 CARD_FIELDS = ("name", "wiki", "rarity", "type", "hp", "attack", "dmg", "attack2", "dmg2", "kind1", "kind2", "abilities",
-               "arena", "crate", "crates", "country")
+               "arena", "crate", "crates", "country", "source", "fixedVariant", "style")
 COUNTRY_RE = re.compile(r"^[a-z]{2}(-[a-z0-9]{1,3})?$")   # kod kraju ISO 3166 (np. pl, de, gb-eng) - do wariantu flagowego
 
 
@@ -60,10 +60,17 @@ def photo_variants(pid):
     return out
 
 
+def is_special(person):
+    """Karta specjalna (rzadkość Specjalna): tylko z kasyna albo z linku, zawsze w jednym wariancie, nie znika z gry."""
+    return person is not None and person.get("rarity") == "special"
+
+
 def possible_variants(person):
     """Warianty, w których ta karta może istnieć: zwykłe zawsze, wyjątkowe tylko z jej skrzynek (flagowy - z krajem),
     własne warianty karty (np. Rzulty tylko dla Jana Pawła II) i połączenia flagi z każdym z nich ("flag+gold")
-    (Lampionowa / Diabelska - "noCombo" - bez połączeń)."""
+    (Lampionowa / Diabelska - "noCombo" - bez połączeń). Karta specjalna - tylko jej jeden wariant."""
+    if is_special(person):
+        return [person["fixedVariant"]]
     extra = set(data.card_variants(person["id"]))
     for c in person.get("crates") or []:
         if c in CRATES:
@@ -204,6 +211,13 @@ def rebuild(conn):
             p["type"] = "tv"
         p["crates"] = [c for c in dict.fromkeys(p.get("crates") or []) if c in crates]
         p["crate"] = p["crates"][0] if p["crates"] else None
+        if p["rarity"] == "special":   # karta specjalna: skąd (kasyno / link), jedyny wariant i wygląd (1-6, makiety)
+            p["source"] = p.get("source") if p.get("source") in data.SPECIAL_SOURCES else "casino"
+            p["fixedVariant"] = (p.get("fixedVariant") if p.get("fixedVariant") in data.SPECIAL_VARIANTS
+                                 else "jeans" if p["source"] == "link" else "joker")
+            p["style"] = _int(p.get("style"), 1, len(data.VARIANTS[p["fixedVariant"]].get("styles") or [1]), 1)
+        else:
+            p["source"] = p["fixedVariant"] = p["style"] = None
 
     order = data.RARITY_ORDER
     final_people = {}
@@ -216,7 +230,9 @@ def rebuild(conn):
             final_people[p["id"]] = p
         crate["people"] = members
         crate["price"] = max(1, int(crate.get("price") or data.CRATE_PRICE))
-        crate["shop"] = bool(crate.get("shop", True))
+        # skrzynka kart specjalnych: nigdy w sklepie, nie da się jej kupić ani otworzyć
+        crate["special"] = bool(data.CRATES.get(cid, {}).get("special"))
+        crate["shop"] = bool(crate.get("shop", True)) and not crate["special"]
         crate["restricted"] = bool(crate.get("restricted", False))
         # warianty wyjątkowe (np. Królewski, Flagowy) - tylko te, które admin włączył (albo domyślne z data.py)
         chosen = crate["variants"] if "variants" in crate else data.DEFAULT_CRATE_VARIANTS.get(cid, [])
