@@ -62,10 +62,11 @@ VARIANTS = {
                 "desc": "Wariant tylko jednej karty (Jan Paweł II) - własne zdjęcie."},   # najrzadszy
     # warianty kart SPECJALNYCH (rzadkość "special"): karta specjalna istnieje tylko w jednym wariancie, który admin wybiera
     # w panelu (pole karty "fixedVariant") razem z wyglądem ("style", numer od 1, makiety: /mockups). Nie wypadają ze skrzynek.
-    # Jokerowa 7 "Talia Kasynowa": karta do gry na zielonym suknie, czapka i żetony na marginesach (static/css/joker-talia.css)
+    # Jokerowa ma jeden wygląd "Talia Kasynowa": karta do gry na zielonym suknie, czapka i żetony na marginesach
+    # (static/css/joker-talia.css, jokerDeco w app.js) - dawne wyglądy 1-6 (special.css) zastąpione
     "joker":   {"name": "Jokerowa",     "chance": 0.0, "mult": 1.0, "exclusive": True, "special": True,
-                "styles": ["Klasyczny", "Dworski", "Retro", "Nocny", "Złoty", "Fioletowy", "Talia Kasynowa"],
-                "desc": "Karta jak Joker z talii kart - osoba ze zdjęcia w czapce i kołnierzu błazna."},
+                "styles": ["Talia Kasynowa"],
+                "desc": "Karta jak Joker z talii kart na zielonym suknie kasyna - indeksy JOKER z czapką błazna i żetony."},
     "jeans":   {"name": "Dżinsowa",     "chance": 0.0, "mult": 1.0, "exclusive": True, "special": True,
                 "styles": ["Klasyczny dżins"],
                 "desc": "Karta z dżinsu - pomarańczowe przeszycia i miedziane nity."},

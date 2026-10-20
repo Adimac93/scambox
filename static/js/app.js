@@ -238,7 +238,7 @@ function variantLayers(v, p = null) {
     // nad kartą: migoczące gwiazdy i co jakiś czas spadająca gwiazda (każda karta w innym momencie i miejscu)
     if (x === "galaxy") html += `<div class="galaxy-stars"></div><div class="galaxy-shoot" style="--sd:-${rand(0, 11).toFixed(1)}s;--st:${Math.round(rand(4, 50))}%;--sl:${Math.round(rand(-30, 10))}%"><i></i></div>`;
     if (x === "negative") html += '<div class="neg-grain"></div>';
-    if (x === "joker") html += jokerDeco(p);
+    if (x === "joker") html += jokerDeco();
     if (x === "jeans") html += jeansDeco();
     if (GEMS.includes(x)) html += '<div class="diamond-layer"></div><div class="diamond-glints"><i></i><i></i><i></i><i></i><i></i></div>';
   }
@@ -312,24 +312,13 @@ function devilBG(variant) {
 }
 function devilDeco() { return `<div class="dv-out">${hwUse("dv-horn", "dv-horn l")}${hwUse("dv-horn", "dv-horn r")}</div>`; }
 
-// Karty specjalne - wariant Jokerowa: karta z talii (gruba czarna ramka, pionowy napis JOKER w rogach), a osoba ze zdjęcia
-// jest błaznem - czapka nad twarzą i kołnierz pod nią (symbole SVG #jk-hat / #jk-collar w templates/index.html).
-// Wyglądy: klasa karty vs-1 ... vs-6 (kolory w special.css), wybór w panelu admina, makiety: /mockups.
-// Wygląd 7 "Talia Kasynowa" (joker-talia.css): karta do gry na zielonym suknie - na szerokich marginesach indeksy JOKER
-// z czapką błazna i stosy żetonów; nic nie zasłania zdjęcia (bez czapki i kołnierza na zdjęciu).
-const JOKER_TALIA = 7;
-function jokerDeco(p) {
+// Karty specjalne - wariant Jokerowa "Talia Kasynowa" (joker-talia.css): karta do gry na zielonym suknie - na szerokich
+// marginesach indeksy JOKER z czapką błazna (symbol SVG #jk-hat w templates/index.html) i stosy żetonów; nic nie zasłania zdjęcia.
+function jokerDeco() {
   const letters = "JOKER".split("").map(l => `<b>${l}</b>`).join("");
-  if (+p?.style === JOKER_TALIA) {
-    const idx = c => `<span class="jt-idx ${c}">${hwUse("jk-hat", "jt-hat")}${letters}</span>`;
-    const chips = (side, colors) => `<span class="jt-chips ${side}">${colors.map(c => `<i class="jt-chip ${c}"></i>`).join("")}</span>`;
-    return `<div class="jt-deco"><i class="jt-stitch"></i>${idx("tl")}${idx("br")}${chips("l", ["red", "black", "blue"])}${chips("r", ["purple", "red", "black"])}</div>`;
-  }
-  return `<div class="jk-deco"><span class="jk-idx tl">${letters}</span><span class="jk-idx br">${letters}</span></div>`;
-}
-function jokerPhoto(variant, p) {
-  if (!variantParts(variant).includes("joker") || +p?.style === JOKER_TALIA) return "";
-  return `<i class="jk-figure">${hwUse("jk-hat", "jk-hat")}${hwUse("jk-collar", "jk-collar")}</i>`;
+  const idx = c => `<span class="jt-idx ${c}">${hwUse("jk-hat", "jt-hat")}${letters}</span>`;
+  const chips = (side, colors) => `<span class="jt-chips ${side}">${colors.map(c => `<i class="jt-chip ${c}"></i>`).join("")}</span>`;
+  return `<div class="jt-deco"><i class="jt-stitch"></i>${idx("tl")}${idx("br")}${chips("l", ["red", "black", "blue"])}${chips("r", ["purple", "red", "black"])}</div>`;
 }
 // Karty specjalne - wariant Dżinsowa: dżins, pomarańczowe przeszycia, miedziane nity
 function jeansDeco() {
@@ -367,7 +356,7 @@ function cardHTML(pid, variant = "normal") {
         <span class="card-hp"><small>HP</small>${p.hp}</span>
         <span class="card-type">${type.icon}</span>
       </div>
-      <div class="card-photo"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false">${galaxyPhoto(variant)}${halloweenPhoto(variant)}${jokerPhoto(variant, p)}</div>
+      <div class="card-photo"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false">${galaxyPhoto(variant)}${halloweenPhoto(variant)}</div>
       <div class="card-sub">${type.name} · ${esc(crate.short)}</div>
       ${abils.map((a, i) => `<div class="card-attack${i ? " atk2" : ""}${a.kind !== "off" ? " " + a.kind : ""}">
         <span class="atk-cost">${a.kind === "off" ? cost + (i ? type.icon : "") : S.cfg.abilityKinds[a.kind]?.icon || ""}</span>

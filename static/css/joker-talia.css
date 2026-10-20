@@ -1,33 +1,34 @@
-/* ============================================================ JOKEROWA - wygląd 7 "Talia Kasynowa" (karty specjalne)
+/* ============================================================ JOKEROWA "Talia Kasynowa" (karty specjalne)
    Karta do gry na zielonym suknie kasyna: szerokie marginesy z indeksami JOKER i czapką błazna (#jk-hat z index.html),
    stosy żetonów po bokach, kremowy środek ze złotymi liniami. Nic nie zasłania zdjęcia. Ozdoby: jokerDeco() w app.js.
+   :not(#_) podnosi ważność reguł do poziomu id - wygrywają ze starymi regułami .v-joker / .vs-N (special.css).
    Uwaga: cqw w karcie liczy się od wnętrza karty (bez marginesów), dlatego ozdoby na marginesach mają większe wartości. */
-.card.v-joker.vs-7 {
+.card.v-joker:not(#_) {
   --frame: radial-gradient(120% 100% at 50% 45%, #1a6b45, #0d4029 75%); --inner: #fffdf6;
   --ink: #0b2a1a; --ink-w: 5; --hat1: #c1121f; --hat2: #0d4029; --band: #f2cf6b; --band2: #0d4029;
   --ball1: #f2cf6b; --ball2: #f2cf6b; --ball3: #f2cf6b;
   background: var(--frame); padding: 4.2% 11.5%;
   box-shadow: 0 6px 18px #000a, inset 0 0 0 1px #0003;
 }
-.card.v-joker.vs-7::before, .card.v-joker.vs-7::after { content: none; }
-.card.v-joker.vs-7 .card-inner {
+.card.v-joker:not(#_)::before, .card.v-joker:not(#_)::after { content: none; }
+.card.v-joker:not(#_) .card-inner {
   background: var(--inner); color: #1a1a1a; border-radius: 2.5%/1.8%; padding: 6% 7% 4%;
   box-shadow: inset 0 0 0 .14em #0d4029, inset 0 0 0 .32em #fffdf6, inset 0 0 0 .42em #c9a227;
 }
-.card.v-joker.vs-7 .card-name { font-family: Cinzel, serif; color: #0d4029; }
-.card.v-joker.vs-7 .card-hp { color: #c1121f; }
-.card.v-joker.vs-7 .card-photo {
+.card.v-joker:not(#_) .card-name { font-family: Cinzel, serif; color: #0d4029; }
+.card.v-joker:not(#_) .card-hp { color: #c1121f; }
+.card.v-joker:not(#_) .card-photo {
   aspect-ratio: 1 / 1.08; border: .16em solid #0d4029; border-image: none; background: #efe7d2;
   box-shadow: 0 0 0 .12em #c9a227; filter: none;
 }
-.card.v-joker.vs-7:is(.atk-3, .atk-4) .card-photo { aspect-ratio: 1 / .85; }
-.card.v-joker.vs-7 .card-photo img { filter: none; }
-.card.v-joker.vs-7 .card-sub { background: none; color: #161616; font-style: normal; letter-spacing: .08em; }
-.card.v-joker.vs-7 .card-sub::before { content: "♠ ♣  "; color: #161616; }
-.card.v-joker.vs-7 .card-sub::after { content: "  ♥ ♦"; color: #c1121f; }
-.card.v-joker.vs-7 .card-attack { border-color: #16161633; }
-.card.v-joker.vs-7 .card-value { color: #0d4029; }
-.card.v-joker.vs-7 .var-tag.vt-joker { display: none; }   /* JOKER jest już w indeksach */
+.card.v-joker:not(#_):is(.atk-3, .atk-4) .card-photo { aspect-ratio: 1 / .85; }
+.card.v-joker:not(#_) .card-photo img { filter: none; }
+.card.v-joker:not(#_) .card-sub { background: none; color: #161616; font-style: normal; letter-spacing: .08em; }
+.card.v-joker:not(#_) .card-sub::before { content: "♠ ♣  "; color: #161616; }
+.card.v-joker:not(#_) .card-sub::after { content: "  ♥ ♦"; color: #c1121f; }
+.card.v-joker:not(#_) .card-attack { border-color: #16161633; }
+.card.v-joker:not(#_) .card-value { color: #0d4029; }
+.card.v-joker:not(#_) .var-tag.vt-joker { display: none; }   /* JOKER jest już w indeksach */
 
 .jt-deco { position: absolute; inset: 0; z-index: 4; pointer-events: none; border-radius: inherit; }
 .jt-deco > * { position: absolute; }
