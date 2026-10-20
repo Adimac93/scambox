@@ -55,6 +55,20 @@
       </div>
 
       <div class="panel">
+        <h3>📢 Wiadomości do graczy</h3>
+        <p class="muted small">Jak lista zmian po aktualizacji: każdy gracz, który wejdzie do gry w wybranym czasie, zobaczy wiadomość
+          raz — przy pierwszym wejściu w tym czasie (także, gdy już jest w grze, gdy ten czas się zacznie). Godziny według Twojego zegara.</p>
+        <form id="msgForm" class="a-msg-form" autocomplete="off">
+          <label class="wide">Tytuł<input type="text" name="title" maxlength="100" required placeholder="np. Turniej w sobotę!"></label>
+          <label class="wide">Treść<textarea name="body" rows="4" maxlength="2000" required placeholder="Co gracze mają przeczytać…"></textarea></label>
+          <label>Od<input type="datetime-local" name="start" required></label>
+          <label>Do<input type="datetime-local" name="end" required></label>
+          <button class="btn primary" type="submit">📢 Zaplanuj wiadomość</button>
+        </form>
+        <div id="msgList" class="a-links"></div>
+      </div>
+
+      <div class="panel">
         <h3>👥 Gracze</h3>
         <div id="userList" class="a-users"></div>
       </div>

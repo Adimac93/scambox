@@ -219,6 +219,8 @@ main { max-width: 1400px; margin: 0 auto; padding: 24px 20px 120px; }
   margin: 2.5% -2% 0; padding: .15em .5em; text-align: center; font-size: .5em; font-style: italic; font-weight: 500;
   background: linear-gradient(90deg, transparent, #fff8, transparent); color: #333;
 }
+.card-sub.has-subtitle { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* podtytuł z panelu admina */
+.sc-sub { text-align: center; font-size: 3.4cqw; font-style: italic; font-weight: 700; color: #f3e3b0; text-shadow: 0 1px 2px #000; margin-bottom: 1.5%; }
 .card-attack {
   margin-top: auto; display: flex; align-items: center; gap: .35em; padding: .45em 0;
   border-top: 1px solid #0002; border-bottom: 1px solid #0002;
@@ -613,6 +615,7 @@ select { background: var(--panel); color: var(--text); border: 1px solid var(--l
 .pn-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
 .pn-note ul { margin: 8px 0 2px; padding: 0; list-style: none; display: grid; gap: 7px; line-height: 1.45; }
 .pn-note li b { color: var(--accent); }
+.am-body { margin: 8px 0 2px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }   /* wiadomość od adminów */
 .pn .daily-actions { justify-content: center; }
 
 /* Ekwipunek: przełącznik Moje karty / Hall of Fame */

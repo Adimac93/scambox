@@ -264,6 +264,8 @@ function openViewer(pid, variant = "normal") {
         <div class="vi-rarity">${R.name}${isSpecial(variant) ? ` · <span class="holo-txt">${variantName(variant)}</span>` : ""}</div>
         <h2>${esc(p.name)}</h2>
         <div class="muted">${type.icon} ${type.name} · ${esc(crate.name)} · nr ${String(p.number).padStart(3, "0")}/${String(crate.people.length).padStart(3, "0")}</div>
+        ${p.subtitle ? `<div class="vi-subtitle">${esc(p.subtitle)}</div>` : ""}
+        ${p.desc ? `<p class="vi-desc">${esc(p.desc)}</p>` : ""}
         <table class="vi-table">
           <tr><td>HP</td><td>${p.hp}</td></tr>
           ${abilitiesOf(p).map((a, i, all) => `<tr><td>${a.kind !== "off" ? kindIcon(a.kind) + " " : ""}${KIND_LABELS[a.kind] || "Atak"}${all.length > 1 ? " " + (i + 1) : ""}</td><td>${esc(a.name)} <b>${a.value}</b></td></tr>`).join("")}

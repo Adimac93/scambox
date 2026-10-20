@@ -357,7 +357,7 @@ function cardHTML(pid, variant = "normal") {
         <span class="card-type">${type.icon}</span>
       </div>
       <div class="card-photo"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false">${galaxyPhoto(variant)}${halloweenPhoto(variant)}</div>
-      <div class="card-sub">${type.name} · ${esc(crate.short)}</div>
+      <div class="card-sub${p.subtitle ? " has-subtitle" : ""}">${p.subtitle ? esc(p.subtitle) : `${type.name} · ${esc(crate.short)}`}</div>
       ${abils.map((a, i) => `<div class="card-attack${i ? " atk2" : ""}${a.kind !== "off" ? " " + a.kind : ""}">
         <span class="atk-cost">${a.kind === "off" ? cost + (i ? type.icon : "") : S.cfg.abilityKinds[a.kind]?.icon || ""}</span>
         <span class="atk-name">${esc(a.name)}</span>
@@ -397,6 +397,7 @@ function secretCardHTML(p, variant) {
         <span class="sc-hp"><small>HP</small>${p.hp}</span>
       </div>
       <div class="sc-panel">
+        ${p.subtitle ? `<div class="sc-sub">${esc(p.subtitle)}</div>` : ""}
         ${abilitiesOf(p).map((a, i) => `<div class="sc-attack${a.kind !== "off" ? " " + a.kind : ""}"><span>${a.kind === "off" ? type.icon.repeat(i ? 2 : 1) : S.cfg.abilityKinds[a.kind]?.icon || ""}</span><span class="sc-atk">${esc(a.name)}</span><b>${a.value}</b></div>`).join("")}
         <div class="sc-foot"><span>★ TAJNA ★</span><span>${esc(crate.code)} ★${String(p.number).padStart(3, "0")}</span><span class="sc-val">${fmt(cardValue(p.id, variant))}</span></div>
       </div>
@@ -1811,7 +1812,12 @@ function bind() {
   applyBadges(me);
   S.jpLobby = me.jackpotLobby;
   startPolling();
-  if (me.patchNotes?.length) setTimeout(() => showPatchNotes(me.patchNotes), 500);  // nowa aktualizacja: co się zmieniło
-  else if (me.jackpot) setTimeout(() => showJackpotResult(me.jackpot), 600);  // gra w jackpot skończyła się, gdy mnie nie było
-  else if (me.dailyClaimable) setTimeout(openDaily, 600);
+  const startDialogs = () => {
+    if (me.patchNotes?.length) setTimeout(() => showPatchNotes(me.patchNotes), 500);  // nowa aktualizacja: co się zmieniło
+    else if (me.jackpot) setTimeout(() => showJackpotResult(me.jackpot), 600);  // gra w jackpot skończyła się, gdy mnie nie było
+    else if (me.dailyClaimable) setTimeout(openDaily, 600);
+  };
+  // najpierw wiadomości od adminów (zaplanowane w panelu), potem reszta
+  if (me.messages?.length) setTimeout(() => { if (!showAdminMessages(me.messages, startDialogs)) startDialogs(); }, 500);
+  else startDialogs();
 })();
