@@ -92,6 +92,7 @@ function startPolling() {
       S.jpLobby = me.jackpotLobby;
       await syncInventory(me);                          // karty / pieniądze zmienione przez innych graczy
       if (me.jackpot) showJackpotResult(me.jackpot);    // wynik gry w jackpot, którego jeszcze nie widziałem
+      else if (me.messages?.length && !S.opening) showAdminMessages(me.messages);   // zaczął się czas wiadomości od adminów
     } catch (_) { /* serwer chwilowo niedostępny */ }
     finally { running = false; }
   }, 5000);
@@ -107,6 +108,28 @@ function openPatchNotes(notes, fresh = false) {
         <ul>${n.items.map(i => `<li>${i}</li>`).join("")}</ul></div>`).join("")}
       <div class="daily-actions"><button class="btn primary" data-close>${fresh ? "Super, gramy! 🎉" : "Zamknij"}</button></div>
     </div>`, "pn-box");
+}
+
+// ================================================================ WIADOMOŚCI OD ADMINÓW
+// Admin planuje je w panelu (od - do); gracz widzi każdą raz: przy wejściu do gry albo w trakcie gry, gdy zacznie się jej czas.
+
+function showAdminMessages(list, then) {
+  list = list.filter(m => !S.msgShown?.has(m.id));
+  if (!list.length || dialogOpen() || epicOpen()) return false;
+  S.msgShown = S.msgShown || new Set();
+  list.forEach(m => S.msgShown.add(m.id));
+  const dlg = openDialog(`<div class="pn">
+      <h3>📢 ${list.length > 1 ? "Wiadomości" : "Wiadomość"} od ScamBox</h3>
+      ${list.map(m => `<div class="pn-note">
+        <div class="pn-head"><b>${esc(m.title)}</b><span class="muted small">${new Date(m.at * 1000).toLocaleDateString("pl-PL")}</span></div>
+        <p class="am-body">${esc(m.body)}</p></div>`).join("")}
+      <div class="daily-actions"><button class="btn primary" data-close>OK 👍</button></div>
+    </div>`, "pn-box");
+  api("/api/messages/seen", { ids: list.map(m => m.id) }).catch(() => {});
+  if (then) {   // po zamknięciu: dalsze okienka po wejściu do gry (lista zmian, codzienna skrzynka)
+    const wait = setInterval(() => { if (!document.body.contains(dlg)) { clearInterval(wait); setTimeout(then, 300); } }, 400);
+  }
+  return true;
 }
 
 // po wejściu do gry po aktualizacji: lista zmian (zapamiętana jako obejrzana), potem codzienna skrzynka
@@ -783,7 +806,7 @@ function openAvatarPicker(tab = null) {
     </div>
     ${tab === "cards" ? `
       <p class="muted small">Ikoną może być każda karta, którą masz — w każdym wariancie, który masz (złota, diamentowa, holo…).</p>
-      <div class="tb-row"><input type="text" class="av-search" placeholder="Szukaj…">${sortSelectHTML(avatarSort, "data-avsort", CARD_SORTS.filter(([k]) => k !== "new"))}</div>
+      <div class="tb-row"><input type="text" class="av-search" placeholder="Szukaj…">${sortSelectHTML(avatarSort, "data-avsort", UNIQUE_SORTS)}</div>
       <div class="avatar-cards">${mine.map(c => {
         const p = person(c.person), R = S.cfg.rarities[p.rarity];
         const active = c.person === S.me.avatarCard && c.variant === (S.me.avatarVariant || "normal");

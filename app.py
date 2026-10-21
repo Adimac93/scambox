@@ -249,6 +249,15 @@ def init_sqlite(conn):
             target_id INTEGER, target_name TEXT NOT NULL DEFAULT '',
             details TEXT NOT NULL DEFAULT ''
         );
+        -- wiadomości od adminów: gracz widzi je raz, przy pierwszym wejściu do gry między starts_at a ends_at
+        CREATE TABLE IF NOT EXISTS admin_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL, body TEXT NOT NULL,
+            starts_at REAL NOT NULL, ends_at REAL NOT NULL,
+            created_at REAL NOT NULL, admin_name TEXT NOT NULL DEFAULT ''
+        );
+        CREATE TABLE IF NOT EXISTS admin_message_seen (message_id INTEGER NOT NULL, user_id INTEGER NOT NULL,
+                                                       seen_at REAL NOT NULL, PRIMARY KEY (message_id, user_id));
         CREATE TABLE IF NOT EXISTS feed (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             author_id INTEGER NOT NULL,
@@ -354,7 +363,7 @@ def adopt_legacy_save(conn, uid):
     for key, value in conn.execute("SELECT key, value FROM state").fetchall():
         conn.execute("INSERT INTO user_state (user_id, key, value) VALUES (?, ?, ?) "
                  "ON CONFLICT (user_id, key) DO UPDATE SET value = excluded.value", (uid, key, value))
-    conn.execute("INSERT INTO user_discovered (user_id, person_id) SELECT ?, person_id FROM discovered ON CONFLICT DO NOTHING", (uid,))
+    conn.execute("INSERT INTO user_discovered (user_id, person_id) SELECT ?, person_id FROM discovered WHERE true ON CONFLICT DO NOTHING", (uid,))  # WHERE: bez niego SQLite czyta ON jako JOIN
     conn.execute("DELETE FROM state")
     conn.execute("DELETE FROM discovered")
 
@@ -711,7 +720,7 @@ def public_person(p, found):
                 "name": "???", "type": "tv", "hp": 0, "attack": "???", "dmg": 0, "imgv": 0}
     base = {k: p.get(k) for k in ("id", "name", "rarity", "type", "hp", "attack", "dmg", "attack2", "dmg2",
                                   "kind1", "kind2", "abilities", "arena", "crate", "crates", "number", "valueMult",
-                                  "country", "forge", "source", "fixedVariant", "style")}
+                                  "country", "forge", "source", "fixedVariant", "style", "subtitle", "desc")}
     base["imgv"] = img_version(p["id"])
     vp = variant_photos(p["id"])
     if vp:
@@ -1793,7 +1802,29 @@ def me():
                     "inv": [inv[0], inv[1]], "balance": st["balance"],
                     "jackpot": jackpot_news(me_id, st["jackpot_seen"]),   # wynik gry w jackpot, którego jeszcze nie widział
                     "jackpotLobby": lobby["id"] if lobby else None, "jackpotInvites": invites,
-                    "patchNotes": [n for n in PATCH_NOTES if n["v"] > seen][:3]})  # nowości od ostatniej wizyty
+                    "patchNotes": [n for n in PATCH_NOTES if n["v"] > seen][:3],  # nowości od ostatniej wizyty
+                    "messages": active_messages(me_id)})   # wiadomości od adminów, których jeszcze nie widział
+
+
+def active_messages(user_id):
+    """Wiadomości od adminów, które gracz ma teraz zobaczyć: trwa ich czas (starts_at - ends_at) i jeszcze ich nie widział."""
+    now = time.time()
+    rows = db().execute("SELECT * FROM admin_messages m WHERE starts_at <= ? AND ends_at > ? AND NOT EXISTS "
+                        "(SELECT 1 FROM admin_message_seen s WHERE s.message_id = m.id AND s.user_id = ?) ORDER BY starts_at",
+                        (now, now, user_id)).fetchall()
+    return [{"id": r["id"], "title": r["title"], "body": r["body"], "at": r["starts_at"]} for r in rows]
+
+
+@app.post("/api/messages/seen")
+@login_required
+def messages_seen():
+    """Gracz zobaczył wiadomości od adminów - w tym czasie już mu się nie pokażą."""
+    for mid in (request.get_json(force=True) or {}).get("ids") or []:
+        if isinstance(mid, int) and db().execute("SELECT 1 FROM admin_messages WHERE id = ?", (mid,)).fetchone():
+            db().execute("INSERT INTO admin_message_seen (message_id, user_id, seen_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
+                         (mid, uid(), time.time()))
+    db().commit()
+    return jsonify({"ok": True})
 
 
 @app.get("/api/halloffame")
@@ -3058,7 +3089,7 @@ def unique_id(base, taken):
 def admin_card_json(p):
     return dict({k: p.get(k) for k in ("id", "name", "rarity", "type", "hp", "attack", "dmg", "attack2", "dmg2",
                                        "kind1", "kind2", "abilities", "arena", "country", "source", "fixedVariant", "style",
-                                       "crate", "crates", "number", "builtin", "modified")},
+                                       "subtitle", "desc", "crate", "crates", "number", "builtin", "modified")},
                 wiki=list(p["wiki"]) if p.get("wiki") else None,
                 hasImage=bool(images.find(p["id"])), hasAlt=bool(images.find(p["id"], True)),
                 cardVariants=catalog.photo_variants(p["id"]), variantPhotos=variant_photos(p["id"]),
@@ -3091,6 +3122,54 @@ def money_txt(amount):
 def chest_name(kind):
     m = money_kind(kind)
     return MONEY_CHESTS[m]["name"] if m else catalog.CRATES[kind]["name"]
+
+
+# ---------------------------------------------------------------- wiadomości do graczy (panel admina)
+# Admin wybiera od kiedy do kiedy wiadomość jest aktywna (godziny w strefie czasowej przeglądarki admina - przeglądarka
+# wysyła gotowe znaczniki czasu); każdy gracz, który wejdzie do gry w tym czasie, zobaczy ją raz (active_messages).
+
+@app.get("/api/admin/messages")
+@admin_required
+def admin_messages_list():
+    rows = db().execute("SELECT m.*, (SELECT COUNT(*) FROM admin_message_seen s WHERE s.message_id = m.id) AS seen "
+                        "FROM admin_messages m ORDER BY starts_at DESC").fetchall()
+    return jsonify({"messages": [{"id": r["id"], "title": r["title"], "body": r["body"], "start": r["starts_at"],
+                                  "end": r["ends_at"], "admin": r["admin_name"], "seen": r["seen"]} for r in rows]})
+
+
+@app.post("/api/admin/messages")
+@admin_required
+def admin_messages_add():
+    d = request.get_json(force=True) or {}
+    title, body = str(d.get("title") or "").strip()[:100], str(d.get("body") or "").replace("\r\n", "\n").strip()[:2000]
+    try:
+        start, end = float(d.get("start")), float(d.get("end"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Podaj początek i koniec wyświetlania"}), 400
+    if not title or not body:
+        return jsonify({"error": "Podaj tytuł i treść wiadomości"}), 400
+    if end <= start:
+        return jsonify({"error": "Koniec musi być później niż początek"}), 400
+    if end <= time.time():
+        return jsonify({"error": "Ta wiadomość już by się skończyła - wybierz późniejszy koniec"}), 400
+    db().execute("INSERT INTO admin_messages (title, body, starts_at, ends_at, created_at, admin_name) VALUES (?, ?, ?, ?, ?, ?)",
+                 (title, body, start, end, time.time(), current_user()["username"]))
+    log_admin("message_add", details=title)
+    db().commit()
+    return jsonify({"ok": True})
+
+
+@app.delete("/api/admin/messages/<int:mid>")
+@admin_required
+def admin_messages_delete(mid):
+    row = db().execute("SELECT title FROM admin_messages WHERE id = ?", (mid,)).fetchone()
+    if not row:
+        return jsonify({"error": "Nie ma takiej wiadomości"}), 404
+    db().execute("DELETE FROM admin_message_seen WHERE message_id = ?", (mid,))
+    db().execute("DELETE FROM admin_messages WHERE id = ?", (mid,))
+    log_admin("message_delete", details=row[0])
+    db().commit()
+    return jsonify({"ok": True})
 
 
 @app.get("/api/admin/log")
@@ -3241,6 +3320,9 @@ def admin_save_card():
         "abilities": catalog.clean_abilities([{"name": n, "kind": k, "value": v} for n, k, v in
                                               zip(f.getlist("ab_name"), f.getlist("ab_kind"), f.getlist("ab_value"))]),
         "country": catalog.clean_country(f.get("country")),   # kod kraju do wariantu flagowego (np. PL)
+        # podtytuł - krótki tekst na karcie; opis - dłuższy tekst obok karty w podglądzie
+        "subtitle": (f.get("subtitle") or "").strip()[:catalog.SUBTITLE_MAX],
+        "desc": (f.get("desc") or "").replace("\r\n", "\n").strip()[:catalog.DESC_MAX],
         # karta specjalna: skąd (kasyno / link), jedyny wariant (Jokerowa, Dżinsowa) i wygląd 1-6 (catalog.rebuild sprawdza)
         "source": f.get("source"), "fixedVariant": f.get("fixed_variant"), "style": f.get("style"),
         # skrzynki istniejące w chwili zapisu - nowe wbudowane skrzynki dodane później dopiszą tę kartę (catalog.rebuild)

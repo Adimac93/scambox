@@ -34,6 +34,7 @@ async function load() {
   loadLog();
   A.cat = await api("/api/admin/catalog");
   loadLinks();
+  loadMessages();
   if (!A.crate || !A.cat.crates.some(c => c.id === A.crate)) A.crate = A.cat.crates.find(c => !c.hidden)?.id || null;
   render();
 }
@@ -192,6 +193,10 @@ function openCardForm(id) {
       <input type="hidden" name="id" value="${esc(c.id)}">
       <div class="a-grid">
         <label class="wide">Imię i nazwisko / nazwa<input type="text" name="name" value="${esc(c.name)}" required maxlength="60"></label>
+        <label class="wide">Podtytuł <small class="muted">(krótki tekst na karcie pod zdjęciem, max 40 znaków — pusty: typ i skrzynka)</small>
+          <input type="text" name="subtitle" value="${esc(c.subtitle || "")}" maxlength="40" placeholder="np. Mistrz świata 2026"></label>
+        <label class="wide">Opis <small class="muted">(dłuższy tekst obok karty w podglądzie, max 1000 znaków)</small>
+          <textarea name="desc" rows="3" maxlength="1000" placeholder="Kim jest ta osoba, ciekawostki…">${esc(c.desc || "")}</textarea></label>
         <div class="wide a-crate-checks" ${c.rarity === "special" ? "hidden" : ""}><span class="muted small">Skrzynki (karta może być w kilku; pierwsza zaznaczona to skrzynka główna — jej kod jest na karcie):</span>
           ${A.cat.crates.filter(x => !x.hidden && !x.special).map(x => `<label class="chk"><input type="checkbox" name="crates" value="${esc(x.id)}" ${(c.crates || [c.crate]).includes(x.id) ? "checked" : ""}> ${esc(x.emoji)} ${esc(x.name)}${(x.variants || []).includes("flag") ? ' <small title="Skrzynka z wariantem Flagowym">🏳️</small>' : ""}</label>`).join("")}</div>
         <label class="wide a-country" ${countryNeeded(c.crates || [c.crate]) || c.country ? "" : "hidden"}>🏳️ Kraj <small class="muted">(kod ISO, np. PL, DE, US, GB-ENG — flaga do wariantu Flagowego)</small>
@@ -268,6 +273,8 @@ function specialFieldsHTML(c) {
       <label>Jedyny wariant karty<select name="fixed_variant">${A.cat.specialVariants.map(v =>
         `<option value="${v}"${v === variant ? " selected" : ""}>${esc(A.cat.variants[v].name)}</option>`).join("")}</select></label>
       <label class="a-style" ${(A.cat.variants[variant]?.styles || []).length > 1 ? "" : "hidden"}>Wygląd<select name="style">${styleOpts(variant, c.style)}</select></label>
+      <div class="wide">${c.id ? '<button class="btn" type="button" data-act="preview-special" title="W nowej karcie, tak jak w skrzynce - z wybranym wariantem i wyglądem, nawet niezapisanym">👁️ Podgląd karty</button>'
+        : '<span class="muted small">👁️ Podgląd po dodaniu karty</span>'}</div>
     </div>
     <p class="muted small">Wszystkie wyglądy zobaczysz na stronie <a href="/mockups" target="_blank">🎴 makiety</a> (tylko dla adminów). Karta trafi do skrzynki „Karty specjalne”.
       Kartę z linku rozdajesz w sekcji 🔗 Linki do kart specjalnych.</p>
@@ -424,6 +431,35 @@ async function loadLinks() {
     </div>`).join("") || '<div class="muted small">Brak linków.</div>';
 }
 
+// ================================================================ WIADOMOŚCI DO GRACZY
+// Wiadomość pokazuje się raz każdemu graczowi, który wejdzie do gry między "Od" a "Do" (czas z zegara przeglądarki admina).
+
+const msgWhen = t => new Date(t * 1000).toLocaleString("pl-PL", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+// wartość pola datetime-local (czas lokalny) dla znacznika czasu w ms
+function localInput(ms) { const d = new Date(ms); d.setMinutes(d.getMinutes() - d.getTimezoneOffset(), 0, 0); return d.toISOString().slice(0, 16); }
+
+async function loadMessages() {
+  try { A.messages = (await api("/api/admin/messages")).messages; } catch (e) { return toast(e.message, true); }
+  const now = Date.now() / 1000;
+  $("#msgList").innerHTML = A.messages.map(m => {
+    const state = now < m.start ? ["later", "⏳ zaplanowana"] : now < m.end ? ["now", "🟢 wyświetla się teraz"] : ["past", "✔ zakończona"];
+    return `<div class="a-link${state[0] === "past" ? " off" : ""}" data-msg="${m.id}">
+      <div class="a-link-main"><b>${esc(m.title)}</b>
+        <span class="a-msg-body">${esc(m.body)}</span>
+        <small class="muted"><span class="a-msg-state ${state[0]}">${state[1]}</span> · ${msgWhen(m.start)} – ${msgWhen(m.end)} ·
+          dodał ${esc(m.admin || "?")} · zobaczyło: <b>${m.seen}</b></small></div>
+      <span class="a-link-actions"><button class="btn tiny danger" data-mact="delete">🗑 Usuń</button></span>
+    </div>`;
+  }).join("") || '<div class="muted small">Brak wiadomości.</div>';
+}
+
+function resetMessageForm() {
+  const f = $("#msgForm"), start = Date.now();
+  f.reset();
+  f.elements.start.value = localInput(start);
+  f.elements.end.value = localInput(start + 3 * 3600 * 1000);   // domyślnie przez 3 godziny od teraz
+}
+
 // ================================================================ DZIENNIK ADMINÓW
 
 const LOG_ACTIONS = {
@@ -433,6 +469,7 @@ const LOG_ACTIONS = {
   crate_save: "📦 Zapis skrzynki", crate_delete: "📦 Usunięcie skrzynki", crate_restore: "📦 Przywrócenie skrzynki",
   card_save: "🎴 Zapis karty", card_delete: "🎴 Usunięcie karty", card_restore: "🎴 Przywrócenie karty",
   link_create: "🔗 Nowy link do karty", link_on: "🔗 Włączył link", link_off: "🔗 Wyłączył link",
+  message_add: "📢 Nowa wiadomość do graczy", message_delete: "📢 Usunięcie wiadomości",
 };
 
 async function loadLog() {
@@ -631,6 +668,26 @@ function bind() {
       loadLinks(); loadLog();
     } catch (err) { toast(err.message, true); }
   });
+  $("#msgForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const f = e.target.elements, start = new Date(f.start.value).getTime() / 1000, end = new Date(f.end.value).getTime() / 1000;
+    try {
+      await api("/api/admin/messages", { method: "POST", json: { title: f.title.value, body: f.body.value, start, end } });
+      toast("📢 Wiadomość zaplanowana");
+      resetMessageForm(); loadMessages(); loadLog();
+    } catch (err) { toast(err.message, true); }
+  });
+  $("#msgList").addEventListener("click", async e => {
+    const b = e.target.closest("[data-mact]"); if (!b) return;
+    const m = A.messages.find(x => String(x.id) === b.closest("[data-msg]").dataset.msg);
+    if (!confirm(`Usunąć wiadomość „${m.title}”?`)) return;
+    try {
+      await api(`/api/admin/messages/${m.id}`, { method: "DELETE" });
+      toast("🗑 Wiadomość usunięta");
+      loadMessages(); loadLog();
+    } catch (err) { toast(err.message, true); }
+  });
+  resetMessageForm();
   $("#logFilter").addEventListener("change", renderLog);
   $("#logSearch").addEventListener("input", renderLog);
   $("#logRefresh").addEventListener("click", loadLog);
@@ -756,6 +813,11 @@ function bind() {
     const c = A.cat.cards.find(x => x.id === id);
     try {
       if (act === "close-card") return closeCardForm();
+      if (act === "preview-special") {   // podgląd karty specjalnej w grze (makiety), z wyborem z formularza
+        const f = new FormData($("#cardForm"));
+        const q = new URLSearchParams({ card: id, variant: f.get("fixed_variant") || "", style: f.get("style") || "" });
+        return window.open(`/mockups?${q}`, "_blank");
+      }
       if (act === "add-ability") {
         if (document.querySelectorAll("#abilityRows .a-ability").length >= A.cat.maxExtraAbilities) return toast(`Maksymalnie ${A.cat.maxExtraAbilities} dodatkowe zdolności`, true);
         return $("#abilityRows").insertAdjacentHTML("beforeend", abilityRowHTML());

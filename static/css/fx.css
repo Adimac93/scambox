@@ -229,6 +229,11 @@ input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { o
 }
 .vi-rarity { color: var(--rc); font-family: Bungee, Rubik, sans-serif; letter-spacing: 1px; }
 .viewer-info h2 { margin: 0; font-family: Bungee, Rubik, sans-serif; font-weight: 400; font-size: 26px; }
+.vi-subtitle { font-style: italic; color: var(--rc); font-weight: 500; }
+.vi-desc {   /* opis karty z panelu admina */
+  margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--panel2); border-left: 3px solid var(--rc);
+  font-size: 14px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow: auto;
+}
 .vi-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .vi-table td { padding: 7px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .vi-table td:first-child { color: var(--muted); white-space: nowrap; padding-right: 12px; }

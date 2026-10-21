@@ -345,33 +345,39 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
   --gem-ink: #4a0612; --gem-name1: #8f0a22; --gem-name2: #38020b; --gem-sub: #630b1c;
   --gem-t1: #ff1e3c; --gem-t2: #ff6f86; --gem-t3: #a3001a; --gem-glint: #ff4f6d; --gem-hue: 325deg;
 }
-.card.v-diamond, .card.v-emerald, .card.v-ruby {
+.v-amethyst, .vt-amethyst, .avv-amethyst {   /* Ametystowa: fiolet */
+  --gem-1: #5a12a8; --gem-2: #9b3dff; --gem-3: #c99bff; --gem-4: #ecdcff; --gem-5: #7a22d6; --gem-6: #a64dff; --gem-7: #b97aff;
+  --gem-in1: #f1e6ff; --gem-in2: #c8a2ff; --gem-in3: #ddc4ff; --gem-in4: #f8f2ff; --gem-f1: #c8a2ff33; --gem-f2: #d8b8ff44;
+  --gem-ink: #2a0652; --gem-name1: #5a12a8; --gem-name2: #24034a; --gem-sub: #3f0b78;
+  --gem-t1: #8a2be2; --gem-t2: #c38bff; --gem-t3: #4b0a96; --gem-glint: #b97aff; --gem-hue: 245deg;
+}
+.card.v-diamond, .card.v-emerald, .card.v-ruby, .card.v-amethyst {
   --spin: var(--gem-1), var(--gem-3), #ffffff, var(--gem-5), var(--gem-7), var(--gem-4), var(--gem-1);
   --frame: conic-gradient(from 0deg, var(--spin));
   box-shadow: 0 6px 18px #000a, 0 0 26px color-mix(in srgb, var(--gem-2) 87%, transparent), 0 0 60px color-mix(in srgb, var(--gem-6) 53%, transparent);
 }
-:is(.card.v-diamond, .card.v-emerald, .card.v-ruby)::before {   /* obracająca się ramka (style.css) */
+:is(.card.v-diamond, .card.v-emerald, .card.v-ruby, .card.v-amethyst)::before {   /* obracająca się ramka (style.css) */
   background: conic-gradient(from var(--ang, 0deg), var(--spin, transparent 0 0)), var(--frame);
   animation: ultraSpin 4s linear infinite;
 }
-:is(.card.v-diamond, .card.v-emerald, .card.v-ruby) .card-inner {
+:is(.card.v-diamond, .card.v-emerald, .card.v-ruby, .card.v-amethyst) .card-inner {
   background:
     repeating-conic-gradient(from 0deg at 30% 20%, #ffffff40 0 12deg, var(--gem-f1) 12deg 24deg),
     repeating-conic-gradient(from 45deg at 75% 80%, var(--gem-f2) 0 15deg, transparent 15deg 30deg),
     linear-gradient(160deg, var(--gem-in1), var(--gem-in2) 40%, var(--gem-in3) 70%, var(--gem-in4));
   color: var(--gem-ink);
 }
-:is(.card.v-diamond, .card.v-emerald, .card.v-ruby) .card-name { background: linear-gradient(180deg, var(--gem-name1), var(--gem-name2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-:is(.card.v-diamond, .card.v-emerald, .card.v-ruby) :is(.card-sub, .card-stats, .card-foot) { color: var(--gem-sub); }
-:is(.card.v-diamond, .card.v-emerald, .card.v-ruby) .card-photo { border-image: linear-gradient(135deg, #ffffff, var(--gem-2), var(--gem-4), var(--gem-1)) 1; }
+:is(.card.v-diamond, .card.v-emerald, .card.v-ruby, .card.v-amethyst) .card-name { background: linear-gradient(180deg, var(--gem-name1), var(--gem-name2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+:is(.card.v-diamond, .card.v-emerald, .card.v-ruby, .card.v-amethyst) :is(.card-sub, .card-stats, .card-foot) { color: var(--gem-sub); }
+:is(.card.v-diamond, .card.v-emerald, .card.v-ruby, .card.v-amethyst) .card-photo { border-image: linear-gradient(135deg, #ffffff, var(--gem-2), var(--gem-4), var(--gem-1)) 1; }
 /* samo zdjęcie też zmienia się w kamień */
-:is(.card, .r-secret):is(.v-diamond, .v-emerald, .v-ruby) :is(.card-photo, .sc-art) img { filter: grayscale(.35) brightness(1.08) contrast(1.15) saturate(1.3); }
-:is(.card, .r-secret):is(.v-diamond, .v-emerald, .v-ruby) :is(.card-photo, .sc-art)::before {
+:is(.card, .r-secret):is(.v-diamond, .v-emerald, .v-ruby, .v-amethyst) :is(.card-photo, .sc-art) img { filter: grayscale(.35) brightness(1.08) contrast(1.15) saturate(1.3); }
+:is(.card, .r-secret):is(.v-diamond, .v-emerald, .v-ruby, .v-amethyst) :is(.card-photo, .sc-art)::before {
   content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background: linear-gradient(160deg, var(--gem-t1), var(--gem-t2) 45%, var(--gem-t3));
   mix-blend-mode: color; opacity: .78;
 }
-:is(.card, .r-secret):is(.v-diamond, .v-emerald, .v-ruby) :is(.card-photo, .sc-art)::after {
+:is(.card, .r-secret):is(.v-diamond, .v-emerald, .v-ruby, .v-amethyst) :is(.card-photo, .sc-art)::after {
   content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
   background:
     linear-gradient(115deg, transparent 35%, #ffffffaa 47%, transparent 58%),
@@ -380,8 +386,8 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
   background-size: 250% 100%, auto, auto;
   mix-blend-mode: screen; animation: photoGlint 2.8s ease-in-out infinite;
 }
-.r-secret:is(.v-diamond, .v-emerald, .v-ruby) .sc-art::after { background: linear-gradient(180deg, #000a 0%, #0000 20%, #0000 48%, #000d 78%, #000 100%), linear-gradient(115deg, transparent 35%, #ffffffaa 47%, transparent 58%); background-size: auto, 250% 100%; mix-blend-mode: normal; }
-.r-secret:is(.v-diamond, .v-emerald, .v-ruby) { box-shadow: 0 6px 18px #000c, 0 0 26px color-mix(in srgb, var(--gem-2) 87%, transparent), 0 0 60px color-mix(in srgb, var(--gem-6) 53%, transparent); }
+.r-secret:is(.v-diamond, .v-emerald, .v-ruby, .v-amethyst) .sc-art::after { background: linear-gradient(180deg, #000a 0%, #0000 20%, #0000 48%, #000d 78%, #000 100%), linear-gradient(115deg, transparent 35%, #ffffffaa 47%, transparent 58%); background-size: auto, 250% 100%; mix-blend-mode: normal; }
+.r-secret:is(.v-diamond, .v-emerald, .v-ruby, .v-amethyst) { box-shadow: 0 6px 18px #000c, 0 0 26px color-mix(in srgb, var(--gem-2) 87%, transparent), 0 0 60px color-mix(in srgb, var(--gem-6) 53%, transparent); }
 .diamond-layer {
   position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none; mix-blend-mode: screen; opacity: .6;
   background:
@@ -406,19 +412,19 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 .diamond-glints i:nth-child(4) { left: 20%; top: 70%; animation-delay: 1.5s; }
 .diamond-glints i:nth-child(5) { left: 84%; top: 84%; animation-delay: 1.9s; }
 @keyframes glint { 0%, 100% { opacity: 0; transform: scale(.3) rotate(0deg); } 45% { opacity: 1; transform: scale(1.15) rotate(45deg); } 60% { opacity: 0; } }
-.pick:is(.v-diamond, .v-emerald, .v-ruby) { box-shadow: inset 0 0 0 2px var(--gem-2), 0 0 10px color-mix(in srgb, var(--gem-2) 60%, transparent), inset 0 -26px 26px -18px var(--rc); }
-.pick:is(.v-diamond, .v-emerald, .v-ruby) img { filter: grayscale(.35) brightness(1.05) contrast(1.1) sepia(.4) hue-rotate(var(--gem-hue)) saturate(2.2); }
-.pick:is(.v-diamond, .v-emerald, .v-ruby, .v-silver)::after {
+.pick:is(.v-diamond, .v-emerald, .v-ruby, .v-amethyst) { box-shadow: inset 0 0 0 2px var(--gem-2), 0 0 10px color-mix(in srgb, var(--gem-2) 60%, transparent), inset 0 -26px 26px -18px var(--rc); }
+.pick:is(.v-diamond, .v-emerald, .v-ruby, .v-amethyst) img { filter: grayscale(.35) brightness(1.05) contrast(1.1) sepia(.4) hue-rotate(var(--gem-hue)) saturate(2.2); }
+.pick:is(.v-diamond, .v-emerald, .v-ruby, .v-amethyst, .v-silver)::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(115deg, transparent 30%, #ffffff60 45%, transparent 60%); background-size: 250% 100%;
   animation: photoGlint 2.6s ease-in-out infinite;
 }
-:is(.var-tag, .ph):is(.vt-diamond, .vt-emerald, .vt-ruby) {
+:is(.var-tag, .ph):is(.vt-diamond, .vt-emerald, .vt-ruby, .vt-amethyst) {
   background: linear-gradient(90deg, var(--gem-1), var(--gem-3), #ffffff, var(--gem-5)); background-size: 200% 100%; color: #fff; text-shadow: 0 1px 2px var(--gem-name2);
   box-shadow: 0 0 .8em var(--gem-2), 0 0 1.6em color-mix(in srgb, var(--gem-6) 53%, transparent); animation: rainbowSlide 2.5s linear infinite;
 }
-.vdot:is(.vt-diamond, .vt-emerald, .vt-ruby) { background: linear-gradient(135deg, var(--gem-1), var(--gem-3)); box-shadow: 0 0 6px var(--gem-2); }
-.odd.odd-v:is(.vt-diamond, .vt-emerald, .vt-ruby) { border-left-color: var(--gem-2); }
+.vdot:is(.vt-diamond, .vt-emerald, .vt-ruby, .vt-amethyst) { background: linear-gradient(135deg, var(--gem-1), var(--gem-3)); box-shadow: 0 0 6px var(--gem-2); }
+.odd.odd-v:is(.vt-diamond, .vt-emerald, .vt-ruby, .vt-amethyst) { border-left-color: var(--gem-2); }
 
 /* tajna karta znajomego w aktywności */
 .feed-item.fi-secret { background: linear-gradient(90deg, #3a2a08cc, var(--panel2)); border-color: #f3e3b088; box-shadow: 0 0 18px #ffd54a33; }
@@ -590,7 +596,7 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 /* Flagowa + inny wariant (np. flag+gold, klasy "v-flag v-gold v-combo"): flaga w ramce i powiewające światło,
    reszta karty (środek, zdjęcie, efekty) wygląda jak drugi wariant; dwie plakietki jedna pod drugą */
 .card.v-flag.v-combo { background: var(--flag, linear-gradient(135deg, #8c97b2, #5a6274)) center / cover no-repeat; }
-.card.v-flag.v-combo:is(.v-diamond, .v-emerald, .v-ruby) { box-shadow: 0 6px 18px #000a, 0 0 0 1px #0006, 0 0 26px color-mix(in srgb, var(--gem-2) 87%, transparent); }
+.card.v-flag.v-combo:is(.v-diamond, .v-emerald, .v-ruby, .v-amethyst) { box-shadow: 0 6px 18px #000a, 0 0 0 1px #0006, 0 0 26px color-mix(in srgb, var(--gem-2) 87%, transparent); }
 .card.v-flag.v-combo.v-gold { box-shadow: 0 6px 18px #000a, 0 0 0 1px #0006, 0 0 24px #ffcf3fbb; }
 .var-tag.vt-second { top: calc(34% + 2.1em); }
 .r-secret .var-tag.vt-second { top: calc(13% + 2.1em); }
@@ -884,6 +890,6 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
    warstwach: w każdej klatce przerysowuje się tylko sama nakładka, a nie cała karta pod nią. */
 .holo-layer, .card.holo .card-photo::after, .rev-foil, .gold-sheen, .diamond-layer, .clear-sheen, .neg-grain, .flag-wave,
 .sc-border, .holo-tag, .var-tag, .pick .ph, .pick::after, .mini::after, .mini-secret::after,
-:is(.card, .r-secret):is(.v-diamond, .v-emerald, .v-ruby) :is(.card-photo, .sc-art)::after {
+:is(.card, .r-secret):is(.v-diamond, .v-emerald, .v-ruby, .v-amethyst) :is(.card-photo, .sc-art)::after {
   will-change: transform;
 }

@@ -150,3 +150,11 @@ fieldset.a-special { border-color: #19e6ff66; }
 .a-link-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .a-link-url { font-size: 12px; color: #19e6ff; word-break: break-all; user-select: all; }
 .a-link-actions { display: flex; gap: 6px; flex: none; }
+/* wiadomości do graczy */
+.a-msg-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px 12px; align-items: end; margin: 6px 0 14px; }
+.a-msg-form label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; color: var(--muted); }
+.a-msg-form .wide { grid-column: 1 / -1; }
+.a-msg-form textarea { resize: vertical; font: inherit; }
+.a-msg-body { white-space: pre-wrap; font-size: 13px; }
+.a-msg-state { font-size: 12px; font-weight: 700; }
+.a-msg-state.now { color: var(--good, #3ddc84); } .a-msg-state.later { color: #19e6ff; } .a-msg-state.past { color: var(--muted); }
