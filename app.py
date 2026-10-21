@@ -27,7 +27,7 @@ from data import (ABILITY_KINDS, ARENA, ARENA_EFFECT_TARGETS, ARENA_EFFECTS, ARE
                   STARTING_BALANCE, TYPES, UPGRADE_EDGE, UPGRADE_MAX, UPGRADE_MAX_ITEMS, VARIANT_ORDER,
                   VARIANTS, CRATE_VARIANTS, PATCH_NOTES, MARKET, ROULETTE, ROULETTE_BETS, ROULETTE_RED, ROULETTE_WHEEL,
                   JACKPOT, card_value, card_variants, combine_variant, SPECIAL_VARIANTS, SPECIAL_SOURCES, SPECIAL_CRATE,
-                  CASINO_SPECIAL)
+                  CASINO_SPECIAL, BLACKJACK)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEST_MODE = "--test" in sys.argv  # osobny zapis do testów: python app.py --test
@@ -41,7 +41,7 @@ STATE_KEYS = (("balance", STARTING_BALANCE), ("opened", 0), ("spent", 0), ("earn
               ("patch_seen", 0),  # patch_seen: ostatnia obejrzana lista zmian (PATCH_NOTES)
               ("market_seen", 0),  # market_seen: kiedy gracz ostatnio oglądał rynek (znaczek z nowościami)
               ("jackpot_seen", 0))  # jackpot_seen: koniec (ms) ostatniej gry w jackpot, której wynik gracz już widział
-ESCROW = 0  # "właściciel" kart wystawionych na rynek / postawionych w jackpocie (czekają na koniec transakcji)
+ESCROW = 0  # "właściciel" kart wystawionych na rynek / postawionych w blackjacku (czekają na koniec transakcji)
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_.\-ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]{3,20}$")
 FEED_RARITY = RARITY_ORDER.index("gold")  # od legendarnych w górę dropy trafiają automatycznie do aktywności znajomych
 MIN_PASSWORD = 8  # nowe hasła (stare, krótsze nadal działają przy logowaniu)
@@ -316,6 +316,14 @@ def init_sqlite(conn):
         );
         CREATE TABLE IF NOT EXISTS card_link_claims (link_id INTEGER NOT NULL, user_id INTEGER NOT NULL, item_id INTEGER,
                                                      claimed_at REAL NOT NULL, PRIMARY KEY (link_id, user_id));
+        -- rozdanie blackjacka w trakcie (najwyżej jedno na gracza; po rozliczeniu znika). Listy w JSON: id postawionych
+        -- kart (w ESCROW), talia, karty gracza i krupiera ("AS" = as pik, "TH" = dziesiątka kier)
+        CREATE TABLE IF NOT EXISTS blackjack_games (
+            user_id INTEGER PRIMARY KEY,
+            item_ids TEXT NOT NULL, stake INTEGER NOT NULL,
+            double_ids TEXT NOT NULL DEFAULT '[]', double_stake INTEGER NOT NULL DEFAULT 0,
+            deck TEXT NOT NULL, player TEXT NOT NULL, dealer TEXT NOT NULL, created_at REAL NOT NULL
+        );
     """)
     cols = [r[1] for r in conn.execute("PRAGMA table_info(items)")]
     if "variant" not in cols:  # migracja: holo (0/1) -> variant
@@ -891,6 +899,7 @@ def config():
         "roulette": dict(ROULETTE, wheel=ROULETTE_WHEEL, red=ROULETTE_RED,
                          bets={k: {"name": n, "numbers": nums, "pays": pays} for k, (n, nums, pays) in ROULETTE_BETS.items()}),
         "jackpot": JACKPOT,
+        "blackjack": BLACKJACK,
         "specialVariants": SPECIAL_VARIANTS, "specialSources": SPECIAL_SOURCES, "casinoSpecial": CASINO_SPECIAL,
     })
 
@@ -1479,6 +1488,8 @@ def show_card():
 # ---------------------------------------------------------------- wymiany z przyjaciółmi
 
 TRADE_MAX_LINES = 30
+# Wymiany są tylko na karty - pieniędzy nie da się przekazać (kolumny money_give / money_want zostają dla starych wymian).
+TRADE_NO_MONEY = "W wymianach można dawać tylko karty — bez pieniędzy"
 
 
 def trade_json(t, me):
@@ -1523,10 +1534,8 @@ def trade_problem(t):
     for r in db().execute("SELECT * FROM trade_lines WHERE trade_id = ? AND side = 'want'", (t["id"],)).fetchall():
         if pick_want_items(t["to_id"], r["person_id"], r["variant"], r["count"]) is None:
             return "Odbiorca nie ma już wszystkich chcianych kart"
-    if get_state(t["from_id"])["balance"] < t["money_give"]:
-        return "Oferujący nie ma tyle pieniędzy"
-    if get_state(t["to_id"])["balance"] < t["money_want"]:
-        return "Odbiorca nie ma tyle pieniędzy"
+    if t["money_give"] or t["money_want"]:   # stara oferta z pieniędzmi - już nie do przyjęcia
+        return TRADE_NO_MONEY
     return None
 
 
@@ -1558,20 +1567,19 @@ def trade_create():
         give_ids = [int(i) for i in body.get("give", [])]
         want = [{"person": w["person"], "variant": w.get("variant", "normal"), "count": int(w.get("count", 1))}
                 for w in body.get("want", [])]
-        money_give, money_want = int(body.get("moneyGive") or 0), int(body.get("moneyWant") or 0)
     except (TypeError, ValueError, KeyError):
         return jsonify({"error": "Nieprawidłowa oferta"}), 400
-    if not (give_ids or want or money_give or money_want):
+    if body.get("moneyGive") or body.get("moneyWant"):
+        return jsonify({"error": TRADE_NO_MONEY}), 400
+    if not (give_ids or want):
         return jsonify({"error": "Oferta jest pusta"}), 400
-    if not (give_ids or money_give) or not (want or money_want):
-        return jsonify({"error": "Coś dajesz i coś chcesz w zamian — obie strony muszą coś zawierać"}), 400
-    if len(give_ids) + len(want) > TRADE_MAX_LINES or not (0 <= money_give <= MAX_DEPOSIT and 0 <= money_want <= MAX_DEPOSIT):
+    if not give_ids or not want:
+        return jsonify({"error": "Coś dajesz i coś chcesz w zamian — obie strony muszą mieć karty"}), 400
+    if len(give_ids) + len(want) > TRADE_MAX_LINES:
         return jsonify({"error": "Oferta jest za duża"}), 400
-    rows = owned_rows(give_ids) if give_ids else []
+    rows = owned_rows(give_ids)
     if rows is None:
         return jsonify({"error": "Nie masz wszystkich kart, które chcesz dać"}), 400
-    if money_give > get_state()["balance"]:
-        return jsonify({"error": "Nie masz tyle pieniędzy"}), 400
     for w in want:
         if w["person"] not in catalog.PEOPLE or w["variant"] not in VARIANTS or not 1 <= w["count"] <= 100:
             return jsonify({"error": "Nieprawidłowa karta w ofercie"}), 400
@@ -1580,7 +1588,7 @@ def trade_create():
     now = time.time()
     tid = db().execute("INSERT INTO trades (from_id, to_id, message, money_give, money_want, created_at, updated_at) "
                        "VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id",
-                       (me, other["id"], (body.get("message") or "").strip()[:140], money_give, money_want, now, now)
+                       (me, other["id"], (body.get("message") or "").strip()[:140], 0, 0, now, now)
                        ).fetchone()[0]
     for r in rows:
         db().execute("INSERT INTO trade_lines (trade_id, side, item_id, person_id, variant, count) VALUES (?, 'give', ?, ?, ?, 1)",
@@ -1625,8 +1633,6 @@ def trade_accept(tid):
     if moved:
         marks = ",".join("?" * len(moved))
         conn.execute(f"DELETE FROM showcase WHERE item_id IN ({marks})", moved)
-    add_state("balance", -t["money_give"] + t["money_want"], t["from_id"])
-    add_state("balance", t["money_give"] - t["money_want"], t["to_id"])
     # tajne karty, które ktoś dostał w wymianie, są dla niego odkryte
     for item_ids, user_id in ((give, t["to_id"]), (want, t["from_id"])):
         for item_id in item_ids:
@@ -2438,6 +2444,199 @@ def casino_roulette():
     db().commit()
     out["state"] = get_state()
     return jsonify(out)
+
+
+# ---------------------------------------------------------------- kasyno: blackjack
+# Gracz przeciw krupierowi, stawką są karty (jak w ruletce), zasady w BLACKJACK (data.py). Rozdanie trwa kilka zapytań
+# (dobierz / stój / podwój), więc czeka w blackjack_games, a postawione karty są w ESCROW - w tym czasie nie da się ich
+# sprzedać ani zużyć. Z gabloty ich nie zdejmujemy: karta w ESCROW się w niej nie pokazuje, a po remisie albo wygranej
+# wraca na swoje miejsce. Talię i zakrytą kartę krupiera zna tylko serwer.
+
+BJ_RANKS, BJ_SUITS = "A23456789TJQK", "SHDC"   # T = dziesiątka; piki, kiery, kara, trefle
+BJ_GONE = "To rozdanie już się skończyło"
+
+
+def bj_total(hand):
+    """(suma punktów, miękka?) - as liczy się za 11, dopóki suma nie przekracza 21."""
+    total = sum(11 if c[0] == "A" else 10 if c[0] in "TJQK" else int(c[0]) for c in hand)
+    aces = sum(c[0] == "A" for c in hand)
+    while total > 21 and aces:
+        total, aces = total - 10, aces - 1
+    return total, aces > 0
+
+
+def bj_blackjack(hand):
+    return len(hand) == 2 and bj_total(hand)[0] == 21
+
+
+def my_blackjack():
+    return db().execute("SELECT * FROM blackjack_games WHERE user_id = ?", (uid(),)).fetchone()
+
+
+def bj_hold(ids):
+    """Postawione karty do ESCROW na czas rozdania."""
+    marks = ",".join("?" * len(ids))
+    db().execute(f"UPDATE items SET user_id = ? WHERE user_id = ? AND id IN ({marks})", [ESCROW, uid(), *ids])
+
+
+def bj_cards(ids):
+    """Postawione karty (w ESCROW) do pokazania przy stole."""
+    if not ids:
+        return []
+    marks = ",".join("?" * len(ids))
+    rows = db().execute(f"SELECT * FROM items WHERE user_id = ? AND id IN ({marks}) ORDER BY id DESC", [ESCROW, *ids])
+    return [i for i in (item_json(r) for r in rows) if i]
+
+
+def bj_json(G):
+    """Rozdanie w trakcie dla przeglądarki - druga karta krupiera jest zakryta ("??")."""
+    player = json.loads(G["player"])
+    return {"player": player, "dealer": [json.loads(G["dealer"])[0], "??"],
+            "stake": G["stake"], "doubleStake": G["double_stake"],
+            "items": bj_cards(json.loads(G["item_ids"])), "doubleItems": bj_cards(json.loads(G["double_ids"])),
+            "canDouble": len(player) == 2 and not G["double_stake"]}
+
+
+def bj_end(G, player, dealer, deck):
+    """Koniec rozdania: krupier dobiera (jeśli trzeba), rozliczenie kart i wygranej, rozdanie znika."""
+    ids = json.loads(G["item_ids"]) + json.loads(G["double_ids"])
+    stake = G["stake"] + G["double_stake"]
+    total = bj_total(player)[0]
+    if total <= 21 and not bj_blackjack(player) and not bj_blackjack(dealer):
+        while bj_total(dealer)[0] < 17:   # krupier dobiera do 16 i staje na każdej 17
+            dealer.append(deck.pop())
+    dealer_total = bj_total(dealer)[0]
+    if total > 21:
+        result = "lose"
+    elif bj_blackjack(player):
+        result = "push" if bj_blackjack(dealer) else "blackjack"
+    elif bj_blackjack(dealer) or total < dealer_total <= 21:
+        result = "lose"
+    else:
+        result = "push" if total == dealer_total else "win"
+    out = {"result": result, "player": player, "dealer": dealer, "stake": stake, "items": [], "money": 0, "special": None}
+    marks = ",".join("?" * len(ids))
+    if result == "lose":
+        db().execute(f"DELETE FROM items WHERE user_id = ? AND id IN ({marks})", [ESCROW, *ids])
+        db().execute(f"DELETE FROM showcase WHERE item_id IN ({marks})", ids)
+    else:   # remis / wygrana - postawione karty wracają do gracza
+        out["returned"] = bj_cards(ids)
+        db().execute(f"UPDATE items SET user_id = ? WHERE user_id = ? AND id IN ({marks})", [uid(), ESCROW, *ids])
+    if result in ("win", "blackjack"):   # + wygrana w kartach, jak w ruletce
+        payout = int(stake * BLACKJACK["blackjackPays"]) if result == "blackjack" else stake
+        cards, money = house_cards(payout)
+        out["items"] = [insert_item(p["id"], "normal", "casino") for p in cards]
+        out["money"], out["payout"] = money, payout
+        add_state("balance", money)
+        note_drops(out["items"], "blackjack")
+        out["special"] = casino_special_drop(payout)   # karta specjalna z kasyna (Joker) albo None
+    db().execute("DELETE FROM blackjack_games WHERE user_id = ?", (uid(),))
+    db().commit()
+    return jsonify({"game": None, "end": out, "state": get_state()})
+
+
+def bj_load():
+    """Moje rozdanie w trakcie: (wiersz, karty gracza, karty krupiera, talia) - jak argumenty bj_end - albo None."""
+    G = my_blackjack()
+    return G and (G, json.loads(G["player"]), json.loads(G["dealer"]), json.loads(G["deck"]))
+
+
+def blackjack_forget_user(user_id):
+    """Usuwany gracz: jego rozdanie znika razem z postawionymi kartami (są w ESCROW)."""
+    G = db().execute("SELECT * FROM blackjack_games WHERE user_id = ?", (user_id,)).fetchone()
+    if G is None:
+        return
+    ids = json.loads(G["item_ids"]) + json.loads(G["double_ids"])
+    db().execute(f"DELETE FROM items WHERE user_id = ? AND id IN ({','.join('?' * len(ids))})", [ESCROW, *ids])
+    db().execute("DELETE FROM blackjack_games WHERE user_id = ?", (user_id,))
+
+
+@app.get("/api/casino/blackjack")
+@login_required
+def casino_blackjack():
+    G = my_blackjack()
+    return jsonify({"game": bj_json(G) if G else None})
+
+
+@app.post("/api/casino/blackjack/deal")
+@login_required
+def casino_blackjack_deal():
+    lock_me()
+    if my_blackjack():
+        return bad("Najpierw dokończ rozdanie")
+    ids = int_ids(request.get_json(force=True).get("ids"))
+    if not 1 <= len(ids) <= BLACKJACK["maxCards"]:
+        return bad(f"Postaw od 1 do {BLACKJACK['maxCards']} kart")
+    rows, err = take_my_items(ids, stake=True)
+    if err:
+        return bad(err)
+    bj_hold(ids)
+    deck = [r + s for r in BJ_RANKS for s in BJ_SUITS] * BLACKJACK["decks"]
+    rng.shuffle(deck)
+    player, dealer = [deck.pop()], [deck.pop()]   # na zmianę: gracz, krupier, gracz, krupier (zakryta)
+    player.append(deck.pop())
+    dealer.append(deck.pop())
+    db().execute("INSERT INTO blackjack_games (user_id, item_ids, stake, deck, player, dealer, created_at) "
+                 "VALUES (?, ?, ?, ?, ?, ?, ?)", (uid(), json.dumps(ids), sum(row_value(r) for r in rows),
+                                                  json.dumps(deck), json.dumps(player), json.dumps(dealer), time.time()))
+    if bj_blackjack(player) or bj_blackjack(dealer):   # krupier od razu sprawdza blackjacka - koniec rozdania
+        return bj_end(my_blackjack(), player, dealer, deck)
+    db().commit()
+    return jsonify({"game": bj_json(my_blackjack()), "end": None, "state": get_state()})
+
+
+@app.post("/api/casino/blackjack/hit")
+@login_required
+def casino_blackjack_hit():
+    lock_me()
+    game = bj_load()
+    if not game:
+        return bad(BJ_GONE)
+    G, player, dealer, deck = game
+    player.append(deck.pop())
+    if bj_total(player)[0] >= 21:   # fura albo 21 - nie ma już czego dobierać
+        return bj_end(G, player, dealer, deck)
+    db().execute("UPDATE blackjack_games SET deck = ?, player = ? WHERE user_id = ?",
+                 (json.dumps(deck), json.dumps(player), uid()))
+    db().commit()
+    return jsonify({"game": bj_json(my_blackjack()), "end": None, "state": get_state()})
+
+
+@app.post("/api/casino/blackjack/stand")
+@login_required
+def casino_blackjack_stand():
+    lock_me()
+    game = bj_load()
+    if not game:
+        return bad(BJ_GONE)
+    return bj_end(*game)
+
+
+@app.post("/api/casino/blackjack/double")
+@login_required
+def casino_blackjack_double():
+    """Podwojenie: dokładam karty warte najwyżej tyle, co stawka, dostaję dokładnie jedną kartę i krupier gra."""
+    lock_me()
+    game = bj_load()
+    if not game:
+        return bad(BJ_GONE)
+    G, player, dealer, deck = game
+    if len(player) != 2 or G["double_stake"]:
+        return bad("Podwoić można tylko na dwóch pierwszych kartach")
+    ids = int_ids(request.get_json(force=True).get("ids"))
+    if not 1 <= len(ids) <= BLACKJACK["maxCards"]:
+        return bad(f"Dołóż od 1 do {BLACKJACK['maxCards']} kart")
+    rows, err = take_my_items(ids, stake=True)
+    if err:
+        return bad(err)
+    extra = sum(row_value(r) for r in rows)
+    if extra > G["stake"]:
+        return bad(f"Dołożone karty mogą być warte najwyżej tyle, co stawka ({fmt_money(G['stake'])})")
+    bj_hold(ids)
+    db().execute("UPDATE blackjack_games SET double_ids = ?, double_stake = ? WHERE user_id = ?",
+                 (json.dumps(ids), extra, uid()))
+    player.append(deck.pop())
+    return bj_end(my_blackjack(), player, dealer, deck)
 
 
 # ---------------------------------------------------------------- kasyno: jackpot (lobby dla 2 graczy)
@@ -3677,6 +3876,7 @@ def admin_delete_user(user_id):
     conn = db()
     log_admin("user_delete", user_id)  # przed usunięciem - żeby zapisać nazwę gracza
     market_forget_user(user_id)        # jego oferty na rynku i stół jackpota (pieniądze innych graczy wracają)
+    blackjack_forget_user(user_id)     # rozdanie w trakcie i postawione w nim karty
     for sql in ("DELETE FROM items WHERE user_id = ?", "DELETE FROM user_state WHERE user_id = ?",
                 "DELETE FROM user_discovered WHERE user_id = ?", "DELETE FROM daily_claims WHERE user_id = ?",
                 "DELETE FROM user_collected WHERE user_id = ?",

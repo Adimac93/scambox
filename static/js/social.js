@@ -354,7 +354,7 @@ function feedText(f) {
     return f.to ? "pokazuje ci kartę" : "chwali się kartą";
   }
   const verb = { drop: "trafia ze skrzynki", contract: "wytwarza w kontrakcie", upgrade: "wygrywa w ulepszaczu",
-                 casino: "wygrywa w ruletce", joker: "wygrywa w kasynie kartę specjalną", link: "dostaje kartę specjalną z linku" }[f.kind] || "zdobywa";
+                 casino: "wygrywa w ruletce", blackjack: "wygrywa w blackjacku", joker: "wygrywa w kasynie kartę specjalną", link: "dostaje kartę specjalną z linku" }[f.kind] || "zdobywa";
   return `${verb}!`;
 }
 
@@ -522,14 +522,12 @@ async function openTradeBuilder(username) {
       <div class="tb-col">
         <div class="tb-head"><b>Dajesz</b><span class="muted" id="tbGiveVal"></span></div>
         <div class="tb-sel" id="tbGiveSel"></div>
-        <label class="tb-money">+ pieniądze <input type="number" id="tbMoneyGive" min="0" max="${S.state.balance}" value="0"></label>
         <div class="tb-row"><input type="text" class="tb-search" data-side="mine" placeholder="Szukaj w swoich kartach…">${sortSelectHTML(T.sortMine, 'data-tbsort="mine"', TRADE_SORTS)}</div>
         <div class="pick-grid tb-grid" id="tbMine"></div>
       </div>
       <div class="tb-col">
         <div class="tb-head"><b>Chcesz od ${esc(username)}</b><span class="muted" id="tbWantVal"></span></div>
         <div class="tb-sel" id="tbWantSel"></div>
-        <label class="tb-money">+ pieniądze <input type="number" id="tbMoneyWant" min="0" value="0"></label>
         <div class="tb-row"><input type="text" class="tb-search" data-side="theirs" placeholder="Szukaj w kartach znajomego…">${sortSelectHTML(T.sortTheirs, 'data-tbsort="theirs"', TRADE_SORTS)}</div>
         <div class="pick-grid tb-grid" id="tbTheirs"></div>
       </div>
@@ -556,8 +554,8 @@ async function openTradeBuilder(username) {
       const g = theirGroups[k];
       return withRevealMap(reveal, imgq, () => pickHTML({ id: k, person: g.person, variant: g.variant, value: g.value }, { extra: n > 1 ? `<span class="pc">×${n}</span>` : "" }));
     }).join("") || '<span class="muted small">Kliknij karty znajomego poniżej</span>';
-    const giveVal = T.give.reduce((a, id) => a + S.items.find(i => i.id === id).value, 0) + (+dlg.querySelector("#tbMoneyGive").value || 0);
-    const wantVal = Object.entries(T.want).reduce((a, [k, n]) => a + theirGroups[k].value * n, 0) + (+dlg.querySelector("#tbMoneyWant").value || 0);
+    const giveVal = T.give.reduce((a, id) => a + S.items.find(i => i.id === id).value, 0);
+    const wantVal = Object.entries(T.want).reduce((a, [k, n]) => a + theirGroups[k].value * n, 0);
     dlg.querySelector("#tbGiveVal").textContent = fmt(giveVal);
     dlg.querySelector("#tbWantVal").textContent = fmt(wantVal);
   };
@@ -565,7 +563,6 @@ async function openTradeBuilder(username) {
 
   dlg.addEventListener("input", e => {
     if (e.target.matches(".tb-search")) { T[e.target.dataset.side === "mine" ? "qMine" : "qTheirs"] = e.target.value; draw(); }
-    if (e.target.matches("#tbMoneyGive, #tbMoneyWant")) draw();
   });
   dlg.addEventListener("change", e => {
     const side = e.target.dataset.tbsort;
@@ -587,7 +584,6 @@ async function openTradeBuilder(username) {
       const body = {
         to: username, give: T.give, message: dlg.querySelector("#tbMsg").value,
         want: Object.entries(T.want).filter(([, n]) => n > 0).map(([k, n]) => ({ person: theirGroups[k].person, variant: theirGroups[k].variant, count: n })),
-        moneyGive: +dlg.querySelector("#tbMoneyGive").value || 0, moneyWant: +dlg.querySelector("#tbMoneyWant").value || 0,
       };
       try {
         await api("/api/trades", body);
@@ -903,7 +899,7 @@ function bindSocial() {
     const trd = t.closest("[data-trade]");
     if (trd) return openTradeBuilder(trd.dataset.trade);
     const ta = t.closest("[data-taccept]"), td = t.closest("[data-tdecline]"), tc = t.closest("[data-tcancel]");
-    if (ta) { if (confirm("Przyjąć tę wymianę? Karty i pieniądze zostaną od razu wymienione.")) acceptTrade(ta.dataset.taccept); return; }
+    if (ta) { if (confirm("Przyjąć tę wymianę? Karty zostaną od razu wymienione.")) acceptTrade(ta.dataset.taccept); return; }
     if (td) return tradeAction(() => api(`/api/trades/${td.dataset.tdecline}/decline`, {}), "Odrzucono ofertę");
     if (tc) return tradeAction(() => api(`/api/trades/${tc.dataset.tcancel}/cancel`, {}), "Wycofano ofertę");
     const tlc = t.closest(".tl-card");

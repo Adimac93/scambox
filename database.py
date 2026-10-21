@@ -174,6 +174,12 @@ PG_SCHEMA = """
     );
     CREATE TABLE IF NOT EXISTS card_link_claims (link_id BIGINT NOT NULL, user_id BIGINT NOT NULL, item_id BIGINT,
                                                  claimed_at DOUBLE PRECISION NOT NULL, PRIMARY KEY (link_id, user_id));
+    CREATE TABLE IF NOT EXISTS blackjack_games (
+        user_id BIGINT PRIMARY KEY,
+        item_ids TEXT NOT NULL, stake BIGINT NOT NULL,
+        double_ids TEXT NOT NULL DEFAULT '[]', double_stake BIGINT NOT NULL DEFAULT 0,
+        deck TEXT NOT NULL, player TEXT NOT NULL, dealer TEXT NOT NULL, created_at DOUBLE PRECISION NOT NULL
+    );
 """
 
 _pool = None

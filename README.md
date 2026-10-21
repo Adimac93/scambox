@@ -51,7 +51,7 @@ To stop sharing: `tailscale serve --https=443 off`.
 - 👥 Friends: invitations, activity feed (shown cards + legendary drops), "📣 Pokaż znajomym" button on a card
 - 👤 Profiles: showcase of 6 cards and the binder of every player; 🏆 ranking (collection value, cards, crates)
 - 🎭 Player icon: an emoji or the photo of any card you own — in any variant you own (gold, diamond…), no uploads
-- 🔄 Trading with friends: cards + money for cards + money, accept/decline/cancel, history
+- 🔄 Trading with friends: cards for cards (no money), accept/decline/cancel, history
 - ⚔️ Legendary, ULTRA and secret cards have two abilities
 - 💸 Bank: admin only
 - ⚒️ Forge: **Kontrakt** (N cards of one rarity → 1 card of the next) and **Ulepszacz** (upgrade wheel, CS-site style); secret cards cannot be crafted

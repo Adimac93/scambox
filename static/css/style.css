@@ -9,8 +9,8 @@
   --good: #3ddc84;
   --bad: #ff5468;
 
-  --c-green: #4fc34f;
-  --c-uncommon: #26c6b0;
+  --c-green: #9aa3ad;      /* Zwykła (klucz "green" został ze starych zapisów) */
+  --c-uncommon: #4fc34f;
   --c-blue: #4b8bff;
   --c-purple: #a35bff;
   --c-red: #ff4040;
@@ -250,8 +250,8 @@ main { max-width: 1400px; margin: 0 auto; padding: 24px 20px 120px; }
 .card:hover .shine { opacity: 1; }
 
 /* rzadkości - ramka i wnętrze */
-.card.r-green  { --rc: var(--c-green);  --frame: linear-gradient(145deg, #a4e89a, #2f8f3a 50%, #a4e89a); --inner: linear-gradient(170deg, #f0faea, #cfeac4); }
-.card.r-uncommon { --rc: var(--c-uncommon); --frame: linear-gradient(145deg, #9ff0e2, #138a7b 50%, #9ff0e2); --inner: linear-gradient(170deg, #ecfbf8, #c2ebe2); }
+.card.r-green  { --rc: var(--c-green);  --frame: linear-gradient(145deg, #d3d8de, #6b737c 50%, #d3d8de); --inner: linear-gradient(170deg, #f4f5f7, #dcdfe3); }
+.card.r-uncommon { --rc: var(--c-uncommon); --frame: linear-gradient(145deg, #a4e89a, #2f8f3a 50%, #a4e89a); --inner: linear-gradient(170deg, #f0faea, #cfeac4); }
 .card.r-blue   { --rc: var(--c-blue);   --frame: linear-gradient(145deg, #a8c8ff, #2453c7 50%, #a8c8ff); --inner: linear-gradient(170deg, #eef4ff, #c8dafc); }
 .card.r-purple { --rc: var(--c-purple); --frame: linear-gradient(145deg, #d7b5ff, #6a20c9 50%, #d7b5ff); --inner: linear-gradient(170deg, #f6efff, #dccaf7); }
 .card.r-red    { --rc: var(--c-red);    --frame: linear-gradient(145deg, #ffb0b0, #b3121f 50%, #ffb0b0); --inner: linear-gradient(170deg, #fff0ee, #f7cdc8); }

@@ -211,8 +211,6 @@ details.fsection summary { cursor: pointer; color: var(--muted); font-weight: 70
 .tb-head { display: flex; justify-content: space-between; gap: 8px; }
 .tb-sel { display: flex; flex-wrap: wrap; gap: 6px; min-height: 92px; padding: 6px; border-radius: 10px; border: 2px dashed #ffffff22; align-content: flex-start; }
 .tb-sel .pick { width: 74px; }
-.tb-money { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
-.tb-money input { width: 120px; }
 .tb-grid { max-height: 34vh; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); }
 #tbMsg { width: 100%; }
 @media (max-width: 760px) { .tb-cols { grid-template-columns: 1fr; } .t-body { grid-template-columns: 1fr; } .t-arrow { justify-self: center; transform: rotate(90deg); } }

@@ -135,9 +135,9 @@ SHOWCASE_SIZE = 6         # ile kart mieści gablota na profilu
 
 # kolejność = od najpospolitszej do najrzadszej
 RARITIES = {
-    "green":  {"name": "Zwykła",           "weight": 56.3, "value": 10,   "color": "#4fc34f"},
+    "green":  {"name": "Zwykła",           "weight": 56.3, "value": 10,   "color": "#9aa3ad"},
     # Niepospolita: na razie bez kart (szansa liczy się tylko w skrzynkach, w których są karty tej rzadkości)
-    "uncommon": {"name": "Niepospolita",   "weight": 20.0, "value": 18,   "color": "#26c6b0"},
+    "uncommon": {"name": "Niepospolita",   "weight": 20.0, "value": 18,   "color": "#4fc34f"},
     "blue":   {"name": "Rzadka",           "weight": 25.0, "value": 30,   "color": "#4b8bff"},
     "purple": {"name": "Epicka",           "weight": 12.0, "value": 90,   "color": "#a35bff"},
     "red":    {"name": "Mityczna",         "weight": 5.5,  "value": 300,  "color": "#ff4040"},
@@ -390,9 +390,9 @@ CRATES = {
 }
 SPECIAL_CRATE = "specjalne"
 # skąd gracz może dostać kartę specjalną (pole karty "source", wybór w panelu admina)
-SPECIAL_SOURCES = {"casino": "🎰 Kasyno — wygrane w grach, które dają nowe karty (ruletka)",
+SPECIAL_SOURCES = {"casino": "🎰 Kasyno — wygrane w grach, które dają nowe karty (ruletka, blackjack)",
                    "link": "🔗 Link od admina — każdy gracz może go użyć raz"}
-# Karta specjalna z kasyna: przy każdej WYGRANEJ w ruletce (i innych grach, które dają nowe karty) szansa
+# Karta specjalna z kasyna: przy każdej WYGRANEJ w ruletce i blackjacku (i innych grach, które dają nowe karty) szansa
 # = wygrana w groszach / "per", najwyżej "max". Szansa rośnie z wygraną, więc małymi zakładami nie da się jej "wyfarmić":
 # średnio kosztuje to tyle, ile jest warta (przewaga kasyna 1/37 · per / szansa na wygraną).
 CASINO_SPECIAL = {"per": 50_000, "max": 0.05}
@@ -529,6 +529,12 @@ ROULETTE_BETS = {
     "col3":   ("3. kolumna", list(range(3, 37, 3)), 2),
 }
 ROULETTE_BETS.update({f"n{n}": (f"Liczba {n}", [n], 35) for n in range(1, 37)})
+# Blackjack: gracz przeciw krupierowi, stawką są karty (jak w ruletce). Przed każdym rozdaniem tasujemy "decks" talii,
+# krupier od razu sprawdza, czy ma blackjacka, dobiera do 16 i staje na każdej 17 (także miękkiej). Wygrana 1:1,
+# blackjack "blackjackPays":1 (wygrana w kartach jak w ruletce), remis - karty wracają. Podwojenie tylko na dwóch
+# pierwszych kartach: gracz dokłada karty warte najwyżej tyle, co stawka, i dostaje dokładnie jedną kartę.
+# Bez rozdzielania par i ubezpieczenia. Rozdanie czeka na serwerze (postawione karty w ESCROW), aż gracz je dokończy.
+BLACKJACK = {"maxCards": 20, "decks": 6, "blackjackPays": 1.5}
 # Jackpot: lobby dla 2 graczy (publiczne / prywatne z zaproszeniami), obaj wybierają karty i akceptują; szansa na wygraną
 # = wartość moich kart / wartość wszystkich, zwycięzca bierze wszystkie karty. Lobby bez ruchu przez expireHours się zamyka.
 JACKPOT = {"maxCards": 20, "expireHours": 24}
@@ -536,6 +542,17 @@ JACKPOT = {"maxCards": 20, "expireHours": 24}
 # ============================================================ LISTA ZMIAN (pokazywana raz po aktualizacji)
 # Najnowsza na górze. "v" musi rosnąć z każdą nową wersją - gracz zobaczy wpisy nowsze niż ostatnio obejrzany.
 PATCH_NOTES = [
+    {"v": 11, "date": "2026-10-21", "title": "Blackjack, nowe kolory i wymiany bez pieniędzy",
+     "items": [
+         "🃏 Nowa gra w 🎰 Kasynie: <b>Blackjack</b>! Postaw karty (jak w ruletce) i zagraj z krupierem — "
+         "<b>Dobierz</b>, <b>Stój</b> albo <b>Podwój</b> (dokładasz karty warte najwyżej tyle, co stawka, "
+         "i dostajesz jeszcze jedną kartę).",
+         "💰 Wygrana 1:1, <b>blackjack 3:2</b> — w kartach ze skrzynek ze sklepu, remis = karty wracają. "
+         "Krupier staje na 17. Przy wygranej możesz też dostać kartę specjalną 🃏 Jokerową.",
+         "🎨 Nowe kolory rzadkości: <b>Zwykła</b> jest teraz <b>szara</b>, a <b>Niepospolita</b> — <b>zielona</b>.",
+         "🔄 <b>Wymiany</b> są już tylko na karty — nie da się w nich przekazywać pieniędzy. "
+         "Czekające oferty z pieniędzmi nie dadzą się przyjąć (można je odrzucić albo wycofać).",
+     ]},
     {"v": 10, "date": "2026-10-21", "title": "Codzienna skrzynka",
      "items": [
          "🎁 <b>Codzienna skrzynka</b> daje teraz od <b>5 000 gr</b> do <b>15 000 gr</b>. MEGA skrzynka 💎 w niedzielę bez zmian.",

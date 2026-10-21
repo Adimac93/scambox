@@ -1,17 +1,20 @@
 "use strict";
-// Kasyno: ruletka (stawką są karty, wygrana też w kartach) i jackpot - lobby dla dwóch graczy (zwycięzca bierze wszystkie karty).
-// Losuje zawsze serwer - przeglądarka tylko pokazuje animację z gotowym wynikiem.
+// Kasyno: ruletka i blackjack (stawką są karty, wygrana też w kartach) oraz jackpot - lobby dla dwóch graczy (zwycięzca
+// bierze wszystkie karty). Losuje zawsze serwer - przeglądarka tylko pokazuje animację z gotowym wynikiem.
 
 const CS = {
   tab: "roulette",
   sel: new Set(),        // moje karty postawione w ruletce
   bet: "red",
   q: "",
-  spinning: false,
+  spinning: false,       // trwa animacja (ruletka, rozdawanie w blackjacku) - klikanie zablokowane
   angle: 0,              // obrót koła ruletki (stopnie)
   history: [],           // ostatnie wylosowane liczby
   last: null,            // ostatni wynik (do pokazania pod kołem)
-  sorts: { rl: "value", jp: "value" },   // sortowanie moich kart w ruletce / jackpocie
+  sorts: { rl: "value", jp: "value", bj: "value", bjd: "value" },   // sortowanie moich kart w ruletce / jackpocie / blackjacku
+  // blackjack: rozdanie w trakcie (game, z serwera), karty na stole (view), wynik ostatniego rozdania (end),
+  // karty do postawienia (sel) i do podwojenia (dsel)
+  bj: { loaded: false, game: null, view: { player: [], dealer: [] }, end: null, sel: new Set(), dsel: new Set(), q: "", history: [] },
   // jackpot: lobby, w którym siedzę (data.current), nowe lobby (publiczne / prywatne + zaproszenia), obejrzane wyniki
   jp: { data: null, q: "", poll: null, sig: "", lastLobby: null, busy: false, newPublic: true, newInvites: "", shown: new Set() },
 };
@@ -53,28 +56,31 @@ function csAddDuplicates(ids, max, zone) {
   return [...ids, ...picked];
 }
 
-// siatka moich kart do wyboru (ruletka / jackpot)
-function csPickerHTML(set, q, max, zone) {
+// siatka moich kart do wyboru (ruletka / jackpot / blackjack)
+function csPickerHTML(set, q, max, zone, dupesTip = "Dodaj wszystkie karty, które masz podwójnie — z każdej zostaje jeden egzemplarz (ulubione ⭐ zostają)") {
   const sorted = sortCards(csItems().filter(i => cardMatches(i, q)), CS.sorts[zone]);
   const list = [...sorted.filter(i => set.has(i.id)), ...sorted.filter(i => !set.has(i.id))];   // wybrane na początku
   const dupes = csDuplicates(set, zone).length;
   return `<div class="cs-pick-head"><input type="text" data-csq="${zone}" placeholder="🔍 Szukaj: nazwa, wariant, rzadkość…" value="${esc(q)}">
       ${sortSelectHTML(CS.sorts[zone], `data-cssort="${zone}"`)}
       <span class="muted small">${set.size}/${max} kart · ${fmt(csStake(set))}</span>
-      ${dupes ? `<button class="btn tiny" data-csdupes="${zone}" title="Dodaj wszystkie karty, które masz podwójnie — z każdej zostaje jeden egzemplarz (ulubione ⭐ zostają)">♻️ Dodaj duplikaty (${dupes})</button>` : ""}
+      ${dupes ? `<button class="btn tiny" data-csdupes="${zone}" title="${esc(dupesTip)}">♻️ Dodaj duplikaty (${dupes})</button>` : ""}
       ${set.size ? `<button class="btn tiny" data-csclear="${zone}">Wyczyść</button>` : ""}</div>
     <div class="pick-grid cs-grid" data-zone="${zone}" data-keep="${zone}">${list.slice(0, CS_PICK_LIMIT).map(i => pickHTML(i, { sel: set.has(i.id) })).join("")
       || '<div class="empty">Nie masz kart (ulubionych ⭐ i specjalnych 🃏 nie można postawić).</div>'}</div>`;
 }
 
 function renderCasino() {
-  $("#casinoSeg").innerHTML = [["roulette", "🎡 Ruletka"], ["jackpot", "💰 Jackpot (2 graczy)"]].map(([t, n]) =>
+  $("#casinoSeg").innerHTML = [["roulette", "🎡 Ruletka"], ["blackjack", "🃏 Blackjack"], ["jackpot", "💰 Jackpot (2 graczy)"]].map(([t, n]) =>
     `<button data-cstab="${t}" class="${CS.tab === t ? "active" : ""}">${n}</button>`).join("");
   const own = new Set(S.items.map(i => i.id));
-  [...CS.sel].forEach(id => { if (!own.has(id)) CS.sel.delete(id); });
+  [CS.sel, CS.bj.sel, CS.bj.dsel].forEach(set => [...set].forEach(id => { if (!own.has(id)) set.delete(id); }));
   if (CS.tab === "roulette") { stopJackpotPolling(); drawRoulette(); }
+  else if (CS.tab === "blackjack") { stopJackpotPolling(); renderBlackjack(); }
   else renderJackpot();
 }
+
+function csRedraw(zone) { zone === "rl" ? drawRoulette() : zone === "jp" ? drawJackpot() : drawBlackjack(); }
 
 // ================================================================ RULETKA
 
@@ -222,6 +228,245 @@ async function spinRoulette() {
   }
   CS.spinning = false;
   if (currentView() === "casino" && CS.tab === "roulette") drawRoulette();
+}
+
+// ================================================================ BLACKJACK
+// Gracz przeciw krupierowi, stawką są karty (jak w ruletce). Rozdanie prowadzi serwer (talia, zakryta karta krupiera)
+// i czeka na nim, aż gracz je dokończy - przeglądarka tylko pokazuje karty. Postawione karty są w tym czasie poza
+// ekwipunkiem, po remisie albo wygranej wracają. Podwojenie: dokładam karty warte najwyżej tyle, co stawka.
+
+const BJ_SUITS = { S: "♠", H: "♥", D: "♦", C: "♣" };
+
+// karty to napisy "AS", "TH" (T = dziesiątka), "??" = zakryta karta krupiera
+function bjTotal(hand) {
+  let total = 0, aces = 0;
+  for (const c of hand) {
+    if (c === "??") continue;
+    total += c[0] === "A" ? 11 : "TJQK".includes(c[0]) ? 10 : +c[0];
+    if (c[0] === "A") aces++;
+  }
+  while (total > 21 && aces) { total -= 10; aces--; }
+  return { total, soft: aces > 0 };
+}
+function bjIsBlackjack(hand) { return hand.length === 2 && bjTotal(hand).total === 21; }
+function bjPaysTxt() { const p = S.cfg.blackjack.blackjackPays; return { 1.5: "3:2", 1.2: "6:5", 2: "2:1" }[p] || `${p}:1`; }
+
+function bjCardHTML(c, cls = "") {
+  if (c === "??") return `<div class="bj-card back ${cls}"></div>`;
+  const r = c[0] === "T" ? "10" : c[0], s = BJ_SUITS[c[1]];
+  return `<div class="bj-card${"HD".includes(c[1]) ? " red" : ""} ${cls}"><span class="bj-c bj-c-tl">${r}<i>${s}</i></span>
+    <span class="bj-c-mid">${"JQK".includes(r) ? r : s}</span><span class="bj-c bj-c-br">${r}<i>${s}</i></span></div>`;
+}
+
+// suma punktów przy ręce: miękka (as za 11) w trakcie gry jako "7 / 17", za dużo na czerwono, blackjack na złoto
+function bjTotalHTML(hand, done) {
+  if (!hand.length) return "";
+  const { total, soft } = bjTotal(hand), bj = bjIsBlackjack(hand);
+  const txt = bj ? "BJ" : soft && total < 21 && !done ? `${total - 10} / ${total}` : total;
+  return `<b class="bj-total${total > 21 ? " bust" : bj ? " bj" : ""}">${txt}</b>`;
+}
+
+// stół: krupier u góry, gracz na dole; anim = [strona, nr karty, "new" | "flip"] - animuje się tylko ta jedna karta
+function bjTableHTML(anim = null) {
+  const B = CS.bj, v = B.view, done = !B.game;
+  const hand = side => v[side].map((c, i) => bjCardHTML(c, anim?.[0] === side && anim[1] === i ? `bj-${anim[2]}` : "")).join("");
+  const stake = B.game ? B.game.stake + B.game.doubleStake : B.end?.stake;
+  return `<div class="bj-felt">
+    <div class="bj-seat"><div class="bj-label">Krupier ${bjTotalHTML(v.dealer, done)}</div><div class="bj-hand">${hand("dealer")}</div></div>
+    <div class="bj-mid">${B.end && !CS.spinning ? bjResultHTML(B.end)
+      : `<span class="bj-rules">BLACKJACK PŁACI ${bjPaysTxt()} · KRUPIER STAJE NA 17</span>`}</div>
+    <div class="bj-seat"><div class="bj-hand">${hand("player")}</div>
+      <div class="bj-label">Ty ${bjTotalHTML(v.player, done)}${stake ? `<span class="bj-chip">🎰 ${fmt(stake)}${B.game?.doubleStake || B.end?.doubled ? " · podwojone" : ""}</span>` : ""}</div></div>
+  </div>`;
+}
+
+function bjResultHTML(E) {
+  const p = bjTotal(E.player).total, d = bjTotal(E.dealer).total;
+  const why = E.result === "blackjack" ? "Blackjack!" : p > 21 ? `Za dużo — masz ${p}`
+    : bjIsBlackjack(E.dealer) ? (E.result === "push" ? "Obaj macie blackjacka" : "Krupier ma blackjacka")
+    : d > 21 ? `Krupier ma za dużo (${d})` : `${p} : ${d}`;
+  const head = { blackjack: `<b class="pos-txt">BLACKJACK! +${fmt(E.payout)}</b>`, win: `<b class="pos-txt">WYGRANA! +${fmt(E.payout)}</b>`,
+                 push: "<b>REMIS</b>", lose: `<b class="neg-txt">PRZEGRANA −${fmt(E.stake)}</b>` }[E.result];
+  return `<div class="bj-res ${E.result}">${head}<div class="small">${why}${E.result === "push" ? " · karty wracają" : ""}</div></div>`;
+}
+
+// pod stołem: w trakcie rozdania postawione karty, po wygranej - wygrane karty
+function bjUnderHTML() {
+  const B = CS.bj, G = B.game, E = CS.spinning ? null : B.end;
+  if (G) {
+    const cards = [...G.doubleItems, ...G.items];
+    return `<div class="bj-staked"><div class="muted small">Na stole: ${cards.length} ${plural(cards.length, "karta", "karty", "kart")}</div>
+      <div class="jp-cards">${cards.slice(0, 16).map(i => pickHTML(i)).join("")}${cards.length > 16 ? `<span class="jp-more">+${cards.length - 16}</span>` : ""}</div></div>`;
+  }
+  if (!E || !(E.items.length || E.special)) return "";
+  return `<div class="muted small">${E.items.length} ${plural(E.items.length, "karta", "karty", "kart")}${E.money ? ` + ${fmt(E.money)}` : ""} · kliknij kartę, aby obejrzeć</div>
+    ${E.special ? `<div class="rl-special">🃏 <b>Karta specjalna!</b> ${esc(person(E.special.person).name)} — ${esc(variantName(E.special.variant))}</div>` : ""}
+    <div class="pick-grid bj-won">${[...(E.special ? [E.special] : []), ...E.items].map(i => pickHTML(i)).join("")}</div>`;
+}
+
+function bjActionsHTML() {
+  const B = CS.bj, G = B.game, off = CS.spinning ? " disabled" : "";
+  if (!G) {
+    const stake = csStake(B.sel);
+    return `<button class="big-btn" data-bj="deal"${B.sel.size ? off : " disabled"}>🃏 ROZDAJ${stake ? ` · stawka ${fmt(stake)}` : ""}</button>`;
+  }
+  const extra = csStake(B.dsel);
+  return `<button class="big-btn bj-hit" data-bj="hit"${off}>➕ DOBIERZ</button>
+    <button class="big-btn bj-stand" data-bj="stand"${off}>✋ STÓJ</button>
+    <button class="big-btn bj-double" data-bj="double"${G.canDouble ? off : " disabled"}
+      title="Dokładasz karty warte najwyżej tyle, co stawka, i dostajesz dokładnie jedną kartę">⏫ PODWÓJ${extra ? `<span class="ob-sub">+${fmt(extra)}</span>` : ""}</button>`;
+}
+
+function bjSideHTML() {
+  const B = CS.bj, G = B.game, C = S.cfg.blackjack;
+  if (G && !G.canDouble) return `<div class="panel"><h3>🃏 Twój ruch</h3><p class="muted">Dobierz kartę albo stój — wtedy krupier odkrywa kartę i dobiera do 16.</p></div>`;
+  if (G) {
+    const extra = csStake(B.dsel);
+    return `<div class="panel"><h3>⏫ Podwojenie</h3>
+        <p class="small">Dołóż karty warte <b>najwyżej ${fmt(G.stake)}</b> (tyle, co stawka) i kliknij <b>Podwój</b> — dostaniesz dokładnie jedną kartę,
+          a w grze będzie stawka + dołożone karty. Wybrano: <b>${fmt(extra)}</b> z ${fmt(G.stake)}.</p>
+        <p class="muted small">Nie chcesz podwajać? Po prostu dobierz albo stój.</p></div>
+      <div class="panel cs-pick">${csPickerHTML(B.dsel, B.q, C.maxCards, "bjd",
+        "Dodaj duplikaty (z każdej karty zostaje jeden egzemplarz, ulubione ⭐ zostają) — najdroższe, które zmieszczą się w stawce")}</div>`;
+  }
+  const stake = csStake(B.sel), joker = stake && csSpecialChance(stake);
+  return `<div class="panel">
+      <div class="rl-bet-info">
+        <span>Wygrana: <b>1:1</b>${stake ? ` (+${fmt(stake)} w kartach)` : ""}</span>
+        <span>Blackjack: <b>${bjPaysTxt()}</b>${stake ? ` (+${fmt(Math.floor(stake * C.blackjackPays))})` : ""}</span>
+        <span>Remis: <b>karty wracają</b></span>
+        ${joker ? `<span class="rl-joker" title="Karta specjalna z kasyna wypada przy wygranej — szansa rośnie z wygraną">🃏 Przy wygranej szansa na kartę specjalną: <b>${csPct(joker)}</b></span>` : ""}
+      </div>
+      <div class="muted small">Zbierz bliżej 21 niż krupier, nie przekraczając 21. Krupier dobiera do 16 i staje na 17. Wygrana: twoje karty zostają,
+        a dostajesz karty o wartości wygranej (losowe karty ze skrzynek w sklepie; końcówka w groszach). Przegrana: postawione karty przepadają.
+        Na dwóch pierwszych kartach możesz <b>podwoić</b> — dokładasz karty warte najwyżej tyle, co stawka, i dostajesz jeszcze jedną kartę.</div>
+    </div>
+    <div class="panel cs-pick">${csPickerHTML(B.sel, B.q, C.maxCards, "bj")}</div>`;
+}
+
+function drawBlackjack() {
+  const B = CS.bj;
+  if (!B.loaded) { $("#casinoBody").innerHTML = '<div class="panel muted">Ładowanie stołu…</div>'; return; }
+  keepScroll($("#casinoBody"), () => $("#casinoBody").innerHTML = `
+  <div class="rl-cols">
+    <div class="panel rl-left bj-left">
+      <div id="bjTable">${bjTableHTML()}</div>
+      <div class="bj-actions">${bjActionsHTML()}</div>
+      ${bjUnderHTML()}
+      <div class="rl-history">${B.history.map(h => `<span class="rl-h bj-h ${h.result}" title="Ty ${h.p} : krupier ${h.d}">${h.result === "blackjack" ? "BJ" : `${h.p}:${h.d}`}</span>`).join("")
+        || '<span class="muted small">Tu pojawią się ostatnie wyniki</span>'}</div>
+    </div>
+    <div class="rl-right">${bjSideHTML()}</div>
+  </div>`);
+}
+
+// rozdanie w trakcie z serwera (np. po odświeżeniu strony albo z innej karty) - pokazujemy je bez animacji
+async function renderBlackjack() {
+  const B = CS.bj;
+  drawBlackjack();
+  if (CS.spinning) return;
+  let res;
+  try { res = await api("/api/casino/blackjack"); }
+  catch (e) { return toast(e.message, true); }
+  if (CS.spinning) return;
+  B.loaded = true;
+  B.game = res.game;
+  if (res.game) { B.view = { player: [...res.game.player], dealer: [...res.game.dealer] }; B.end = null; }
+  else B.dsel.clear();
+  if (currentView() === "casino" && CS.tab === "blackjack") drawBlackjack();
+}
+
+// dokłada karty po jednej, aż na stole będzie to, co przysłał serwer: najpierw rozdanie (gracz, krupier, gracz, krupier),
+// potem karty gracza, odkrycie zakrytej karty krupiera i karty, które krupier dobrał
+async function bjAnimate(target) {
+  const v = CS.bj.view, gap = S.fast ? 150 : 420;
+  const put = async (side, i, card, flip = false) => {
+    if (flip) v.dealer[1] = card; else v[side].push(card);
+    const table = $("#bjTable");
+    if (table) table.innerHTML = bjTableHTML([side, i, flip ? "flip" : "new"]);
+    Sound.page();
+    await sleep(gap);
+  };
+  while (v.player.length < 2 || v.dealer.length < 2) {
+    if (v.player.length <= v.dealer.length) await put("player", v.player.length, target.player[v.player.length]);
+    else await put("dealer", v.dealer.length, target.dealer[v.dealer.length]);
+  }
+  while (v.player.length < target.player.length) await put("player", v.player.length, target.player[v.player.length]);
+  if (v.dealer[1] === "??" && target.dealer[1] !== "??") await put("dealer", 1, target.dealer[1], true);
+  while (v.dealer.length < target.dealer.length) await put("dealer", v.dealer.length, target.dealer[v.dealer.length]);
+}
+
+// kind: deal / hit / stand / double
+async function bjAction(kind) {
+  const B = CS.bj, G = B.game;
+  if (CS.spinning) return;
+  const ids = kind === "deal" ? [...B.sel] : kind === "double" ? [...B.dsel] : [];
+  if (kind === "deal") {
+    const stake = csStake(B.sel);
+    if (!ids.length || (stake >= 5000 && !confirm(`Postawić ${ids.length} ${plural(ids.length, "kartę", "karty", "kart")} o wartości ${fmt(stake)} w blackjacku?`))) return;
+  }
+  if (kind === "double") {
+    if (!ids.length) { Sound.error(); return toast(`Wybierz poniżej karty do podwojenia — razem najwyżej ${fmt(G.stake)}`, true); }
+    if (csStake(B.dsel) > G.stake) { Sound.error(); return toast(`Dołożone karty mogą być warte najwyżej ${fmt(G.stake)}`, true); }
+  }
+  CS.spinning = true;
+  Sound.unlock();
+  let res;
+  try { res = await api(`/api/casino/blackjack/${kind}`, ids.length ? { ids } : {}); }
+  catch (e) { CS.spinning = false; Sound.error(); toast(e.message, true); return renderBlackjack(); }
+  removeItems(ids);   // postawione karty leżą na stole (po remisie / wygranej wracają)
+  if (kind === "deal") { B.sel.clear(); B.view = { player: [], dealer: [] }; }
+  B.dsel.clear();
+  B.game = res.game;
+  B.end = res.end && { ...res.end, doubled: kind === "double" };
+  drawBlackjack();
+  await bjAnimate(res.game || res.end);
+  const E = res.end;
+  if (E) {
+    if (E.returned) S.items = [...S.items, ...E.returned].sort((a, b) => b.id - a.id);
+    S.items = [...(E.special ? [E.special] : []), ...E.items.slice().reverse(), ...S.items];
+    noteCollected([...E.items, ...(E.special ? [E.special] : [])]);
+    B.history = [{ result: E.result, p: bjTotal(E.player).total, d: bjTotal(E.dealer).total }, ...B.history].slice(0, 14);
+    if (E.result === "blackjack") { Sound.win(); confetti(GOLDS.concat(RAINBOW), 220); }
+    else if (E.result === "win") { Sound.win(); confetti(["#0f9d58", "#ffcf3f", "#c62828", "#fff"], 110); }
+    else if (E.result === "lose") Sound.fail();
+    else Sound.click();
+  }
+  applyState(res.state);
+  if (E?.special) {   // karta specjalna z kasyna (Joker) - wielkie odsłonięcie
+    await sleep(S.fast ? 300 : 700);
+    await epicReveal(E.special, { fast: S.fast });
+    announceFirsts([E.special]);
+  }
+  CS.spinning = false;
+  if (currentView() === "casino" && CS.tab === "blackjack") drawBlackjack();
+}
+
+// klik w kartę w siatce: stawka przed rozdaniem (bj) albo karty do podwojenia (bjd, razem najwyżej tyle, co stawka)
+function bjPick(zone, id) {
+  const B = CS.bj, set = zone === "bj" ? B.sel : B.dsel, max = S.cfg.blackjack.maxCards;
+  if (set.has(id)) set.delete(id);
+  else if (set.size >= max) { Sound.error(); return toast(`Najwyżej ${max} kart`, true); }
+  else if (zone === "bjd" && csStake(set) + (S.items.find(i => i.id === id)?.value || 0) > B.game.stake) {
+    Sound.error(); return toast(`Dołożone karty mogą być warte najwyżej ${fmt(B.game.stake)}`, true);
+  }
+  else set.add(id);
+  Sound.click();
+  drawBlackjack();
+}
+
+// ♻️ przy podwojeniu: duplikaty od najdroższych, dopóki mieszczą się w stawce
+function bjFillDouble() {
+  const B = CS.bj, max = S.cfg.blackjack.maxCards;
+  let left = B.game.stake - csStake(B.dsel), added = 0;
+  for (const i of csDuplicates(B.dsel, "bjd").sort((a, b) => b.value - a.value)) {
+    if (B.dsel.size >= max) break;
+    if (i.value <= left) { B.dsel.add(i.id); left -= i.value; added++; }
+  }
+  if (!added) { Sound.error(); return toast("Żaden duplikat nie mieści się już w stawce", true); }
+  toast(`♻️ Dodano ${added} ${plural(added, "duplikat", "duplikaty", "duplikatów")} — razem ${fmt(csStake(B.dsel))} z ${fmt(B.game.stake)}`);
+  Sound.click();
+  drawBlackjack();
 }
 
 // ================================================================ JACKPOT (lobby dla 2 graczy)
@@ -507,11 +752,17 @@ function bindCasino() {
     if (CS.spinning) return;
     const L = CS.jp.data?.current;
     // ruletka
-    const won = t.closest(".rl-won .pick");
-    if (won) { const it = [CS.last?.special, ...(CS.last?.items || [])].find(i => i?.id === +won.dataset.id); if (it) openViewer(it.person, it.variant); return; }
+    const won = t.closest(".rl-won .pick, .bj-won .pick");
+    if (won) {
+      const last = won.closest(".bj-won") ? CS.bj.end : CS.last;
+      const it = [last?.special, ...(last?.items || [])].find(i => i?.id === +won.dataset.id);
+      if (it) openViewer(it.person, it.variant);
+      return;
+    }
     const pick = t.closest(".cs-grid .pick");
     if (pick) {
       const zone = pick.closest(".cs-grid").dataset.zone, id = +pick.dataset.id;
+      if (zone === "bj" || zone === "bjd") return bjPick(zone, id);
       if (zone === "jp") {   // karta do lobby albo z lobby
         if (!L) return;
         const ids = L[L.side].map(c => c.id);
@@ -527,10 +778,17 @@ function bindCasino() {
     }
     const dupes = t.closest("[data-csdupes]");
     if (dupes) {
-      if (dupes.dataset.csdupes === "jp") {
+      const zone = dupes.dataset.csdupes;
+      if (zone === "jp") {
         if (!L) return;
         const ids = csAddDuplicates(L[L.side].map(c => c.id), S.cfg.jackpot.maxCards, "jp");
         return ids && jpSetCards(ids);
+      }
+      if (zone === "bjd") return bjFillDouble();
+      if (zone === "bj") {
+        const ids = csAddDuplicates([...CS.bj.sel], S.cfg.blackjack.maxCards, "bj");
+        if (ids) { CS.bj.sel = new Set(ids); Sound.click(); drawBlackjack(); }
+        return;
       }
       const ids = csAddDuplicates([...CS.sel], S.cfg.roulette.maxCards, "rl");
       if (ids) { CS.sel = new Set(ids); Sound.click(); drawRoulette(); }
@@ -538,12 +796,17 @@ function bindCasino() {
     }
     const clear = t.closest("[data-csclear]");
     if (clear) {
-      if (clear.dataset.csclear === "jp") return jpSetCards([]);
-      CS.sel.clear(); return drawRoulette();
+      const zone = clear.dataset.csclear;
+      if (zone === "jp") return jpSetCards([]);
+      (zone === "bj" ? CS.bj.sel : zone === "bjd" ? CS.bj.dsel : CS.sel).clear();
+      return csRedraw(zone);
     }
     const bet = t.closest("[data-rbet]");
     if (bet) { CS.bet = bet.dataset.rbet; Sound.click(); return drawRoulette(); }
     if (t.closest("#rlSpin")) return spinRoulette();
+    // blackjack
+    const bj = t.closest("[data-bj]");
+    if (bj) return bjAction(bj.dataset.bj);
     // jackpot
     const rm = t.closest("[data-jrm]");
     if (rm && L) return jpSetCards(L[L.side].map(c => c.id).filter(x => x !== +rm.dataset.jrm));
@@ -580,14 +843,15 @@ function bindCasino() {
     if (t.dataset.csq) {
       const pos = t.selectionStart, zone = t.dataset.csq;
       resetKeep(zone);
-      if (zone === "rl") { CS.q = t.value; drawRoulette(); } else { CS.jp.q = t.value; drawJackpot(); }
+      if (zone === "rl") CS.q = t.value; else if (zone === "jp") CS.jp.q = t.value; else CS.bj.q = t.value;
+      csRedraw(zone);
       const again = $(`[data-csq=${zone}]`); again.focus(); again.setSelectionRange(pos, pos);
     }
     if (t.matches("[data-jnewinv]")) CS.jp.newInvites = t.value;
   });
   body.addEventListener("change", e => {
     const zone = e.target.dataset.cssort;
-    if (zone) { CS.sorts[zone] = e.target.value; resetKeep(zone); return zone === "rl" ? drawRoulette() : drawJackpot(); }
+    if (zone) { CS.sorts[zone] = e.target.value; resetKeep(zone); return csRedraw(zone); }
   });
   body.addEventListener("keydown", e => {
     if (e.key === "Enter" && e.target.matches("[data-jinv]")) { e.preventDefault(); $("[data-jinvgo]")?.click(); }
