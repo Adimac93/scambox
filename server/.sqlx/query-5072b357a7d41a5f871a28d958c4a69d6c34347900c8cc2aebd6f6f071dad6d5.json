@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, listing_id, bidder_id, amount FROM market_bids WHERE listing_id = $1 AND status = 'active'\n         ORDER BY amount DESC, id LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "listing_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "bidder_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "amount",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "5072b357a7d41a5f871a28d958c4a69d6c34347900c8cc2aebd6f6f071dad6d5"
+}

@@ -5,18 +5,19 @@ pub mod market;
 pub mod roll;
 pub mod views;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use indexmap::IndexMap;
 use serde::Serialize;
-use serde_json::{json, Value};
 
-use crate::auth::User;
+use crate::auth::{User, UserView};
 use crate::catalog::{Catalog, Person};
 use crate::data::g;
 use crate::db::{now, Conn};
+use crate::error::{bad, AppError, Res};
 use crate::state::AppState;
+use crate::text::Truncate;
 
 /// "Właściciel" kart wystawionych na rynek / postawionych w blackjacku (czekają na koniec transakcji)
 pub const ESCROW: i64 = 0;
@@ -95,6 +96,13 @@ pub async fn get_state(c: &mut Conn, uid: i64) -> sqlx::Result<GameState> {
     Ok(st)
 }
 
+/// Saldo gracza (grosze)
+pub async fn balance(c: &mut Conn, uid: i64) -> sqlx::Result<i64> {
+    let v =
+        sqlx::query_scalar!("SELECT value FROM user_state WHERE user_id = $1 AND key = 'balance'", uid).fetch_optional(c).await?;
+    Ok(v.unwrap_or(g().starting_balance))
+}
+
 pub async fn add_state(c: &mut Conn, uid: i64, key: &str, delta: i64) -> sqlx::Result<()> {
     sqlx::query!(
         "INSERT INTO user_state (user_id, key, value) VALUES ($1, $2, $3) \
@@ -141,7 +149,10 @@ pub fn valid_chest_kind(cat: &Catalog, kind: &str) -> bool {
     cat.crates.get(kind).is_some_and(|c| !c.special) || g().money_kind(kind).is_some()
 }
 
-pub async fn get_chests(c: &mut Conn, cat: &Catalog, uid: i64) -> sqlx::Result<IndexMap<String, i32>> {
+/// Skrzynki w ekwipunku: {rodzaj: ile}
+pub type Chests = IndexMap<String, i32>;
+
+pub async fn get_chests(c: &mut Conn, cat: &Catalog, uid: i64) -> sqlx::Result<Chests> {
     let rows = sqlx::query!("SELECT kind, count FROM user_chests WHERE user_id = $1 AND count > 0", uid).fetch_all(c).await?;
     Ok(rows.into_iter().filter(|r| valid_chest_kind(cat, &r.kind)).map(|r| (r.kind, r.count)).collect())
 }
@@ -185,17 +196,14 @@ pub async fn can_buy(c: &mut Conn, me: &User, cr: &crate::catalog::Crate) -> sql
 
 // ---------------------------------------------------------------- karty graczy
 
-// wiersz tabeli (SELECT *) - nie wszystkie kolumny są używane
-#[allow(dead_code)]
+/// Karta gracza (wiersz items)
 #[derive(Debug, Clone)]
 pub struct ItemRow {
     pub id: i64,
     pub person_id: String,
-    pub holo: i32,
-    pub created_at: f64,
     pub variant: String,
-    pub user_id: Option<i64>,
     pub favorite: i32,
+    pub created_at: f64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -238,12 +246,20 @@ pub struct NewItem {
 }
 
 pub async fn my_items(c: &mut Conn, cat: &Catalog, uid: i64) -> sqlx::Result<Vec<ItemJson>> {
-    let rows = sqlx::query_as!(ItemRow, "SELECT * FROM items WHERE user_id = $1 ORDER BY id DESC", uid).fetch_all(c).await?;
+    let rows = sqlx::query_as!(
+        ItemRow,
+        "SELECT id, person_id, variant, favorite, created_at FROM items WHERE user_id = $1 ORDER BY id DESC",
+        uid
+    )
+    .fetch_all(c)
+    .await?;
     Ok(rows.iter().filter_map(|r| item_json(cat, r)).collect())
 }
 
 pub async fn item_by_id(c: &mut Conn, id: i64) -> sqlx::Result<Option<ItemRow>> {
-    sqlx::query_as!(ItemRow, "SELECT * FROM items WHERE id = $1", id).fetch_optional(c).await
+    sqlx::query_as!(ItemRow, "SELECT id, person_id, variant, favorite, created_at FROM items WHERE id = $1", id)
+        .fetch_optional(c)
+        .await
 }
 
 /// Karta trafia na stałe do klasera gracza (zostaje tam także po sprzedaży). Zapamiętujemy, kiedy i skąd gracz
@@ -394,7 +410,14 @@ pub async fn owned_rows(c: &mut Conn, cat: &Catalog, uid: i64, ids: &[i64]) -> s
     if ids.is_empty() || unique.len() != ids.len() {
         return Ok(None);
     }
-    let rows = sqlx::query_as!(ItemRow, "SELECT * FROM items WHERE user_id = $1 AND id = ANY($2)", uid, ids).fetch_all(c).await?;
+    let rows = sqlx::query_as!(
+        ItemRow,
+        "SELECT id, person_id, variant, favorite, created_at FROM items WHERE user_id = $1 AND id = ANY($2)",
+        uid,
+        ids
+    )
+    .fetch_all(c)
+    .await?;
     if rows.len() != ids.len() || rows.iter().any(|r| !cat.has(&r.person_id)) {
         return Ok(None);
     }
@@ -407,22 +430,25 @@ pub async fn delete_items(c: &mut Conn, uid: i64, ids: &[i64]) -> sqlx::Result<(
     Ok(())
 }
 
-/// Moje karty bez gwiazdki (albo komunikat błędu). stake: karty stawiane w kasynie (mogą przepaść) - bez specjalnych.
-pub async fn take_my_items(
-    c: &mut Conn,
-    cat: &Catalog,
-    uid: i64,
-    ids: &[i64],
-    stake: bool,
-) -> sqlx::Result<Result<Vec<ItemRow>, &'static str>> {
-    let Some(rows) = owned_rows(c, cat, uid, ids).await? else { return Ok(Err("Nie masz tych kart")) };
+/// Co gracz robi z kartami - karty specjalne nie mogą przepaść
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Use {
+    /// wystawienie na rynek - karta zostaje w grze
+    Market,
+    /// stawka w kasynie - karta może przepaść
+    Stake,
+}
+
+/// Moje karty bez gwiazdki; stawka w kasynie - bez kart specjalnych. Inaczej błąd z komunikatem dla gracza.
+pub async fn take_my_items(c: &mut Conn, cat: &Catalog, uid: i64, ids: &[i64], usage: Use) -> Res<Vec<ItemRow>> {
+    let rows = owned_rows(c, cat, uid, ids).await?.ok_or_else(|| AppError::bad("Nie masz tych kart"))?;
     if rows.iter().any(|r| r.favorite != 0) {
-        return Ok(Err(FAV_ERROR));
+        return bad(FAV_ERROR);
     }
-    if stake && rows.iter().any(|r| cat.people[&r.person_id].is_special()) {
-        return Ok(Err(SPECIAL_ERROR));
+    if usage == Use::Stake && rows.iter().any(|r| cat.people[&r.person_id].is_special()) {
+        return bad(SPECIAL_ERROR);
     }
-    Ok(Ok(rows))
+    Ok(rows)
 }
 
 /// Karty na czas transakcji należą do ESCROW
@@ -475,10 +501,22 @@ pub async fn friend_ids(c: &mut Conn, uid: i64) -> sqlx::Result<HashSet<i64>> {
     Ok(rows.into_iter().collect())
 }
 
-/// me / none / friend / outgoing / incoming
-pub async fn relation(c: &mut Conn, me: i64, other: i64) -> sqlx::Result<&'static str> {
+/// Relacja między graczami
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Relation {
+    Me,
+    None,
+    Friend,
+    /// moje zaproszenie czeka na odpowiedź
+    Outgoing,
+    /// zaproszenie do mnie
+    Incoming,
+}
+
+pub async fn relation(c: &mut Conn, me: i64, other: i64) -> sqlx::Result<Relation> {
     if me == other {
-        return Ok("me");
+        return Ok(Relation::Me);
     }
     let r = sqlx::query!(
         "SELECT requester_id, status FROM friendships WHERE (requester_id = $1 AND addressee_id = $2) \
@@ -490,10 +528,10 @@ pub async fn relation(c: &mut Conn, me: i64, other: i64) -> sqlx::Result<&'stati
     .await?
     .map(|r| (r.requester_id, r.status));
     Ok(match r {
-        None => "none",
-        Some((_, s)) if s == "accepted" => "friend",
-        Some((req, _)) if req == me => "outgoing",
-        Some(_) => "incoming",
+        None => Relation::None,
+        Some((_, s)) if s == "accepted" => Relation::Friend,
+        Some((req, _)) if req == me => Relation::Outgoing,
+        Some(_) => Relation::Incoming,
     })
 }
 
@@ -507,11 +545,11 @@ pub struct Stats {
 }
 
 /// Wartość kolekcji i liczba unikalnych kart dla wszystkich graczy
-pub async fn collection_stats(c: &mut Conn, cat: &Catalog) -> sqlx::Result<std::collections::HashMap<i64, Stats>> {
+pub async fn collection_stats(c: &mut Conn, cat: &Catalog) -> sqlx::Result<HashMap<i64, Stats>> {
     let rows = sqlx::query!(r#"SELECT user_id AS "user_id!", person_id, variant FROM items WHERE user_id IS NOT NULL"#)
         .fetch_all(c)
         .await?;
-    let mut stats: std::collections::HashMap<i64, Stats> = std::collections::HashMap::new();
+    let mut stats: HashMap<i64, Stats> = std::collections::HashMap::new();
     for r in rows {
         let (uid, pid, variant) = (r.user_id, r.person_id, r.variant);
         let Some(p) = cat.person(&pid) else { continue };
@@ -523,21 +561,33 @@ pub async fn collection_stats(c: &mut Conn, cat: &Catalog) -> sqlx::Result<std::
     Ok(stats)
 }
 
-/// user_json + wartość kolekcji
-pub fn brief(cat: &Catalog, u: &User, stats: &std::collections::HashMap<i64, Stats>) -> Value {
-    let mut out = u.json(cat);
-    let (value, unique, total) = stats.get(&u.id).map(|s| (s.value, s.unique.len(), s.total)).unwrap_or((0, 0, 0));
-    out["value"] = json!(value);
-    out["unique"] = json!(unique);
-    out["total"] = json!(total);
-    out
+/// Gracz + wartość jego kolekcji (listy znajomych, ranking, profil)
+#[derive(Debug, Clone, Serialize)]
+pub struct UserBrief {
+    #[serde(flatten)]
+    pub user: UserView,
+    pub value: i64,
+    pub unique: usize,
+    pub total: i64,
+}
+
+impl UserBrief {
+    pub fn new(cat: &Catalog, u: &User, stats: &HashMap<i64, Stats>) -> UserBrief {
+        let s = stats.get(&u.id);
+        UserBrief {
+            user: u.view(cat),
+            value: s.map_or(0, |s| s.value),
+            unique: s.map_or(0, |s| s.unique.len()),
+            total: s.map_or(0, |s| s.total),
+        }
+    }
 }
 
 pub async fn users_by_id(
     c: &mut Conn,
     cat: &Catalog,
     ids: impl IntoIterator<Item = Option<i64>>,
-) -> sqlx::Result<IndexMap<i64, Value>> {
+) -> sqlx::Result<IndexMap<i64, UserView>> {
     let mut ids: Vec<i64> = ids.into_iter().flatten().filter(|i| *i != 0).collect();
     ids.sort_unstable();
     ids.dedup();
@@ -545,7 +595,7 @@ pub async fn users_by_id(
         return Ok(IndexMap::new());
     }
     let users = sqlx::query_as!(User, "SELECT * FROM users WHERE id = ANY($1)", &ids).fetch_all(c).await?;
-    Ok(users.iter().map(|u| (u.id, u.json(cat))).collect())
+    Ok(users.iter().map(|u| (u.id, u.view(cat))).collect())
 }
 
 pub async fn log_admin(c: &mut Conn, admin: &User, action: &str, target: Option<i64>, details: &str) -> sqlx::Result<()> {
@@ -562,7 +612,7 @@ pub async fn log_admin(c: &mut Conn, admin: &User, action: &str, target: Option<
         action,
         target,
         target_name.unwrap_or_default(),
-        crate::py::cut(details, 300)
+        details.truncate_chars(300)
     )
     .execute(c)
     .await?;

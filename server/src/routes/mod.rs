@@ -15,26 +15,29 @@ use axum::extract::{FromRequest, Request};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, post};
 use axum::{Json, Router};
+use serde::de::DeserializeOwned;
 use serde::Serialize;
-use serde_json::Value;
 
+use crate::error::AppError;
 use crate::state::AppState;
 
-/// Treść zapytania jako JSON bez względu na Content-Type (request.get_json(force=True)); pusta/zła = null
-pub struct Body(pub Value);
+/// Treść zapytania (JSON) jako typ `T` - bez względu na Content-Type; pusta treść = `{}`.
+pub struct JsonBody<T>(pub T);
 
-impl<S: Send + Sync> FromRequest<S> for Body {
+impl<T, S> FromRequest<S> for JsonBody<T>
+where
+    T: DeserializeOwned,
+    S: Send + Sync,
+{
     type Rejection = Response;
 
     async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
         let bytes = Bytes::from_request(req, state).await.map_err(IntoResponse::into_response)?;
-        Ok(Body(serde_json::from_slice(&bytes).unwrap_or(Value::Null)))
-    }
-}
-
-impl Body {
-    pub fn get(&self, key: &str) -> Option<&Value> {
-        self.0.get(key)
+        let json: &[u8] = if bytes.iter().all(u8::is_ascii_whitespace) { b"{}" } else { &bytes };
+        serde_json::from_slice(json).map(JsonBody).map_err(|e| {
+            tracing::debug!("nieprawidłowa treść zapytania: {e}");
+            AppError::bad("Nieprawidłowe żądanie").into_response()
+        })
     }
 }
 

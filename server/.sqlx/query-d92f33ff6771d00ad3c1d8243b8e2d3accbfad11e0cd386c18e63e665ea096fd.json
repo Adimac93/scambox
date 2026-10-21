@@ -1,0 +1,58 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT item_ids, stake, double_ids, double_stake, deck, player, dealer FROM blackjack_games WHERE user_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "item_ids",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "stake",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "double_ids",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "double_stake",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "deck",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "player",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "dealer",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "d92f33ff6771d00ad3c1d8243b8e2d3accbfad11e0cd386c18e63e665ea096fd"
+}

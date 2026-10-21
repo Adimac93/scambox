@@ -13,16 +13,17 @@ mod config;
 mod data;
 mod db;
 mod error;
+mod export;
 mod game;
 mod images;
-mod py;
+mod lenient;
 mod routes;
+mod startup;
 mod state;
+mod text;
 mod web;
 
-use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -31,16 +32,12 @@ use axum::extract::{MatchedPath, Request};
 use axum::middleware::{self, Next};
 use axum::response::Response;
 use clap::Parser;
-use serde_json::{json, Value};
-use sqlx::PgPool;
 use tower_http::compression::{CompressionLayer, CompressionLevel};
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 
 use crate::config::{Cli, Command, Config};
-use crate::db::now;
-use crate::game::ESCROW;
 use crate::images::{Images, Kind};
 use crate::state::AppState;
 
@@ -62,7 +59,7 @@ async fn main() -> anyhow::Result<()> {
         Command::Serve => serve(cfg).await,
         Command::ExportCatalog => {
             let pool = db::connect(&cfg).await?;
-            let (crates, cards, imgs) = export_catalog(&pool, &cfg).await?;
+            let (crates, cards, imgs) = export::export_catalog(&pool, &cfg).await?;
             println!(
                 "Wyeksportowano: {crates} skrzynek, {cards} kart, {imgs} własnych zdjęć -> catalog_export.json, custom_images/"
             );
@@ -112,7 +109,7 @@ async fn serve(cfg: Config) -> anyhow::Result<()> {
     }
 
     let pool = db::connect(&cfg).await?;
-    let cat = init_db(&pool, &cfg).await?;
+    let cat = startup::init_db(&pool, &cfg).await?;
     let images = Arc::new(Images::new(&cfg.data_dir));
     let st = AppState {
         db: pool,
@@ -180,272 +177,4 @@ fn lan_address() -> String {
         })
         .map(|a| a.ip().to_string())
         .unwrap_or_else(|_| "?".into())
-}
-
-// ---------------------------------------------------------------- start bazy (init_db z wersji Python)
-
-async fn init_db(pool: &PgPool, cfg: &Config) -> anyhow::Result<catalog::Catalog> {
-    db::init_schema(pool).await?;
-    let mut tx = pool.begin().await?;
-    // klaser pamięta karty, które gracz kiedykolwiek miał: uzupełniamy z obecnych kart i z aktywności
-    sqlx::query!(
-        "INSERT INTO user_collected (user_id, person_id, variant) SELECT DISTINCT user_id, person_id, variant
-         FROM items WHERE user_id > 0 ON CONFLICT DO NOTHING"
-    )
-    .execute(&mut *tx)
-    .await?;
-    sqlx::query!(
-        "INSERT INTO user_collected (user_id, person_id, variant) SELECT DISTINCT author_id, person_id, variant
-         FROM feed WHERE author_id IS NOT NULL ON CONFLICT DO NOTHING"
-    )
-    .execute(&mut *tx)
-    .await?;
-    // kiedy gracz pierwszy raz miał kartę (starsze wpisy bez czasu): najstarsza jego karta albo wpis w aktywności
-    sqlx::query!(
-        "UPDATE user_collected SET at = (SELECT MIN(i.created_at) FROM items i WHERE i.user_id = user_collected.user_id
-         AND i.person_id = user_collected.person_id AND i.variant = user_collected.variant) WHERE at IS NULL"
-    )
-    .execute(&mut *tx)
-    .await?;
-    sqlx::query!(
-        "UPDATE user_collected SET at = (SELECT MIN(f.created_at) FROM feed f WHERE f.author_id = user_collected.user_id
-         AND f.person_id = user_collected.person_id AND f.variant = user_collected.variant AND f.kind != 'show')
-         WHERE at IS NULL"
-    )
-    .execute(&mut *tx)
-    .await?;
-    // kto kiedykolwiek dostał pieniądze z bankomatu / od admina (statystyka "deposited") - poza rankingiem
-    sqlx::query!(
-        "UPDATE users SET money_generated = 1 WHERE money_generated = 0 AND id IN
-         (SELECT user_id FROM user_state WHERE key = 'deposited' AND value > 0)"
-    )
-    .execute(&mut *tx)
-    .await?;
-    // jackpot jako lobby nie blokuje kart - stoły z pierwszej wersji (karty założyciela w ESCROW) zamykamy, karty wracają
-    let open = sqlx::query!("SELECT id, creator_id FROM jackpots WHERE status = 'open'").fetch_all(&mut *tx).await?;
-    for j in open {
-        let held = sqlx::query_scalar!(
-            "SELECT ji.item_id FROM jackpot_items ji JOIN items i ON i.id = ji.item_id WHERE ji.jackpot_id = $1 AND i.user_id = $2",
-            j.id,
-            ESCROW
-        )
-        .fetch_all(&mut *tx)
-        .await?;
-        if !held.is_empty() {
-            sqlx::query!("UPDATE items SET user_id = $1 WHERE user_id = $2 AND id = ANY($3)", j.creator_id, ESCROW, &held)
-                .execute(&mut *tx)
-                .await?;
-            sqlx::query!("UPDATE jackpots SET status = 'cancelled', finished_at = $1 WHERE id = $2", now(), j.id)
-                .execute(&mut *tx)
-                .await?;
-        }
-    }
-    // wyniki jackpota sprzed tej wersji uznajemy za obejrzane (nowi gracze dostają 0 przy rejestracji)
-    sqlx::query!(
-        "INSERT INTO user_state (user_id, key, value) SELECT id, 'jackpot_seen', $1 FROM users WHERE id > 0 ON CONFLICT DO NOTHING",
-        (now() * 1000.0) as i64
-    )
-    .execute(&mut *tx)
-    .await?;
-    tx.commit().await?;
-    if import_if_empty(pool, &cfg.base_dir).await? {
-        tracing::info!("Wczytano karty i skrzynki z catalog_export.json");
-    }
-    copy_custom_images(&cfg.base_dir, &cfg.data_dir)?;
-    let cat = catalog::load(&mut *pool.acquire().await?).await?;
-    backfill_hall_of_fame(pool).await?;
-    Ok(cat)
-}
-
-/// Hall of Fame zapisujemy od tej aktualizacji. Jednorazowo (pusta tabela) uzupełniamy ją z historii: karty, które gracze
-/// mają teraz (czas wylosowania) i aktywność (legendarne+ - też te później sprzedane). Liczby są przybliżone.
-async fn backfill_hall_of_fame(pool: &PgPool) -> anyhow::Result<()> {
-    let mut tx = pool.begin().await?;
-    if sqlx::query_scalar!("SELECT 1 AS one FROM hall_of_fame LIMIT 1").fetch_optional(&mut *tx).await?.is_some() {
-        return Ok(());
-    }
-    // (osoba, wariant) -> (gracz, czas, ile kart, ile wpisów w aktywności)
-    type First = (Option<i64>, Option<f64>, i32, i32);
-    let mut best: indexmap::IndexMap<(String, String), First> = indexmap::IndexMap::new();
-    for r in
-        sqlx::query!(r#"SELECT person_id, variant, user_id, created_at FROM items WHERE user_id > 0"#).fetch_all(&mut *tx).await?
-    {
-        let b = best.entry((r.person_id, r.variant)).or_insert((None, None, 0, 0));
-        b.2 += 1;
-        if b.1.is_none_or(|t| r.created_at < t) {
-            (b.0, b.1) = (r.user_id, Some(r.created_at));
-        }
-    }
-    for r in
-        sqlx::query!("SELECT author_id, person_id, variant, created_at FROM feed WHERE kind IN ('drop', 'contract', 'upgrade')")
-            .fetch_all(&mut *tx)
-            .await?
-    {
-        let b = best.entry((r.person_id, r.variant)).or_insert((None, None, 0, 0));
-        b.3 += 1;
-        if b.1.is_none_or(|t| r.created_at < t) {
-            (b.0, b.1) = (Some(r.author_id), Some(r.created_at));
-        }
-    }
-    for ((pid, variant), (uid, at, n_items, n_feed)) in best {
-        sqlx::query!(
-            "INSERT INTO hall_of_fame (person_id, variant, first_user_id, first_at, source, drops)
-             VALUES ($1, $2, $3, $4, 'drop', $5) ON CONFLICT DO NOTHING",
-            pid,
-            variant,
-            uid,
-            at.unwrap_or(0.0),
-            n_items.max(n_feed)
-        )
-        .execute(&mut *tx)
-        .await?;
-    }
-    tx.commit().await?;
-    Ok(())
-}
-
-// ---------------------------------------------------------------- eksport katalogu (export_catalog.py)
-
-/// Wczytuje eksport do pustej bazy (nowa instalacja). Istniejących zmian nigdy nie nadpisuje.
-async fn import_if_empty(pool: &PgPool, base: &Path) -> anyhow::Result<bool> {
-    let file = base.join("catalog_export.json");
-    if !file.exists() {
-        return Ok(false);
-    }
-    let mut tx = pool.begin().await?;
-    let n = sqlx::query_scalar!(r#"SELECT (SELECT COUNT(*) FROM catalog_crates) + (SELECT COUNT(*) FROM catalog_cards) AS "n!""#)
-        .fetch_one(&mut *tx)
-        .await?;
-    if n > 0 {
-        return Ok(false);
-    }
-    let data: Value = serde_json::from_str(&std::fs::read_to_string(&file)?)?;
-    for (table, key) in [(catalog::Table::Crates, "crates"), (catalog::Table::Cards, "cards")] {
-        for row in data[key].as_array().into_iter().flatten() {
-            let id = row["id"].as_str().unwrap_or_default();
-            let d = row["data"].to_string();
-            let deleted = row["deleted"].as_bool().unwrap_or(false) as i32;
-            match table {
-                catalog::Table::Crates => {
-                    sqlx::query!(
-                        "INSERT INTO catalog_crates (id, data, deleted) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
-                        id,
-                        d,
-                        deleted
-                    )
-                    .execute(&mut *tx)
-                    .await?
-                }
-                catalog::Table::Cards => {
-                    sqlx::query!(
-                        "INSERT INTO catalog_cards (id, data, deleted) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
-                        id,
-                        d,
-                        deleted
-                    )
-                    .execute(&mut *tx)
-                    .await?
-                }
-            };
-        }
-    }
-    tx.commit().await?;
-    Ok(true)
-}
-
-/// Własne zdjęcia z repozytorium -> image_cache (tylko brakujące). Przy każdym starcie, bo na nowym serwerze baza bywa
-/// przeniesiona ze starego zapisu (nie jest pusta), a folder ze zdjęciami jest pusty.
-fn copy_custom_images(base: &Path, data_dir: &Path) -> anyhow::Result<()> {
-    let src = base.join("custom_images");
-    if !src.is_dir() {
-        return Ok(());
-    }
-    let cache = data_dir.join("image_cache");
-    std::fs::create_dir_all(&cache)?;
-    for entry in std::fs::read_dir(&src)? {
-        let entry = entry?;
-        let target = cache.join(entry.file_name());
-        if !target.exists() {
-            std::fs::copy(entry.path(), target)?;
-        }
-    }
-    Ok(())
-}
-
-/// catalog_export.json (zmiany z panelu admina, BEZ danych graczy) + custom_images/ (zdjęcia wgrane w panelu)
-async fn export_catalog(pool: &PgPool, cfg: &Config) -> anyhow::Result<(usize, usize, usize)> {
-    let parse = |d: &str| serde_json::from_str::<Value>(if d.is_empty() { "{}" } else { d }).unwrap_or(json!({}));
-    let crates: Vec<Value> = sqlx::query!("SELECT id, data, deleted FROM catalog_crates ORDER BY id")
-        .fetch_all(pool)
-        .await?
-        .into_iter()
-        .map(|r| json!({"id": r.id, "data": parse(&r.data), "deleted": r.deleted != 0}))
-        .collect();
-    let cards: Vec<Value> = sqlx::query!("SELECT id, data, deleted FROM catalog_cards ORDER BY id")
-        .fetch_all(pool)
-        .await?
-        .into_iter()
-        .map(|r| json!({"id": r.id, "data": parse(&r.data), "deleted": r.deleted != 0}))
-        .collect();
-    let out = json!({"crates": crates, "cards": cards});
-    let mut buf = Vec::new();
-    let mut ser = serde_json::Serializer::with_formatter(&mut buf, serde_json::ser::PrettyFormatter::with_indent(b" "));
-    serde::Serialize::serialize(&out, &mut ser)?;
-    std::fs::write(cfg.base_dir.join("catalog_export.json"), buf)?;
-
-    // własne zdjęcia: karty bez artykułu w Wikipedii albo z wgranym plikiem (nie-JPG z Wikipedii)
-    let images = Images::new(&cfg.data_dir);
-    let dir = cfg.base_dir.join("custom_images");
-    if dir.is_dir() {
-        std::fs::remove_dir_all(&dir)?;
-    }
-    std::fs::create_dir_all(&dir)?;
-    let mut copied = 0;
-    let copy = |path: &Path| -> anyhow::Result<()> {
-        std::fs::copy(path, dir.join(path.file_name().unwrap_or_default()))?;
-        Ok(())
-    };
-    for card in &cards {
-        if card["deleted"].as_bool().unwrap_or(false) {
-            continue;
-        }
-        let id = card["id"].as_str().unwrap_or_default();
-        if let Some(path) = images.find(id, &Kind::Main) {
-            let no_wiki = !crate::py::truthy(&card["data"]["wiki"]);
-            if no_wiki || !path.to_string_lossy().to_lowercase().ends_with(".jpg") {
-                copy(&path)?;
-                copied += 1;
-            }
-        }
-    }
-    // zdjęcia wariantów przypisanych do kart (np. Rzulty) i własne zdjęcia wariantów z polem "photo" (np. Halloweenowa)
-    let g = data::g();
-    let mut all_ids: Vec<String> = g
-        .crates
-        .values()
-        .flat_map(|c| c.people.iter().filter_map(|p| p["id"].as_str().map(str::to_owned)))
-        .chain(cards.iter().filter_map(|c| c["id"].as_str().map(str::to_owned)))
-        .collect::<std::collections::HashSet<_>>()
-        .into_iter()
-        .collect();
-    all_ids.sort();
-    let mut done: HashMap<String, ()> = HashMap::new();
-    for (v, info) in &g.variants {
-        let pids: Vec<String> = if !info.cards.is_empty() {
-            info.cards.clone()
-        } else if info.photo {
-            all_ids.clone()
-        } else {
-            vec![]
-        };
-        for pid in pids {
-            if let Some(path) = images.find(&pid, &Kind::Variant(v.clone())) {
-                if done.insert(path.to_string_lossy().into_owned(), ()).is_none() {
-                    copy(&path)?;
-                    copied += 1;
-                }
-            }
-        }
-    }
-    Ok((crates.len(), cards.len(), copied))
 }

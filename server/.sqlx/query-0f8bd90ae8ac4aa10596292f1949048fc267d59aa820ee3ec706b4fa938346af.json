@@ -1,0 +1,71 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT o.id, o.listing_id, o.price, o.status AS \"status: OfferStatus\", o.updated_at, l.person_id, l.variant,\n                  l.price AS list_price, l.seller_id\n           FROM market_offers o JOIN market_listings l ON l.id = o.listing_id WHERE o.buyer_id = $1\n           AND (o.status = 'pending' OR o.updated_at > $2) ORDER BY o.id DESC LIMIT 40",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "listing_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "price",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "status: OfferStatus",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "updated_at",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 5,
+        "name": "person_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "variant",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "list_price",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 8,
+        "name": "seller_id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Float8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "0f8bd90ae8ac4aa10596292f1949048fc267d59aa820ee3ec706b4fa938346af"
+}

@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, person_id, variant, favorite, created_at FROM items WHERE id = $1 AND user_id = $2 AND favorite = 0",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "person_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "variant",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "favorite",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "created_at",
+        "type_info": "Float8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "14f98d928137be083715f2b5704114b3f9b8d080214a37c14939cd3063924b5a"
+}

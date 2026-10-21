@@ -2,6 +2,7 @@
 //! Karta wystawiona na rynek należy do ESCROW, aż transakcja się skończy; pieniądze z ofert kupna, licytacji
 //! i zleceń "Szukam" są od razu zabierane kupującemu (i oddawane, gdy oferta przepada).
 
+use serde::Serialize;
 use sqlx::PgPool;
 
 use crate::catalog::Catalog;
@@ -9,6 +10,40 @@ use crate::data::g;
 use crate::db::{now, Conn};
 use crate::game::{add_state, give_items};
 
+/// Rodzaj oferty na rynku
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, sqlx::Type)]
+#[sqlx(type_name = "text", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
+pub enum ListingKind {
+    /// stała cena (kupujący może zaproponować niższą)
+    Fixed,
+    Auction,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, sqlx::Type)]
+#[sqlx(type_name = "text", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
+pub enum ListingStatus {
+    Active,
+    Sold,
+    /// licytacja bez ofert
+    Expired,
+    Cancelled,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, sqlx::Type)]
+#[sqlx(type_name = "text", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
+pub enum OfferStatus {
+    Pending,
+    Accepted,
+    Declined,
+    Cancelled,
+    /// karta sprzedana komuś innemu
+    Lost,
+}
+
+/// Oferta na rynku
 #[derive(Debug, Clone)]
 pub struct Listing {
     pub id: i64,
@@ -16,10 +51,10 @@ pub struct Listing {
     pub item_id: i64,
     pub person_id: String,
     pub variant: String,
-    pub kind: String,
+    pub kind: ListingKind,
     pub price: i64,
     pub step: i64,
-    pub status: String,
+    pub status: ListingStatus,
     pub buyer_id: Option<i64>,
     pub final_price: i64,
     pub created_at: f64,
@@ -27,30 +62,24 @@ pub struct Listing {
     pub updated_at: f64,
 }
 
-// wiersz tabeli (SELECT *) - nie wszystkie kolumny są używane
-#[allow(dead_code)]
+/// Oferta w licytacji
 #[derive(Debug, Clone)]
 pub struct Bid {
     pub id: i64,
     pub listing_id: i64,
     pub bidder_id: i64,
     pub amount: i64,
-    pub status: String,
-    pub created_at: f64,
-    pub updated_at: f64,
 }
 
-// wiersz tabeli (SELECT *) - nie wszystkie kolumny są używane
-#[allow(dead_code)]
+/// Propozycja niższej ceny
 #[derive(Debug, Clone)]
 pub struct Offer {
     pub id: i64,
     pub listing_id: i64,
     pub buyer_id: i64,
     pub price: i64,
-    pub status: String,
+    pub status: OfferStatus,
     pub created_at: f64,
-    pub updated_at: f64,
 }
 
 pub fn after_fee(price: i64) -> i64 {
@@ -58,7 +87,15 @@ pub fn after_fee(price: i64) -> i64 {
 }
 
 pub async fn get_listing(c: &mut Conn, lid: i64) -> sqlx::Result<Option<Listing>> {
-    sqlx::query_as!(Listing, "SELECT * FROM market_listings WHERE id = $1", lid).fetch_optional(c).await
+    sqlx::query_as!(
+        Listing,
+        r#"SELECT id, seller_id, item_id, person_id, variant, kind AS "kind: ListingKind", price, step,
+                  status AS "status: ListingStatus", buyer_id, final_price, created_at, ends_at, updated_at
+           FROM market_listings WHERE id = $1"#,
+        lid
+    )
+    .fetch_optional(c)
+    .await
 }
 
 /// Warunek dodatkowy dla claim_listing
@@ -119,7 +156,8 @@ pub async fn claim_listing(c: &mut Conn, lid: i64, cond: Claim) -> sqlx::Result<
 pub async fn top_bid(c: &mut Conn, lid: i64) -> sqlx::Result<Option<Bid>> {
     sqlx::query_as!(
         Bid,
-        "SELECT * FROM market_bids WHERE listing_id = $1 AND status = 'active' ORDER BY amount DESC, id LIMIT 1",
+        "SELECT id, listing_id, bidder_id, amount FROM market_bids WHERE listing_id = $1 AND status = 'active'
+         ORDER BY amount DESC, id LIMIT 1",
         lid
     )
     .fetch_optional(c)
@@ -127,14 +165,18 @@ pub async fn top_bid(c: &mut Conn, lid: i64) -> sqlx::Result<Option<Bid>> {
 }
 
 /// Propozycje cen do tej oferty przepadają - pieniądze wracają do kupujących
-pub async fn refund_offers(c: &mut Conn, lid: i64, now: f64, status: &str) -> sqlx::Result<()> {
-    let offers = sqlx::query_as!(Offer, "SELECT * FROM market_offers WHERE listing_id = $1 AND status = 'pending'", lid)
-        .fetch_all(&mut *c)
-        .await?;
+pub async fn refund_offers(c: &mut Conn, lid: i64, now: f64) -> sqlx::Result<()> {
+    let offers = sqlx::query_as!(
+        Offer,
+        r#"SELECT id, listing_id, buyer_id, price, status AS "status: OfferStatus", created_at
+           FROM market_offers WHERE listing_id = $1 AND status = 'pending'"#,
+        lid
+    )
+    .fetch_all(&mut *c)
+    .await?;
     for o in offers {
         let r = sqlx::query!(
-            "UPDATE market_offers SET status = $1, updated_at = $2 WHERE id = $3 AND status = 'pending'",
-            status,
+            "UPDATE market_offers SET status = 'lost', updated_at = $1 WHERE id = $2 AND status = 'pending'",
             now,
             o.id
         )

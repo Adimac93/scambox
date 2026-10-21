@@ -1,137 +1,191 @@
-//! Karty i skrzynki w odpowiedziach dla przeglądarki (public_person, card_json, crate_json z app.py).
+//! Karty i skrzynki w odpowiedziach dla przeglądarki.
 
-use serde_json::{json, Map, Value};
+use std::collections::HashSet;
+use std::sync::Arc;
 
-use crate::catalog::{Catalog, Crate, Person};
+use indexmap::IndexMap;
+use serde::Serialize;
+
+use crate::catalog::{default_weight, Catalog, Crate, Person, RawCrate};
 use crate::data::g;
 use crate::images::{file_mtime, Images, Kind};
 
-const PUBLIC_KEYS: &[&str] = &[
-    "id",
-    "name",
-    "rarity",
-    "type",
-    "hp",
-    "attack",
-    "dmg",
-    "attack2",
-    "dmg2",
-    "kind1",
-    "kind2",
-    "abilities",
-    "arena",
-    "crate",
-    "crates",
-    "number",
-    "valueMult",
-    "country",
-    "forge",
-    "source",
-    "fixedVariant",
-    "style",
-    "subtitle",
-    "desc",
-];
+/// Karta dla przeglądarki: pełne dane albo zamaskowana tajna karta
+#[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
+pub enum PublicPerson {
+    Known(KnownPerson),
+    Masked(MaskedPerson),
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KnownPerson {
+    #[serde(flatten)]
+    pub person: Arc<Person>,
+    pub imgv: i64,
+    /// warianty z własnym zdjęciem: {wariant: wersja}
+    #[serde(skip_serializing_if = "IndexMap::is_empty")]
+    pub variant_photos: IndexMap<String, i64>,
+}
+
+/// Tajna karta, której gracz jeszcze nie zdobył - bez nazwy i zdjęcia
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MaskedPerson {
+    pub id: String,
+    pub rarity: &'static str,
+    #[serde(rename = "crate")]
+    pub crate_: Option<String>,
+    pub crates: Vec<String>,
+    pub number: i64,
+    pub masked: bool,
+    pub value_mult: f64,
+    pub name: &'static str,
+    #[serde(rename = "type")]
+    pub type_: &'static str,
+    pub hp: i64,
+    pub attack: &'static str,
+    pub dmg: i64,
+    pub imgv: i64,
+}
 
 /// {wariant: wersja} - warianty tej karty, które mają własne zdjęcie (wersja = czas pliku, dla pamięci przeglądarki)
-pub fn variant_photos(img: &Images, cat: &Catalog, pid: &str) -> Map<String, Value> {
+pub fn variant_photos(img: &Images, cat: &Catalog, pid: &str) -> IndexMap<String, i64> {
     cat.photo_variants(pid)
         .into_iter()
         .filter_map(|v| {
             let path = img.find(pid, &Kind::Variant(v.clone()))?;
-            Some((v, json!(file_mtime(&path) as i64 % 100000)))
+            Some((v, file_mtime(&path) as i64 % 100_000))
         })
         .collect()
 }
 
+/// Wersja zdjęcia karty (do adresów ?v=)
 pub fn img_version(img: &Images, pid: &str) -> i64 {
-    let total: f64 = [img.find(pid, &Kind::Main), img.find(pid, &Kind::Alt)].iter().flatten().map(|p| file_mtime(p)).sum();
-    total as i64 % 100000
+    let total: f64 = [Kind::Main, Kind::Alt].iter().filter_map(|k| img.find(pid, k)).map(|p| file_mtime(&p)).sum();
+    total as i64 % 100_000
 }
 
 /// Karta dla przeglądarki - tajne karty są zamaskowane, dopóki ich nie zdobędziesz (known = znana graczowi)
-pub fn public_person(img: &Images, cat: &Catalog, p: &Person, known: bool) -> Value {
+pub fn public_person(img: &Images, cat: &Catalog, p: &Arc<Person>, known: bool) -> PublicPerson {
     if p.is_secret() && !known {
-        return json!({"id": p.id, "rarity": "secret", "crate": p.crate_, "crates": p.crates, "number": p.number,
-                      "masked": true, "valueMult": p.value_mult, "name": "???", "type": "tv", "hp": 0, "attack": "???",
-                      "dmg": 0, "imgv": 0});
+        return PublicPerson::Masked(MaskedPerson {
+            id: p.id.clone(),
+            rarity: "secret",
+            crate_: p.crate_.clone(),
+            crates: p.crates.clone(),
+            number: p.number,
+            masked: true,
+            value_mult: p.value_mult,
+            name: "???",
+            type_: "tv",
+            hp: 0,
+            attack: "???",
+            dmg: 0,
+            imgv: 0,
+        });
     }
-    let full = p.to_map();
-    let mut base: Map<String, Value> =
-        PUBLIC_KEYS.iter().map(|k| (k.to_string(), full.get(*k).cloned().unwrap_or(Value::Null))).collect();
-    base.insert("imgv".into(), json!(img_version(img, &p.id)));
-    let vp = variant_photos(img, cat, &p.id);
-    if !vp.is_empty() {
-        base.insert("variantPhotos".into(), Value::Object(vp));
-    }
-    Value::Object(base)
+    PublicPerson::Known(KnownPerson {
+        person: p.clone(),
+        imgv: img_version(img, &p.id),
+        variant_photos: variant_photos(img, cat, &p.id),
+    })
 }
 
 /// Prawdziwe dane tajnej karty, której gracz jeszcze nie odkrył (np. u znajomego) - albo None
-pub fn reveal(img: &Images, cat: &Catalog, p: &Person, found: &std::collections::HashSet<String>) -> Option<Value> {
+pub fn reveal(img: &Images, cat: &Catalog, p: &Arc<Person>, found: &HashSet<String>) -> Option<PublicPerson> {
     (p.is_secret() && !found.contains(&p.id)).then(|| public_person(img, cat, p, true))
 }
 
 /// Karta w ofercie rynku / na stole jackpota (tajną kartę widać, nawet jeśli jej jeszcze nie odkryłem)
-pub fn card_json(
-    img: &Images,
-    cat: &Catalog,
-    pid: &str,
-    variant: &str,
-    found: &std::collections::HashSet<String>,
-) -> Map<String, Value> {
-    let p = &cat.people[pid];
-    let mut out = Map::new();
-    out.insert("person".into(), json!(pid));
-    out.insert("variant".into(), json!(if g().is_variant(variant) { variant } else { "normal" }));
-    out.insert("value".into(), json!(p.value(variant)));
-    if let Some(r) = reveal(img, cat, p, found) {
-        out.insert("reveal".into(), r);
+#[derive(Debug, Clone, Serialize)]
+pub struct CardJson {
+    pub person: String,
+    pub variant: String,
+    pub value: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reveal: Option<PublicPerson>,
+}
+
+impl CardJson {
+    /// `pid` musi być w katalogu
+    pub fn new(img: &Images, cat: &Catalog, pid: &str, variant: &str, found: &HashSet<String>) -> CardJson {
+        let p = &cat.people[pid];
+        CardJson {
+            person: pid.to_owned(),
+            variant: if g().is_variant(variant) { variant } else { "normal" }.to_owned(),
+            value: p.value(variant),
+            reveal: reveal(img, cat, p, found),
+        }
     }
-    out
 }
 
-pub fn crate_json(cat: &Catalog, c: &Crate) -> Map<String, Value> {
-    let mut m = Map::new();
-    m.insert("id".into(), json!(c.id));
-    m.insert("name".into(), json!(c.name));
-    m.insert("short".into(), c.short.clone());
-    m.insert("code".into(), c.code.clone());
-    m.insert("emoji".into(), json!(c.emoji));
-    m.insert("color1".into(), c.color1.clone());
-    m.insert("color2".into(), c.color2.clone());
-    m.insert("price".into(), json!(c.price));
-    m.insert("desc".into(), c.desc.clone());
-    m.insert("shop".into(), json!(c.shop));
-    m.insert("restricted".into(), json!(c.restricted));
-    m.insert("special".into(), json!(c.special));
-    m.insert("people".into(), json!(c.people.iter().filter(|p| cat.has(p)).collect::<Vec<_>>()));
-    m.insert("variants".into(), json!(c.variants));
-    m.insert("weights".into(), Value::Object(g().rarity_order.iter().map(|r| (r.clone(), json!(c.weight(r)))).collect()));
-    m
+/// Skrzynka dla przeglądarki
+#[derive(Debug, Clone, Serialize)]
+pub struct CrateJson {
+    pub id: String,
+    pub name: String,
+    pub short: String,
+    pub code: String,
+    pub emoji: String,
+    pub color1: String,
+    pub color2: String,
+    pub price: i64,
+    pub desc: String,
+    pub shop: bool,
+    pub restricted: bool,
+    pub special: bool,
+    pub people: Vec<String>,
+    pub variants: Vec<String>,
+    /// szansa każdej rzadkości (w kolejności RARITY_ORDER)
+    pub weights: IndexMap<String, f64>,
 }
 
-/// Ukryta wbudowana skrzynka (surowe dane) w panelu admina - jak crate_json(dict(c, people=[]))
-pub fn hidden_crate_json(c: &Map<String, Value>) -> Map<String, Value> {
-    let mut m: Map<String, Value> =
-        ["id", "name", "short", "code", "emoji", "color1", "color2", "price", "desc", "shop", "restricted", "special"]
-            .iter()
-            .map(|k| (k.to_string(), c.get(*k).cloned().unwrap_or(Value::Null)))
-            .collect();
-    m.insert("people".into(), json!([]));
-    m.insert("variants".into(), c.get("variants").filter(|v| crate::py::truthy(v)).cloned().unwrap_or(json!([])));
-    let weights = c.get("weights").and_then(Value::as_object);
-    m.insert(
-        "weights".into(),
-        Value::Object(
-            g().rarity_order
+impl CrateJson {
+    pub fn new(cat: &Catalog, c: &Crate) -> CrateJson {
+        CrateJson {
+            id: c.id.clone(),
+            name: c.name.clone(),
+            short: c.short.clone(),
+            code: c.code.clone(),
+            emoji: c.emoji.clone(),
+            color1: c.color1.clone(),
+            color2: c.color2.clone(),
+            price: c.price,
+            desc: c.desc.clone(),
+            shop: c.shop,
+            restricted: c.restricted,
+            special: c.special,
+            people: c.people.iter().filter(|p| cat.has(p)).cloned().collect(),
+            variants: c.variants.clone(),
+            weights: g().rarity_order.iter().map(|r| (r.clone(), c.weight(r))).collect(),
+        }
+    }
+
+    /// Ukryta wbudowana skrzynka (dane przed sprawdzeniem) w panelu admina
+    pub fn hidden(cid: &str, c: &RawCrate) -> CrateJson {
+        let g = g();
+        CrateJson {
+            id: cid.to_owned(),
+            name: c.name.clone(),
+            short: c.short.clone(),
+            code: c.code.clone(),
+            emoji: c.emoji.clone(),
+            color1: c.color1.clone(),
+            color2: c.color2.clone(),
+            price: c.price.unwrap_or(g.crate_price),
+            desc: c.desc.clone(),
+            shop: c.shop.unwrap_or(true),
+            restricted: c.restricted.unwrap_or(false),
+            special: g.crates.get(cid).is_some_and(|b| b.special),
+            people: vec![],
+            variants: c.variants.clone().unwrap_or_default(),
+            weights: g
+                .rarity_order
                 .iter()
-                .map(|r| {
-                    let w = weights.and_then(|w| w.get(r)).and_then(crate::py::float).unwrap_or(g().rarities[r].weight);
-                    (r.clone(), json!(w))
-                })
+                .map(|r| (r.clone(), c.weights.get(r).copied().unwrap_or_else(|| default_weight(r))))
                 .collect(),
-        ),
-    );
-    m
+        }
+    }
 }

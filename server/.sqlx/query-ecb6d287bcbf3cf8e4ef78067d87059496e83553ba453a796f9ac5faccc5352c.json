@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO jackpot_invites (jackpot_id, user_id) SELECT $1, u FROM UNNEST($2::bigint[]) AS u ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ecb6d287bcbf3cf8e4ef78067d87059496e83553ba453a796f9ac5faccc5352c"
+}

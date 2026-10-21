@@ -13,6 +13,7 @@ use axum::Json;
 use axum_extra::extract::cookie::{Cookie, Key, SameSite, SignedCookieJar};
 use hmac::Hmac;
 use parking_lot::Mutex;
+use serde::Serialize;
 use serde_json::json;
 use sha2::{Digest, Sha256, Sha512};
 
@@ -70,12 +71,31 @@ impl User {
         }
     }
 
-    pub fn json(&self, cat: &Catalog) -> serde_json::Value {
-        let pid = self.avatar_card(cat);
-        json!({"id": self.id, "username": self.username, "avatar": self.avatar, "isAdmin": self.admin(),
-               "avatarCard": pid, "avatarRarity": pid.map(|p| cat.people[p].rarity.clone()),
-               "avatarVariant": pid.map(|_| self.avatar_variant())})
+    /// Gracz w odpowiedziach API (nazwa, awatar, ikona z karty)
+    pub fn view(&self, cat: &Catalog) -> UserView {
+        let card = self.avatar_card(cat);
+        UserView {
+            id: self.id,
+            username: self.username.clone(),
+            avatar: self.avatar.clone(),
+            is_admin: self.admin(),
+            avatar_card: card.map(str::to_owned),
+            avatar_rarity: card.map(|p| cat.people[p].rarity.clone()),
+            avatar_variant: card.map(|_| self.avatar_variant().to_owned()),
+        }
     }
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserView {
+    pub id: i64,
+    pub username: String,
+    pub avatar: String,
+    pub is_admin: bool,
+    pub avatar_card: Option<String>,
+    pub avatar_rarity: Option<String>,
+    pub avatar_variant: Option<String>,
 }
 
 pub async fn find_user(c: &mut crate::db::Conn, name: &str) -> sqlx::Result<Option<User>> {

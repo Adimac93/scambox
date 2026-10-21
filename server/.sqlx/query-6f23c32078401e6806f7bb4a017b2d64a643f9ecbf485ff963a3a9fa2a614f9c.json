@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE market_bids SET status = 'refunded', updated_at = $1 WHERE listing_id = $2 AND status = 'active'\n             RETURNING bidder_id, amount",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "bidder_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "amount",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Float8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "6f23c32078401e6806f7bb4a017b2d64a643f9ecbf485ff963a3a9fa2a614f9c"
+}

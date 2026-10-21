@@ -1,0 +1,68 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, buyer_id, person_id, variant, price, status AS \"status: WantedStatus\", seller_id, created_at, updated_at\n           FROM market_wanted WHERE status = 'active' ORDER BY id DESC LIMIT 500",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "buyer_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "person_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "variant",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "price",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "status: WantedStatus",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "seller_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 8,
+        "name": "updated_at",
+        "type_info": "Float8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "fce0b3671db167877051a6f2cd70c69e697789c43489c4ac60afcf929ad8a2c0"
+}

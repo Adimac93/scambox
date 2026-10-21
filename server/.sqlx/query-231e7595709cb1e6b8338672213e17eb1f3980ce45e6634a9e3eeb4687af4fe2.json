@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO crate_access (user_id, crate_id) SELECT $1, c FROM UNNEST($2::text[]) AS c ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "231e7595709cb1e6b8338672213e17eb1f3980ce45e6634a9e3eeb4687af4fe2"
+}

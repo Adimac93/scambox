@@ -28,14 +28,19 @@ Zalogowani gracze muszą zalogować się raz ponownie (nowe ciasteczko); hasła 
 
 | Plik | Co |
 |---|---|
-| `src/main.rs` | start: schemat, uzupełnienia danych (`init_db`), katalog, router, gzip, metryki, komendy |
+| `src/main.rs` | komendy (`serve`, `export-catalog`, `fetch-images`), router, gzip, metryki |
+| `src/startup.rs` | start bazy: schemat, uzupełnienia danych ze starszych wersji, katalog, Hall of Fame |
+| `src/export.rs` | `catalog_export.json` + `custom_images/` (eksport i wczytanie w nowej instalacji) |
 | `src/config.rs` | flagi `--test --lan --dev`, zmienne środowiskowe |
 | `src/data.rs` + `data/game.json` | ustawienia gry i wbudowane karty (z `data.py`) + wartości wyliczane |
-| `src/catalog.rs` | katalog = dane wbudowane + zmiany z panelu admina (`catalog_crates` / `catalog_cards`), w pamięci (`ArcSwap`) |
+| `src/catalog.rs` | katalog = dane wbudowane + zmiany z panelu admina (`catalog_crates` / `catalog_cards`) czytane do `RawCard` / `RawCrate` i sprawdzane, w pamięci (`ArcSwap`) |
 | `src/auth.rs` | konta, hasła (werkzeug scrypt/pbkdf2), sesja w podpisanym ciasteczku, `Me` / `Admin`, limit logowań |
-| `src/game/` | wspólna logika: stan gracza, karty, Hall of Fame, losowanie, rynek (`settle_market`) |
-| `src/routes/` | adresy: strony, konta, sklep/kuźnia, social, rynek, kasyno, arena, admin |
-| `src/arena/` | silnik Areny (walki w pamięci procesu) |
+| `src/game/` | wspólna logika: stan gracza, karty, Hall of Fame, losowanie, rynek (`settle_market`), widoki kart (`views.rs`) |
+| `src/routes/` | adresy: strony, konta, sklep/kuźnia, social, rynek, kasyno, arena, admin - przy każdym handlerze struktury zapytania (`Deserialize`) i odpowiedzi (`Serialize`) |
+| `src/arena/` | silnik Areny (`engine.rs`, walki w pamięci procesu) i walka z perspektywy gracza (`view.rs`) |
+| `src/error.rs` | `AppError` -> `{"error": "..."}` z kodem HTTP |
+| `src/lenient.rs` | adaptery `serde_with` dla pól z formularzy admina (liczby jako tekst) |
+| `src/text.rs` | obcinanie tekstu po znakach, kwoty w groszach |
 | `src/images.rs` | zdjęcia z Wikipedii, miniatury WebP, flagi |
 | `schema.sql` | schemat PostgreSQL (wykonywany przy starcie, `IF NOT EXISTS`) |
 
@@ -45,6 +50,9 @@ Zalogowani gracze muszą zalogować się raz ponownie (nowe ciasteczko); hasła 
   `SQLX_OFFLINE=false` w `.env`, baza z aktualnym schematem, `cargo sqlx prepare`, commit `.sqlx/`.
 - Nowa kolumna / tabela: `schema.sql` (i `database.PG_SCHEMA`, dopóki działa wersja Python).
 - Zapytania zmieniające stan gracza: transakcja + `db::lock_me` na początku (podwójne kliknięcie).
+- Treść zapytania: `JsonBody<T>` z własną strukturą `#[derive(Deserialize)]` (domyślne wartości przez `#[serde(default)]`),
+  odpowiedź: struktura `#[derive(Serialize)]` (`rename_all = "camelCase"`); `json!` tylko dla krótkich odpowiedzi (`{"ok": true}`).
+  Statusy z bazy (rynek, wymiany, jackpot) jako enumy `sqlx::Type` (`status AS "status: ListingStatus"`).
 - Jeden proces serwera (katalog i Arena w pamięci).
 - `data/game.json` powstaje z `data.py`: `python server/tools/dump_data.py` (+ `dump_derived.py` dla testów).
 - Metryki Prometheus: `METRICS_ADDR` (domyślnie `127.0.0.1:9100/metrics`).
@@ -53,6 +61,6 @@ Zalogowani gracze muszą zalogować się raz ponownie (nowe ciasteczko); hasła 
 
 ```sh
 cargo test                       # dane gry = data.py, hasła werkzeug, losowanie, katalog, Arena
-cargo clippy --all-targets
+cargo clippy --all-targets -- -D warnings
 python tools/parity.py http://127.0.0.1:5057 http://127.0.0.1:5056   # Python vs Rust na dwóch pustych bazach
 ```

@@ -1,0 +1,70 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, from_id, to_id, status AS \"status: TradeStatus\", message, money_give, money_want, created_at, updated_at\n           FROM trades WHERE status != 'pending' AND (from_id = $1 OR to_id = $1) ORDER BY updated_at DESC LIMIT 15",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "from_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "to_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "status: TradeStatus",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "message",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "money_give",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "money_want",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 8,
+        "name": "updated_at",
+        "type_info": "Float8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "fe7942a4b774921a6bce9139e163ed660f34eb9dd0682a14b8c4a83cbf4504a2"
+}

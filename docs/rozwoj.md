@@ -20,6 +20,19 @@ Wszystkie zapytania przez makra `sqlx::query!` / `query_as!` / `query_scalar!` -
 - Zapytanie zmieniające stan gracza (pieniądze, karty, skrzynki): transakcja i `db::lock_me(&mut tx, uid)` na
   początku - inaczej podwójne kliknięcie wyda to samo dwa razy. Błąd (`bad("...")`) porzuca transakcję.
 
+## Zapytania z przeglądarki i odpowiedzi
+
+- Treść zapytania: `JsonBody<T>`, gdzie `T` to struktura `#[derive(Deserialize)]` obok handlera (pusta treść = `{}`,
+  domyślne wartości przez `#[serde(default)]` / `#[serde(default = "...")]`). Zła treść = 400
+  `{"error": "Nieprawidłowe żądanie"}`.
+- Pola z formularzy panelu admina, w których liczby przychodzą jako tekst: `serde_with` (`lenient::Num`) albo
+  `lenient::NumOrText`, gdy pusty tekst ma znaczyć "nie podano".
+- Odpowiedź: struktura `#[derive(Serialize)]` z `rename_all = "camelCase"` (klucze takie, jakich oczekuje
+  `static/js`), wspólne części przez `#[serde(flatten)]` (np. `CardJson`, `UserView`). `json!` tylko dla krótkich
+  odpowiedzi.
+- Błąd dla gracza: `return bad("...")` (400) albo `fail(StatusCode::FORBIDDEN, "...")`; funkcje pomocnicze zwracają
+  `Res<T>` i błędy przechodzą przez `?`.
+
 ## Nowa kolumna / tabela
 
 Dopisać w `server/schema.sql` (z `IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS` - wykonywany przy każdym starcie).
@@ -42,7 +55,7 @@ Wartości wyliczane (połączenia wariantów `flag+gold`, kolejność wariantów
 ```sh
 cd server
 cargo test                    # dane gry = data.py, hasła werkzeug, losowanie, katalog, Arena
-cargo clippy --all-targets
+cargo clippy --all-targets -- -D warnings
 cargo fmt
 ```
 

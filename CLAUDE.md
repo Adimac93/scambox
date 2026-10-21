@@ -54,6 +54,7 @@ Flask + SQLite + vanilla JS. Repo: https://github.com/CebularzPawel/FameChests
 - Dopóki działa wersja Python, zmiany w grze trzeba zrobić w OBU: logika `app.py` ↔ `server/src/routes/*` / `server/src/game/*`; nowa kolumna/tabela: `PG_SCHEMA` + `server/schema.sql`; zmiana `data.py` → `python server/tools/dump_data.py` (i `dump_derived.py`) – serwer czyta `server/data/game.json`.
 - Zapytania: `sqlx::query!` / `query_as!` / `query_scalar!` (sprawdzane przy kompilacji); po zmianie zapytań `cargo sqlx prepare` i commit `server/.sqlx/` (budowanie bez bazy: `SQLX_OFFLINE=true`).
 - `lock_me` = `db::lock_me(&mut tx, uid)` na początku transakcji; błąd (`bad(...)`) porzuca transakcję.
+- Zapytania z przeglądarki: `JsonBody<T>` ze strukturą `Deserialize` przy handlerze, odpowiedzi: struktury `Serialize` (camelCase, klucze jak w `static/js`); pola formularzy admina z liczbami jako tekst - `lenient.rs`.
 - Hasła w formacie werkzeug (scrypt) – oba serwery czytają te same hashe. Sesja: podpisane ciasteczko `scambox_session`.
 - Testy: `cargo test`, `cargo clippy --all-targets`, porównanie z Pythonem `server/tools/parity.py`. Start: `start_rust.bat` / `cargo run --release` w `server/`.
 
