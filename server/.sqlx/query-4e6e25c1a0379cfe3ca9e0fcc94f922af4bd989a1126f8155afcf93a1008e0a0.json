@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT i.id FROM items i LEFT JOIN showcase s ON s.item_id = i.id AND s.user_id = i.user_id\n         WHERE i.user_id = $1 AND i.person_id = $2 AND i.variant = $3\n         ORDER BY (s.item_id IS NOT NULL), i.id LIMIT $4",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4e6e25c1a0379cfe3ca9e0fcc94f922af4bd989a1126f8155afcf93a1008e0a0"
+}

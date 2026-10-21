@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id FROM market_listings WHERE status = 'active' AND kind = 'auction' AND ends_at <= $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Float8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "a1fe3b27434df4b31150c827ac973e34b1e8ab09c5e4b0fb7227c58f19b0b9d6"
+}

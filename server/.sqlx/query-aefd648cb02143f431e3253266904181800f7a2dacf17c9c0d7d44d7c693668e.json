@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE card_links SET uses = uses + 1 WHERE id = $1 AND (max_uses = 0 OR uses < max_uses)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "aefd648cb02143f431e3253266904181800f7a2dacf17c9c0d7d44d7c693668e"
+}

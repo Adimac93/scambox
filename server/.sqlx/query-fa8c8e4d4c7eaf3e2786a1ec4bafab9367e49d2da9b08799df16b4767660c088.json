@@ -1,0 +1,50 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM hall_of_fame",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "person_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "variant",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "first_user_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "first_at",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 4,
+        "name": "source",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "drops",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "fa8c8e4d4c7eaf3e2786a1ec4bafab9367e49d2da9b08799df16b4767660c088"
+}

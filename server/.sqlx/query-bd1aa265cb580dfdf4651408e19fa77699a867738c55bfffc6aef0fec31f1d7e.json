@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO user_state (user_id, key, value) SELECT $1, key, value FROM state ON CONFLICT (user_id, key) DO UPDATE SET value = excluded.value",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "bd1aa265cb580dfdf4651408e19fa77699a867738c55bfffc6aef0fec31f1d7e"
+}

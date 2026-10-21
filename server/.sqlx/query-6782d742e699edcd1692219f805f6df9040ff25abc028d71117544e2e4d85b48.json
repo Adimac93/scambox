@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM trade_lines WHERE trade_id IN (SELECT id FROM trades WHERE from_id = $1 OR to_id = $1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6782d742e699edcd1692219f805f6df9040ff25abc028d71117544e2e4d85b48"
+}

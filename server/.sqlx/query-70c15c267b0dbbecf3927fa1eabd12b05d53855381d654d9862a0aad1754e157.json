@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT f.id FROM feed f JOIN users u ON u.id = f.author_id\n         WHERE (f.author_id = $1 OR f.to_user_id = $1\n            OR (f.to_user_id IS NULL AND f.author_id IN (\n                SELECT addressee_id FROM friendships WHERE requester_id = $1 AND status = 'accepted'\n                UNION SELECT requester_id FROM friendships WHERE addressee_id = $1 AND status = 'accepted')))\n         AND f.id = $2 AND f.person_id = $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "70c15c267b0dbbecf3927fa1eabd12b05d53855381d654d9862a0aad1754e157"
+}

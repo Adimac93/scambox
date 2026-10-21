@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE users SET money_generated = 1 WHERE money_generated = 0 AND id IN\n         (SELECT user_id FROM user_state WHERE key = 'deposited' AND value > 0)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "7a87482fb8fdb6617ee12dca5eed8aff7ddc1dff756fe117cbd9855fdbeccb00"
+}

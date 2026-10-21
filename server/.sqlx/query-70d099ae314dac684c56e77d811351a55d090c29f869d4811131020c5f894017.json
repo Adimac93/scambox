@@ -1,0 +1,88 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM users WHERE LOWER(username) = LOWER($1)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "username",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "password_hash",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "avatar",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "is_admin",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 6,
+        "name": "avatar_card",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "avatar_variant",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "banned",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 9,
+        "name": "ban_reason",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "ranking_hidden",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 11,
+        "name": "money_generated",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "70d099ae314dac684c56e77d811351a55d090c29f869d4811131020c5f894017"
+}

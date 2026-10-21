@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM showcase WHERE user_id = $1 AND item_id = ANY($2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e7bd52ed7099461cd978185f12016ccd9bab1c0b4d40f7339fd29d8d357ead81"
+}

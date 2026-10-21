@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE jackpots SET ready_a = 0, ready_b = 0, updated_at = $1 WHERE id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Float8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c9e44a83b80075fb31776e7b77d51f0730d4a00288cab5ee88717ec048735f60"
+}

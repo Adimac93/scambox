@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO daily_claims (user_id, day, amount) VALUES ($1, $2, 0) ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c3394d52bd706cf82e8f11319ece4bfee5ab610016e08ec39c62ec4538ae5d0a"
+}

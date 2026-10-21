@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO user_chests (user_id, kind, count) VALUES ($1, $2, 0) ON CONFLICT(user_id, kind) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6fcc1634298464bca2d3eb43ce45db66e32093b529dac3920e59e74d37171700"
+}

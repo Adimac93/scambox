@@ -1,0 +1,104 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM jackpots WHERE status = 'done' ORDER BY finished_at DESC LIMIT 12",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "creator_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "invite_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "joiner_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "status",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "value_a",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "value_b",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "winner_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 8,
+        "name": "roll",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 9,
+        "name": "created_at",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 10,
+        "name": "finished_at",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 11,
+        "name": "is_public",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 12,
+        "name": "ready_a",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 13,
+        "name": "ready_b",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 14,
+        "name": "updated_at",
+        "type_info": "Float8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "7927d030cba55fd5c74a0014a07d0674d129f56b55f25d45232cce8f0d5517cc"
+}

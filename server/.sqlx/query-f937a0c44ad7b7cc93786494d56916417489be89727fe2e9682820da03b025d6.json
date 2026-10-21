@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT person_id, variant, count FROM trade_lines WHERE trade_id = $1 AND side = 'want'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "person_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "variant",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "count",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "f937a0c44ad7b7cc93786494d56916417489be89727fe2e9682820da03b025d6"
+}

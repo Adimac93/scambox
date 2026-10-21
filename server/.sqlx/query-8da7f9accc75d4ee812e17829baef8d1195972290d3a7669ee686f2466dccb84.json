@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO user_collected (user_id, person_id, variant) SELECT DISTINCT user_id, person_id, variant\n         FROM items WHERE user_id > 0 ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "8da7f9accc75d4ee812e17829baef8d1195972290d3a7669ee686f2466dccb84"
+}

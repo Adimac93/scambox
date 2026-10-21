@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO feed (author_id, to_user_id, kind, person_id, variant, message, created_at) VALUES ($1, $2, 'show', $3, $4, $5, $6)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Text",
+        "Text",
+        "Text",
+        "Float8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "72bf2798e7b279df7c2600f2b090d40fbcf1006908a797a1624216c7f0f35bc2"
+}

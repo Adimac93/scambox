@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE user_chests SET count = CASE WHEN count + $1 > 0 THEN count + $1 ELSE 0 END WHERE user_id = $2 AND kind = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "933d80fa5602569a985917518c73c7a65276c74d67ab8593cd6a0e86b60a2fd5"
+}

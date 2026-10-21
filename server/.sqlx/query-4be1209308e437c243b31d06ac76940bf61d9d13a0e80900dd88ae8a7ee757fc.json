@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT person_id, variant FROM items WHERE user_id = $1 AND person_id = ANY($2)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "person_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "variant",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "4be1209308e437c243b31d06ac76940bf61d9d13a0e80900dd88ae8a7ee757fc"
+}

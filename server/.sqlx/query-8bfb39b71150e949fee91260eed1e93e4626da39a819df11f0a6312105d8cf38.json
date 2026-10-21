@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM trades WHERE from_id = $1 OR to_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8bfb39b71150e949fee91260eed1e93e4626da39a819df11f0a6312105d8cf38"
+}

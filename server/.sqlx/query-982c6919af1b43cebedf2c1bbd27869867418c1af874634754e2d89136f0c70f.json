@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE market_listings SET updated_at = $1 WHERE id = $2 AND status = 'active' AND seller_id = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Float8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "982c6919af1b43cebedf2c1bbd27869867418c1af874634754e2d89136f0c70f"
+}

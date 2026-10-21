@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT person_id, variant FROM items WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "person_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "variant",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "5c97cf4e0c6af560b28b80cbfd3b9b9397e1750784ef358c7470ae43851ef45f"
+}

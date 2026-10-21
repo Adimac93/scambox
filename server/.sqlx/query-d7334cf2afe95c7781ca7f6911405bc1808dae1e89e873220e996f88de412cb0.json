@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT author_id, person_id, variant, created_at FROM feed WHERE kind IN ('drop', 'contract', 'upgrade')",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "author_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "person_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "variant",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at",
+        "type_info": "Float8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "d7334cf2afe95c7781ca7f6911405bc1808dae1e89e873220e996f88de412cb0"
+}

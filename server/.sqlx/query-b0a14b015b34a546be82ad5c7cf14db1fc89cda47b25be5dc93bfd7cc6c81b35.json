@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO market_offers (listing_id, buyer_id, price, created_at, updated_at) VALUES ($1, $2, $3, $4, $4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8",
+        "Float8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b0a14b015b34a546be82ad5c7cf14db1fc89cda47b25be5dc93bfd7cc6c81b35"
+}

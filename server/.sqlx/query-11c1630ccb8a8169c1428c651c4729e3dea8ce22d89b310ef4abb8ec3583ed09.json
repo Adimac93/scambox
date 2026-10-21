@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE blackjack_games SET deck = $1, player = $2 WHERE user_id = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "11c1630ccb8a8169c1428c651c4729e3dea8ce22d89b310ef4abb8ec3583ed09"
+}

@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COUNT(*) AS \"n!\" FROM jackpots j JOIN jackpot_invites i ON i.jackpot_id = j.id WHERE i.user_id = $1\n           AND j.status = 'open' AND j.joiner_id IS NULL AND j.creator_id != $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "n!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "a3bf5a18ae22f9053cfbbb365d29053f127c659852a037d89d6dd40f68a360d1"
+}

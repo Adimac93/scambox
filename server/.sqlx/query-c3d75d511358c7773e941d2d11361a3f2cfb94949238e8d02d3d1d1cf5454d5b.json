@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO market_wanted (buyer_id, person_id, variant, price, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $5)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Int8",
+        "Float8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c3d75d511358c7773e941d2d11361a3f2cfb94949238e8d02d3d1d1cf5454d5b"
+}

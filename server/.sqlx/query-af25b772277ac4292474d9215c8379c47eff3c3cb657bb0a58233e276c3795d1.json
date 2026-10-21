@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO hall_of_fame (person_id, variant, first_user_id, first_at, source, drops) VALUES ($1, $2, $3, $4, $5, 0) ON CONFLICT (person_id, variant) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8",
+        "Float8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "af25b772277ac4292474d9215c8379c47eff3c3cb657bb0a58233e276c3795d1"
+}

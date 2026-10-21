@@ -1,0 +1,16 @@
+# Baza PostgreSQL do gry na własnym komputerze:  docker compose up -d   (w folderze server/)
+# .env: DATABASE_URL=postgres://postgres:postgres@localhost:5432/scambox
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: scambox
+    ports:
+      - "${PGPORT:-5432}:5432"
+    volumes:
+      - scambox-db:/var/lib/postgresql/data
+volumes:
+  scambox-db:
