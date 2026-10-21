@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT user_id, at AS \"at!\", source FROM user_collected WHERE person_id = $1 AND variant = $2 AND at IS NOT NULL\n           AND (source IS NULL OR source IN ('drop', 'contract', 'upgrade', 'joker', 'link')) ORDER BY at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "at!",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 2,
+        "name": "source",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "586d3712834a0841e296470350cc289a3e73bd7874a625bba8bbd84046144995"
+}

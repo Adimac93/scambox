@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE user_collected SET at = (SELECT MIN(f.created_at) FROM feed f WHERE f.author_id = user_collected.user_id\n         AND f.person_id = user_collected.person_id AND f.variant = user_collected.variant AND f.kind != 'show')\n         WHERE at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "37eb100955f93b18a2b8d77a68590533f37217a9e04195754dbf957ce4068e75"
+}

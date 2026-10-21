@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, title, body, starts_at FROM admin_messages m WHERE starts_at <= $1 AND ends_at > $1 AND NOT EXISTS\n         (SELECT 1 FROM admin_message_seen s WHERE s.message_id = m.id AND s.user_id = $2) ORDER BY starts_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "title",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "body",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "starts_at",
+        "type_info": "Float8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Float8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "130621a4fd85424f2ad426eb97f84840373785b708151f8ff51c08c679fa5008"
+}

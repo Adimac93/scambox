@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE arena_daily SET wins = wins + 1 WHERE user_id = $1 AND day = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "66cec34dd39b91715a690d29bcb3e19eaedabf0934a42dcba151c077c85f78d4"
+}

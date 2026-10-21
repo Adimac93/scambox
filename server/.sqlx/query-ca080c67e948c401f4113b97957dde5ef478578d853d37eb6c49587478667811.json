@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM friendships WHERE requester_id = $1 OR addressee_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ca080c67e948c401f4113b97957dde5ef478578d853d37eb6c49587478667811"
+}

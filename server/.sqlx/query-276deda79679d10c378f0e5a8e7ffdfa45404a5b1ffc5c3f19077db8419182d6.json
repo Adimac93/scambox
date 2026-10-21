@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE items SET user_id = $1 WHERE user_id IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "276deda79679d10c378f0e5a8e7ffdfa45404a5b1ffc5c3f19077db8419182d6"
+}

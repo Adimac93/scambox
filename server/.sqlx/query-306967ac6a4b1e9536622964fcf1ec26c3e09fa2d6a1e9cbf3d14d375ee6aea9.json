@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE items SET user_id = $1 WHERE user_id = $2 AND id = ANY($3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "306967ac6a4b1e9536622964fcf1ec26c3e09fa2d6a1e9cbf3d14d375ee6aea9"
+}

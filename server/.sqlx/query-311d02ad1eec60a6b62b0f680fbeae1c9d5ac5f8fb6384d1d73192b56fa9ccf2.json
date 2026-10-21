@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO trades (from_id, to_id, message, money_give, money_want, created_at, updated_at)\n         VALUES ($1, $2, $3, 0, 0, $4, $4) RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Text",
+        "Float8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "311d02ad1eec60a6b62b0f680fbeae1c9d5ac5f8fb6384d1d73192b56fa9ccf2"
+}

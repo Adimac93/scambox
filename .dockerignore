@@ -1,0 +1,6 @@
+server/target/
+server/.env
+.venv/
+image_cache/
+*.db
+secret_key.txt

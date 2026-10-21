@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT addressee_id AS \"id!\" FROM friendships WHERE requester_id = $1 AND status = 'accepted'\n           UNION SELECT requester_id FROM friendships WHERE addressee_id = $1 AND status = 'accepted'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "1b2ddfb2e90cd6388aaa9611a24e147888c5e38a04d39b850abd446abe361e87"
+}

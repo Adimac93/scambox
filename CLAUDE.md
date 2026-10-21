@@ -40,6 +40,14 @@ Flask + SQLite + vanilla JS. Repo: https://github.com/CebularzPawel/FameChests
 - Pliki statyczne wersjonowane przez `asset()` (z `?v=` cache na rok); HTML/API z `Cache-Control: no-store` i gzipem (`gzip_response`) - duże odpowiedzi bez gzipa potrafiły się na tym komputerze zawieszać na ~19 s (antywirus sprawdzający ruch lokalny).
 - Wydajność (gracze mają tysiące kart): długie listy kart mają `content-visibility: auto` (style.css, sekcja WYDAJNOŚĆ - nowe listy dopisać tam). Pełnoekranowe nakładki dodawać bezpośrednio do `<body>` i dopisać do `COVERS` w app.js (`body.covered` chowa stronę pod spodem); bez `backdrop-filter` na dużych powierzchniach. Animowana ramka karty jest w `.card::before` (`--frame`; obracająca się bierze kolory z `--spin`, wariant ze stałą ramką ustawia `--spin: initial`), animowane nakładki mają `will-change: transform` (koniec cards2.css). Małe kafelki: `imgUrl(pid, wariant, true)` = miniatura WebP (`images.web_version`, Pillow). Przerysowanie listy do wyboru: `keepScroll` + `data-keep`.
 
+## Serwer w Rust (`server/`, w trakcie przejścia z Pythona)
+- Ten sam schemat bazy (`server/schema.sql` = `database.PG_SCHEMA`) i te same odpowiedzi API – przeglądarka bez zmian. Tylko PostgreSQL. Szczegóły: `server/README.md`, instrukcje (uruchamianie, hosting, przejście, rozwój): `docs/`.
+- Dopóki działa wersja Python, zmiany w grze trzeba zrobić w OBU: logika `app.py` ↔ `server/src/routes/*` / `server/src/game/*`; nowa kolumna/tabela: `PG_SCHEMA` + `server/schema.sql`; zmiana `data.py` → `python server/tools/dump_data.py` (i `dump_derived.py`) – serwer czyta `server/data/game.json`.
+- Zapytania: `sqlx::query!` / `query_as!` / `query_scalar!` (sprawdzane przy kompilacji); po zmianie zapytań `cargo sqlx prepare` i commit `server/.sqlx/` (budowanie bez bazy: `SQLX_OFFLINE=true`).
+- `lock_me` = `db::lock_me(&mut tx, uid)` na początku transakcji; błąd (`bad(...)`) porzuca transakcję.
+- Hasła w formacie werkzeug (scrypt) – oba serwery czytają te same hashe. Sesja: podpisane ciasteczko `scambox_session`.
+- Testy: `cargo test`, `cargo clippy --all-targets`, porównanie z Pythonem `server/tools/parity.py`. Start: `start_rust.bat` / `cargo run --release` w `server/`.
+
 ## Uruchamianie
 - `start_tailscale.bat` (hosting dla znajomych), `start_lan.bat` (sieć lokalna), `start.bat`.
 - `.venv\Scripts\python app.py [--dev] [--lan] [--test]`; `--test` = `test.db` na porcie 5001. Druga kopia na zajętym porcie się nie uruchomi.

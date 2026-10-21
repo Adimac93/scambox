@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE jackpots SET status = 'expired', finished_at = $1 WHERE id = $2 AND status = 'open'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Float8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d8a793ce849ed01017bf3e2df6257b659a0ab1b2df23d27ce10e0f7a0b6ccfc6"
+}

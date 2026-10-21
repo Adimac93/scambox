@@ -1,0 +1,106 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM jackpots j WHERE status = 'open' AND (is_public = 1 OR creator_id = $1 OR joiner_id = $1\n         OR EXISTS (SELECT 1 FROM jackpot_invites i WHERE i.jackpot_id = j.id AND i.user_id = $1)) ORDER BY id DESC LIMIT 60",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "creator_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "invite_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "joiner_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "status",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "value_a",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "value_b",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "winner_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 8,
+        "name": "roll",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 9,
+        "name": "created_at",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 10,
+        "name": "finished_at",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 11,
+        "name": "is_public",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 12,
+        "name": "ready_a",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 13,
+        "name": "ready_b",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 14,
+        "name": "updated_at",
+        "type_info": "Float8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "05a9aca76cc94ad0fb0a29a654f65ed6488299c72e20fa1a86894486589eddc1"
+}

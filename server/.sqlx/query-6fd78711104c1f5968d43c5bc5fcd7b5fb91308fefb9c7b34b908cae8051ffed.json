@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM discovered",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "6fd78711104c1f5968d43c5bc5fcd7b5fb91308fefb9c7b34b908cae8051ffed"
+}

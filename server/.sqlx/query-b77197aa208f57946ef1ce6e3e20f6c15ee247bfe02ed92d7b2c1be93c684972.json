@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO user_discovered (user_id, person_id) SELECT $1, person_id FROM discovered ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b77197aa208f57946ef1ce6e3e20f6c15ee247bfe02ed92d7b2c1be93c684972"
+}

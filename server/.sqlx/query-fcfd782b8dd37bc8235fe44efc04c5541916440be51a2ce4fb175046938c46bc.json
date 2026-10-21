@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT person_id, variant, COUNT(*) AS \"n!\" FROM items WHERE user_id = $1 GROUP BY person_id, variant",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "person_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "variant",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "n!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "fcfd782b8dd37bc8235fe44efc04c5541916440be51a2ce4fb175046938c46bc"
+}

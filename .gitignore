@@ -16,3 +16,7 @@ alt_log.txt
 *.db
 secret_key.txt
 *.log
+
+# serwer Rust
+server/target/
+server/.env

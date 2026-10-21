@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO trade_lines (trade_id, side, item_id, person_id, variant, count) VALUES ($1, 'give', $2, $3, $4, 1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d61171b3f5f89e7d0bcda82bf1fd5719c134787954bba576edb5b2cde4ed58f9"
+}

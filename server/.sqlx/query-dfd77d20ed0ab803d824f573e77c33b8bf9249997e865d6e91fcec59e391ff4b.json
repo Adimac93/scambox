@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE hall_of_fame SET drops = drops + 1 WHERE person_id = $1 AND variant = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "dfd77d20ed0ab803d824f573e77c33b8bf9249997e865d6e91fcec59e391ff4b"
+}

@@ -1,0 +1,3123 @@
+{
+ "startingBalance": 20000,
+ "cratePrice": 100,
+ "maxOpen": 20,
+ "variants": {
+  "normal": {
+   "name": "Zwykła",
+   "chance": 0.0,
+   "mult": 1.0
+  },
+  "bw": {
+   "name": "Czarno-biała",
+   "chance": 0.05,
+   "mult": 1.5
+  },
+  "reverse": {
+   "name": "Reverse Holo",
+   "chance": 0.05,
+   "mult": 1.8
+  },
+  "silver": {
+   "name": "Srebrna",
+   "chance": 0.03,
+   "mult": 2.5
+  },
+  "holo": {
+   "name": "Holo",
+   "chance": 0.025,
+   "mult": 3.0
+  },
+  "gold": {
+   "name": "Złota",
+   "chance": 0.01,
+   "mult": 7.5
+  },
+  "flag": {
+   "name": "Flagowa",
+   "chance": 0.008,
+   "mult": 8.0,
+   "exclusive": true,
+   "layer": true,
+   "extraChance": 0.4,
+   "desc": "Karta w barwach flagi swojego kraju. Każda karta w skrzynce potrzebuje ustawionego kraju (np. PL). 40% flagowych kart ma dodatkowo inny wariant (np. Flagowa + Złota)."
+  },
+  "halloween": {
+   "name": "Halloweenowa",
+   "chance": 0.0,
+   "mult": 3.0,
+   "exclusive": true,
+   "layer": true,
+   "always": true,
+   "weight": 85,
+   "photo": true,
+   "desc": "Noc z księżycem, dynie-lampiony, czaszka i nietoperze. Najczęstszy z wariantów halloweenowych."
+  },
+  "lantern": {
+   "name": "Lampionowa",
+   "chance": 0.0,
+   "mult": 6.0,
+   "exclusive": true,
+   "layer": true,
+   "always": true,
+   "weight": 12,
+   "photo": true,
+   "photoFallback": "halloween",
+   "noCombo": true,
+   "desc": "Karta w blasku świecy z dyni: zdjęcie w pomarańczowym świetle, migoczący blask, iskry."
+  },
+  "devil": {
+   "name": "Diabelska",
+   "chance": 0.0,
+   "mult": 15.0,
+   "exclusive": true,
+   "layer": true,
+   "always": true,
+   "weight": 3,
+   "photo": true,
+   "photoFallback": "halloween",
+   "noCombo": true,
+   "desc": "Najrzadszy wariant halloweenowy - piekielny ogień, rogi i czerwona poświata."
+  },
+  "clear": {
+   "name": "Przezroczysta",
+   "chance": 0.006,
+   "mult": 9.0
+  },
+  "sketch": {
+   "name": "Rysunkowa",
+   "chance": 0.004,
+   "mult": 10.0,
+   "desc": "Karta narysowana piórem i tuszem na starym papierze."
+  },
+  "emerald": {
+   "name": "Szmaragdowa",
+   "chance": 0.005,
+   "mult": 11.0
+  },
+  "amethyst": {
+   "name": "Ametystowa",
+   "chance": 0.0045,
+   "mult": 12.5
+  },
+  "ruby": {
+   "name": "Rubinowa",
+   "chance": 0.004,
+   "mult": 14.0
+  },
+  "royal": {
+   "name": "Królewska",
+   "chance": 0.004,
+   "mult": 15.0,
+   "exclusive": true,
+   "desc": "Ozdobna złota rama z ornamentami i złota korona na górze."
+  },
+  "diamond": {
+   "name": "Diamentowa",
+   "chance": 0.003,
+   "mult": 18.0
+  },
+  "galaxy": {
+   "name": "Galaktyczna",
+   "chance": 0.002,
+   "mult": 20.0,
+   "desc": "Kosmiczna karta: mgławice, gwiazdy i świecąca ramka."
+  },
+  "negative": {
+   "name": "Negatyw",
+   "chance": 0.001,
+   "mult": 30.0
+  },
+  "rzulty": {
+   "name": "Rzulty",
+   "chance": 0.000999803501417597,
+   "mult": 31.0,
+   "exclusive": true,
+   "cards": [
+    "pl_secret"
+   ],
+   "desc": "Wariant tylko jednej karty (Jan Paweł II) - własne zdjęcie."
+  },
+  "joker": {
+   "name": "Jokerowa",
+   "chance": 0.0,
+   "mult": 1.0,
+   "exclusive": true,
+   "special": true,
+   "styles": [
+    "Talia Kasynowa"
+   ],
+   "desc": "Karta jak Joker z talii kart na zielonym suknie kasyna - indeksy JOKER z czapką błazna i żetony."
+  },
+  "jeans": {
+   "name": "Dżinsowa",
+   "chance": 0.0,
+   "mult": 1.0,
+   "exclusive": true,
+   "special": true,
+   "styles": [
+    "Klasyczny dżins"
+   ],
+   "desc": "Karta z dżinsu - pomarańczowe przeszycia i miedziane nity."
+  }
+ },
+ "defaultCrateVariants": {
+  "skrzynia_krolow": [
+   "royal"
+  ],
+  "halloween": [
+   "halloween",
+   "lantern",
+   "devil"
+  ]
+ },
+ "cratesAddedLater": [
+  "halloween"
+ ],
+ "contractSize": {
+  "green": 5,
+  "uncommon": 5,
+  "blue": 5,
+  "purple": 6,
+  "red": 6,
+  "gold": 7
+ },
+ "contractVariantBonus": 0.1,
+ "upgradeEdge": 0.9,
+ "upgradeMax": 0.8,
+ "upgradeMaxItems": 10,
+ "maxDeposit": 1000000,
+ "moneyChests": {
+  "daily": {
+   "name": "Codzienna skrzynka",
+   "emoji": "🎁",
+   "min": 5000,
+   "max": 20000,
+   "curve": 2.2,
+   "color1": "#3ddc84",
+   "color2": "#0f5a32"
+  },
+  "mega": {
+   "name": "MEGA skrzynka",
+   "emoji": "💎",
+   "min": 10000,
+   "max": 67000,
+   "curve": 2.0,
+   "color1": "#ffd54a",
+   "color2": "#8a5b00"
+  }
+ },
+ "dailyStreak": 7,
+ "showcaseSize": 6,
+ "rarities": {
+  "green": {
+   "name": "Zwykła",
+   "weight": 56.3,
+   "value": 10,
+   "color": "#9aa3ad"
+  },
+  "uncommon": {
+   "name": "Niepospolita",
+   "weight": 20.0,
+   "value": 18,
+   "color": "#4fc34f"
+  },
+  "blue": {
+   "name": "Rzadka",
+   "weight": 25.0,
+   "value": 30,
+   "color": "#4b8bff"
+  },
+  "purple": {
+   "name": "Epicka",
+   "weight": 12.0,
+   "value": 90,
+   "color": "#a35bff"
+  },
+  "red": {
+   "name": "Mityczna",
+   "weight": 5.5,
+   "value": 300,
+   "color": "#ff4040"
+  },
+  "gold": {
+   "name": "Legendarna",
+   "weight": 1.0,
+   "value": 1000,
+   "color": "#ffc531"
+  },
+  "special": {
+   "name": "Specjalna",
+   "weight": 0.0,
+   "value": 2500,
+   "color": "#19e6ff"
+  },
+  "ultra": {
+   "name": "ULTRA LEGENDARNA",
+   "weight": 0.2,
+   "value": 4000,
+   "color": "#ff5cf0"
+  },
+  "secret": {
+   "name": "TAJNA",
+   "weight": 0.0,
+   "value": 25000,
+   "color": "#f3e3b0"
+  }
+ },
+ "secretOdds": 2137,
+ "types": {
+  "polityka": {
+   "name": "Polityka",
+   "icon": "🏛️"
+  },
+  "sport": {
+   "name": "Sport",
+   "icon": "⚽"
+  },
+  "muzyka": {
+   "name": "Muzyka",
+   "icon": "🎤"
+  },
+  "tv": {
+   "name": "Telewizja",
+   "icon": "📺"
+  },
+  "kino": {
+   "name": "Kino",
+   "icon": "🎬"
+  },
+  "biznes": {
+   "name": "Biznes",
+   "icon": "💼"
+  },
+  "kuchnia": {
+   "name": "Kuchnia",
+   "icon": "🍳"
+  },
+  "internet": {
+   "name": "Internet",
+   "icon": "📱"
+  },
+  "nauka": {
+   "name": "Nauka",
+   "icon": "🔬"
+  },
+  "wiara": {
+   "name": "Wiara",
+   "icon": "✝️"
+  },
+  "artysta": {
+   "name": "Artysta",
+   "icon": "🎨"
+  },
+  "wojsko": {
+   "name": "Wojsko",
+   "icon": "🪖"
+  }
+ },
+ "matchups": {
+  "polityka": [
+   "internet",
+   "tv"
+  ],
+  "sport": [
+   "kuchnia",
+   "polityka"
+  ],
+  "muzyka": [
+   "internet",
+   "sport"
+  ],
+  "tv": [
+   "polityka",
+   "kino"
+  ],
+  "kino": [
+   "tv",
+   "muzyka"
+  ],
+  "biznes": [
+   "polityka",
+   "internet"
+  ],
+  "kuchnia": [
+   "tv",
+   "sport"
+  ],
+  "internet": [
+   "biznes",
+   "polityka"
+  ],
+  "nauka": [
+   "polityka",
+   "internet"
+  ],
+  "wiara": [
+   "internet",
+   "polityka"
+  ],
+  "artysta": [
+   "biznes",
+   "internet"
+  ],
+  "wojsko": [
+   "polityka",
+   "sport"
+  ]
+ },
+ "abilityKinds": {
+  "off": {
+   "name": "Ofensywna",
+   "icon": "⚔️"
+  },
+  "def": {
+   "name": "Defensywna",
+   "icon": "🛡️"
+  },
+  "heal": {
+   "name": "Lecząca",
+   "icon": "💚"
+  },
+  "eco": {
+   "name": "Ekonomiczna",
+   "icon": "🪙"
+  }
+ },
+ "maxExtraAbilities": 2,
+ "crates": {
+  "pl": {
+   "name": "Skrzynka Polska",
+   "short": "Polska",
+   "code": "PL",
+   "emoji": "🦅",
+   "color1": "#ffffff",
+   "color2": "#dc143c",
+   "price": 100,
+   "shop": true,
+   "restricted": false,
+   "desc": "polskie gwiazdy, politycy i sportowcy",
+   "people": [
+    {
+     "id": "pl_secret",
+     "name": "Jan Paweł II",
+     "wiki": [
+      "pl",
+      "Jan Paweł II"
+     ],
+     "rarity": "secret",
+     "type": "wiara",
+     "hp": 500,
+     "attack": "Barka",
+     "dmg": 300
+    },
+    {
+     "id": "pl_lewandowski",
+     "name": "Robert Lewandowski",
+     "wiki": [
+      "pl",
+      "Robert Lewandowski"
+     ],
+     "rarity": "ultra",
+     "type": "sport",
+     "hp": 300,
+     "attack": "5 goli w 9 minut",
+     "dmg": 250
+    },
+    {
+     "id": "pl_malysz",
+     "name": "Adam Małysz",
+     "wiki": [
+      "pl",
+      "Adam Małysz"
+     ],
+     "rarity": "gold",
+     "type": "sport",
+     "hp": 200,
+     "attack": "Małyszomania",
+     "dmg": 180
+    },
+    {
+     "id": "pl_walesa",
+     "name": "Lech Wałęsa",
+     "wiki": [
+      "pl",
+      "Lech Wałęsa"
+     ],
+     "rarity": "gold",
+     "type": "polityka",
+     "hp": 210,
+     "attack": "Skok przez płot",
+     "dmg": 170
+    },
+    {
+     "id": "pl_swiatek",
+     "name": "Iga Świątek",
+     "wiki": [
+      "pl",
+      "Iga Świątek"
+     ],
+     "rarity": "red",
+     "type": "sport",
+     "hp": 160,
+     "attack": "Bajgiel 6:0",
+     "dmg": 140
+    },
+    {
+     "id": "pl_tusk",
+     "name": "Donald Tusk",
+     "wiki": [
+      "pl",
+      "Donald Tusk"
+     ],
+     "rarity": "red",
+     "type": "polityka",
+     "hp": 150,
+     "attack": "Powrót z Brukseli",
+     "dmg": 120
+    },
+    {
+     "id": "pl_kaczynski",
+     "name": "Jarosław Kaczyński",
+     "wiki": [
+      "pl",
+      "Jarosław Kaczyński"
+     ],
+     "rarity": "red",
+     "type": "polityka",
+     "hp": 150,
+     "attack": "Bez żadnego trybu",
+     "dmg": 130
+    },
+    {
+     "id": "pl_duda",
+     "name": "Andrzej Duda",
+     "wiki": [
+      "pl",
+      "Andrzej Duda"
+     ],
+     "rarity": "purple",
+     "type": "polityka",
+     "hp": 120,
+     "attack": "Długopis prezydencki",
+     "dmg": 100
+    },
+    {
+     "id": "pl_nawrocki",
+     "name": "Karol Nawrocki",
+     "wiki": [
+      "pl",
+      "Karol Nawrocki"
+     ],
+     "rarity": "purple",
+     "type": "polityka",
+     "hp": 125,
+     "attack": "Prawy prosty",
+     "dmg": 100
+    },
+    {
+     "id": "pl_stoch",
+     "name": "Kamil Stoch",
+     "wiki": [
+      "pl",
+      "Kamil Stoch"
+     ],
+     "rarity": "purple",
+     "type": "sport",
+     "hp": 130,
+     "attack": "Idealny telemark",
+     "dmg": 110
+    },
+    {
+     "id": "pl_doda",
+     "name": "Doda",
+     "wiki": [
+      "pl",
+      "Doda (piosenkarka)"
+     ],
+     "rarity": "purple",
+     "type": "muzyka",
+     "hp": 115,
+     "attack": "Nie daj się",
+     "dmg": 100
+    },
+    {
+     "id": "pl_maklowicz",
+     "name": "Robert Makłowicz",
+     "wiki": [
+      "pl",
+      "Robert Makłowicz"
+     ],
+     "rarity": "purple",
+     "type": "kuchnia",
+     "hp": 120,
+     "attack": "Ach, cóż za aromat",
+     "dmg": 90
+    },
+    {
+     "id": "pl_gessler",
+     "name": "Magda Gessler",
+     "wiki": [
+      "pl",
+      "Magda Gessler"
+     ],
+     "rarity": "purple",
+     "type": "kuchnia",
+     "hp": 125,
+     "attack": "Kuchenne rewolucje",
+     "dmg": 110
+    },
+    {
+     "id": "pl_mentzen",
+     "name": "Sławomir Mentzen",
+     "wiki": [
+      "pl",
+      "Sławomir Mentzen"
+     ],
+     "rarity": "blue",
+     "type": "polityka",
+     "hp": 90,
+     "attack": "Piwo z wyborcami",
+     "dmg": 70
+    },
+    {
+     "id": "pl_trzaskowski",
+     "name": "Rafał Trzaskowski",
+     "wiki": [
+      "pl",
+      "Rafał Trzaskowski"
+     ],
+     "rarity": "blue",
+     "type": "polityka",
+     "hp": 90,
+     "attack": "Gówno w Wiśle",
+     "dmg": 70
+    },
+    {
+     "id": "pl_holownia",
+     "name": "Szymon Hołownia",
+     "wiki": [
+      "pl",
+      "Szymon Hołownia"
+     ],
+     "rarity": "blue",
+     "type": "polityka",
+     "hp": 85,
+     "attack": "Przywołanie do porządku",
+     "dmg": 70
+    },
+    {
+     "id": "pl_ibisz",
+     "name": "Krzysztof Ibisz",
+     "wiki": [
+      "pl",
+      "Krzysztof Ibisz"
+     ],
+     "rarity": "blue",
+     "type": "tv",
+     "hp": 95,
+     "attack": "Wieczna młodość",
+     "dmg": 60
+    },
+    {
+     "id": "pl_wojewodzki",
+     "name": "Kuba Wojewódzki",
+     "wiki": [
+      "pl",
+      "Kuba Wojewódzki"
+     ],
+     "rarity": "blue",
+     "type": "tv",
+     "hp": 85,
+     "attack": "Kąśliwe pytanie",
+     "dmg": 75
+    },
+    {
+     "id": "pl_kubica",
+     "name": "Robert Kubica",
+     "wiki": [
+      "pl",
+      "Robert Kubica"
+     ],
+     "rarity": "blue",
+     "type": "sport",
+     "hp": 100,
+     "attack": "Błyskawiczny pit stop",
+     "dmg": 80
+    },
+    {
+     "id": "pl_podsiadlo",
+     "name": "Dawid Podsiadło",
+     "wiki": [
+      "pl",
+      "Dawid Podsiadło"
+     ],
+     "rarity": "blue",
+     "type": "muzyka",
+     "hp": 80,
+     "attack": "Małomiasteczkowy",
+     "dmg": 70
+    },
+    {
+     "id": "pl_szczesny",
+     "name": "Wojciech Szczęsny",
+     "wiki": [
+      "pl",
+      "Wojciech Szczęsny"
+     ],
+     "rarity": "blue",
+     "type": "sport",
+     "hp": 95,
+     "attack": "Parada w okienko",
+     "dmg": 70
+    },
+    {
+     "id": "pl_zenek",
+     "name": "Zenek Martyniuk",
+     "wiki": [
+      "pl",
+      "Zenon Martyniuk"
+     ],
+     "rarity": "green",
+     "type": "muzyka",
+     "hp": 60,
+     "attack": "Przez twe oczy zielone",
+     "dmg": 40
+    },
+    {
+     "id": "pl_rodowicz",
+     "name": "Maryla Rodowicz",
+     "wiki": [
+      "pl",
+      "Maryla Rodowicz"
+     ],
+     "rarity": "green",
+     "type": "muzyka",
+     "hp": 55,
+     "attack": "Małgośka",
+     "dmg": 40
+    },
+    {
+     "id": "pl_pudzianowski",
+     "name": "Mariusz Pudzianowski",
+     "wiki": [
+      "pl",
+      "Mariusz Pudzianowski"
+     ],
+     "rarity": "green",
+     "type": "sport",
+     "hp": 70,
+     "attack": "Rzut oponą",
+     "dmg": 50
+    },
+    {
+     "id": "pl_najman",
+     "name": "Marcin Najman",
+     "wiki": [
+      "pl",
+      "Marcin Najman"
+     ],
+     "rarity": "green",
+     "type": "sport",
+     "hp": 50,
+     "attack": "El Testosteron",
+     "dmg": 30
+    },
+    {
+     "id": "pl_korwin",
+     "name": "Janusz Korwin-Mikke",
+     "wiki": [
+      "pl",
+      "Janusz Korwin-Mikke"
+     ],
+     "rarity": "green",
+     "type": "polityka",
+     "hp": 50,
+     "attack": "Muszka bojowa",
+     "dmg": 40
+    },
+    {
+     "id": "pl_petru",
+     "name": "Ryszard Petru",
+     "wiki": [
+      "pl",
+      "Ryszard Petru"
+     ],
+     "rarity": "green",
+     "type": "polityka",
+     "hp": 45,
+     "attack": "Sześciu króli",
+     "dmg": 30
+    },
+    {
+     "id": "pl_sanah",
+     "name": "sanah",
+     "wiki": [
+      "pl",
+      "Sanah"
+     ],
+     "rarity": "green",
+     "type": "muzyka",
+     "hp": 55,
+     "attack": "Szampan",
+     "dmg": 40
+    },
+    {
+     "id": "pl_wojciechowska",
+     "name": "Martyna Wojciechowska",
+     "wiki": [
+      "pl",
+      "Martyna Wojciechowska"
+     ],
+     "rarity": "green",
+     "type": "tv",
+     "hp": 65,
+     "attack": "Kobieta na krańcu świata",
+     "dmg": 45
+    },
+    {
+     "id": "pl_wisniewski",
+     "name": "Michał Wiśniewski",
+     "wiki": [
+      "pl",
+      "Michał Wiśniewski"
+     ],
+     "rarity": "green",
+     "type": "muzyka",
+     "hp": 55,
+     "attack": "Czerwone włosy",
+     "dmg": 40
+    },
+    {
+     "id": "pl_quebonafide",
+     "name": "Quebonafide",
+     "wiki": [
+      "pl",
+      "Quebonafide"
+     ],
+     "rarity": "green",
+     "type": "muzyka",
+     "hp": 60,
+     "attack": "Bubbletea",
+     "dmg": 45
+    },
+    {
+     "id": "pl_curie",
+     "name": "Maria Skłodowska-Curie",
+     "wiki": [
+      "pl",
+      "Maria Skłodowska-Curie"
+     ],
+     "rarity": "ultra",
+     "type": "nauka",
+     "hp": 290,
+     "attack": "Podwójny Nobel",
+     "dmg": 260
+    },
+    {
+     "id": "pl_pilsudski",
+     "name": "Józef Piłsudski",
+     "wiki": [
+      "pl",
+      "Józef Piłsudski"
+     ],
+     "rarity": "gold",
+     "type": "polityka",
+     "hp": 215,
+     "attack": "Wąsy Marszałka",
+     "dmg": 175
+    },
+    {
+     "id": "pl_krawczyk",
+     "name": "Krzysztof Krawczyk",
+     "wiki": [
+      "pl",
+      "Krzysztof Krawczyk"
+     ],
+     "rarity": "red",
+     "type": "muzyka",
+     "hp": 155,
+     "attack": "Parostatek",
+     "dmg": 135
+    },
+    {
+     "id": "pl_morawiecki",
+     "name": "Mateusz Morawiecki",
+     "wiki": [
+      "pl",
+      "Mateusz Morawiecki"
+     ],
+     "rarity": "red",
+     "type": "polityka",
+     "hp": 150,
+     "attack": "Polski Ład",
+     "dmg": 125
+    },
+    {
+     "id": "pl_zyla",
+     "name": "Piotr Żyła",
+     "wiki": [
+      "pl",
+      "Piotr Żyła"
+     ],
+     "rarity": "red",
+     "type": "sport",
+     "hp": 145,
+     "attack": "Śmiech na skoczni",
+     "dmg": 130
+    },
+    {
+     "id": "pl_hurkacz",
+     "name": "Hubert Hurkacz",
+     "wiki": [
+      "pl",
+      "Hubert Hurkacz"
+     ],
+     "rarity": "purple",
+     "type": "sport",
+     "hp": 125,
+     "attack": "As serwisowy",
+     "dmg": 105
+    },
+    {
+     "id": "pl_szydlo",
+     "name": "Beata Szydło",
+     "wiki": [
+      "pl",
+      "Beata Szydło"
+     ],
+     "rarity": "purple",
+     "type": "polityka",
+     "hp": 115,
+     "attack": "Po prostu się należało",
+     "dmg": 100
+    },
+    {
+     "id": "pl_bosak",
+     "name": "Krzysztof Bosak",
+     "wiki": [
+      "pl",
+      "Krzysztof Bosak"
+     ],
+     "rarity": "purple",
+     "type": "polityka",
+     "hp": 120,
+     "attack": "Spokojna riposta",
+     "dmg": 95
+    },
+    {
+     "id": "pl_gorniak",
+     "name": "Edyta Górniak",
+     "wiki": [
+      "pl",
+      "Edyta Górniak"
+     ],
+     "rarity": "purple",
+     "type": "muzyka",
+     "hp": 120,
+     "attack": "Hymn na mundialu",
+     "dmg": 100
+    },
+    {
+     "id": "pl_wlodarczyk",
+     "name": "Anita Włodarczyk",
+     "wiki": [
+      "pl",
+      "Anita Włodarczyk"
+     ],
+     "rarity": "blue",
+     "type": "sport",
+     "hp": 100,
+     "attack": "Rzut młotem",
+     "dmg": 85
+    },
+    {
+     "id": "pl_kowalczyk",
+     "name": "Justyna Kowalczyk",
+     "wiki": [
+      "pl",
+      "Justyna Kowalczyk"
+     ],
+     "rarity": "blue",
+     "type": "sport",
+     "hp": 95,
+     "attack": "Podbieg w Val di Fiemme",
+     "dmg": 80
+    },
+    {
+     "id": "pl_ziobro",
+     "name": "Zbigniew Ziobro",
+     "wiki": [
+      "pl",
+      "Zbigniew Ziobro"
+     ],
+     "rarity": "blue",
+     "type": "polityka",
+     "hp": 85,
+     "attack": "Zero tolerancji",
+     "dmg": 70
+    },
+    {
+     "id": "pl_czarnek",
+     "name": "Przemysław Czarnek",
+     "wiki": [
+      "pl",
+      "Przemysław Czarnek"
+     ],
+     "rarity": "blue",
+     "type": "polityka",
+     "hp": 85,
+     "attack": "Lex Czarnek",
+     "dmg": 70
+    },
+    {
+     "id": "pl_kazik",
+     "name": "Kazik Staszewski",
+     "wiki": [
+      "pl",
+      "Kazik Staszewski"
+     ],
+     "rarity": "blue",
+     "type": "muzyka",
+     "hp": 90,
+     "attack": "Twój ból jest lepszy niż mój",
+     "dmg": 75
+    },
+    {
+     "id": "pl_stanowski",
+     "name": "Krzysztof Stanowski",
+     "wiki": [
+      "pl",
+      "Krzysztof Stanowski (dziennikarz)"
+     ],
+     "rarity": "green",
+     "type": "internet",
+     "hp": 60,
+     "attack": "Kanał Zero",
+     "dmg": 45
+    },
+    {
+     "id": "pl_farna",
+     "name": "Ewa Farna",
+     "wiki": [
+      "pl",
+      "Ewa Farna"
+     ],
+     "rarity": "green",
+     "type": "muzyka",
+     "hp": 55,
+     "attack": "Ewakuacja",
+     "dmg": 40
+    },
+    {
+     "id": "pl_linda",
+     "name": "Bogusław Linda",
+     "wiki": [
+      "pl",
+      "Bogusław Linda"
+     ],
+     "rarity": "green",
+     "type": "kino",
+     "hp": 65,
+     "attack": "Psy",
+     "dmg": 50
+    },
+    {
+     "id": "pl_pazura",
+     "name": "Cezary Pazura",
+     "wiki": [
+      "pl",
+      "Cezary Pazura"
+     ],
+     "rarity": "green",
+     "type": "kino",
+     "hp": 60,
+     "attack": "Kiler",
+     "dmg": 45
+    },
+    {
+     "id": "pl_golota",
+     "name": "Andrzej Gołota",
+     "wiki": [
+      "pl",
+      "Andrzej Gołota"
+     ],
+     "rarity": "green",
+     "type": "sport",
+     "hp": 70,
+     "attack": "Cios poniżej pasa",
+     "dmg": 50
+    },
+    {
+     "id": "pl_kukiz",
+     "name": "Paweł Kukiz",
+     "wiki": [
+      "pl",
+      "Paweł Kukiz"
+     ],
+     "rarity": "green",
+     "type": "polityka",
+     "hp": 55,
+     "attack": "JOW-y",
+     "dmg": 40
+    }
+   ]
+  },
+  "world": {
+   "name": "Skrzynka Świat",
+   "short": "Świat",
+   "code": "ŚW",
+   "emoji": "🌍",
+   "color1": "#3d7bff",
+   "color2": "#0e2a7a",
+   "price": 100,
+   "shop": true,
+   "restricted": false,
+   "desc": "światowe gwiazdy i politycy",
+   "people": [
+    {
+     "id": "w_secret",
+     "name": "Charlie Kirk",
+     "wiki": [
+      "en",
+      "Charlie Kirk"
+     ],
+     "rarity": "secret",
+     "type": "polityka",
+     "hp": 500,
+     "attack": "Prove Me Wrong",
+     "dmg": 300
+    },
+    {
+     "id": "w_trump",
+     "name": "Donald Trump",
+     "wiki": [
+      "en",
+      "Donald Trump"
+     ],
+     "rarity": "ultra",
+     "type": "polityka",
+     "hp": 300,
+     "attack": "Tweet o 3 w nocy",
+     "dmg": 250
+    },
+    {
+     "id": "w_ronaldo",
+     "name": "Cristiano Ronaldo",
+     "wiki": [
+      "en",
+      "Cristiano Ronaldo"
+     ],
+     "rarity": "gold",
+     "type": "sport",
+     "hp": 210,
+     "attack": "SIUUU!",
+     "dmg": 190
+    },
+    {
+     "id": "w_messi",
+     "name": "Lionel Messi",
+     "wiki": [
+      "en",
+      "Lionel Messi"
+     ],
+     "rarity": "gold",
+     "type": "sport",
+     "hp": 205,
+     "attack": "Drybling przez pół boiska",
+     "dmg": 180
+    },
+    {
+     "id": "w_musk",
+     "name": "Elon Musk",
+     "wiki": [
+      "en",
+      "Elon Musk"
+     ],
+     "rarity": "red",
+     "type": "biznes",
+     "hp": 160,
+     "attack": "Rakieta na Marsa",
+     "dmg": 140
+    },
+    {
+     "id": "w_obama",
+     "name": "Barack Obama",
+     "wiki": [
+      "en",
+      "Barack Obama"
+     ],
+     "rarity": "red",
+     "type": "polityka",
+     "hp": 155,
+     "attack": "Yes We Can",
+     "dmg": 130
+    },
+    {
+     "id": "w_swift",
+     "name": "Taylor Swift",
+     "wiki": [
+      "en",
+      "Taylor Swift"
+     ],
+     "rarity": "red",
+     "type": "muzyka",
+     "hp": 150,
+     "attack": "Eras Tour",
+     "dmg": 140
+    },
+    {
+     "id": "w_putin",
+     "name": "Władimir Putin",
+     "wiki": [
+      "en",
+      "Vladimir Putin"
+     ],
+     "rarity": "purple",
+     "type": "polityka",
+     "hp": 120,
+     "attack": "Bardzo długi stół",
+     "dmg": 100
+    },
+    {
+     "id": "w_biden",
+     "name": "Joe Biden",
+     "wiki": [
+      "en",
+      "Joe Biden"
+     ],
+     "rarity": "purple",
+     "type": "polityka",
+     "hp": 110,
+     "attack": "Lody czekoladowe",
+     "dmg": 90
+    },
+    {
+     "id": "w_kim",
+     "name": "Kim Dzong Un",
+     "wiki": [
+      "en",
+      "Kim Jong Un"
+     ],
+     "rarity": "purple",
+     "type": "polityka",
+     "hp": 115,
+     "attack": "Pokaz fajerwerków",
+     "dmg": 110
+    },
+    {
+     "id": "w_keanu",
+     "name": "Keanu Reeves",
+     "wiki": [
+      "en",
+      "Keanu Reeves"
+     ],
+     "rarity": "purple",
+     "type": "kino",
+     "hp": 130,
+     "attack": "You're breathtaking!",
+     "dmg": 110
+    },
+    {
+     "id": "w_beyonce",
+     "name": "Beyoncé",
+     "wiki": [
+      "en",
+      "Beyoncé"
+     ],
+     "rarity": "purple",
+     "type": "muzyka",
+     "hp": 125,
+     "attack": "Single Ladies",
+     "dmg": 100
+    },
+    {
+     "id": "w_lebron",
+     "name": "LeBron James",
+     "wiki": [
+      "en",
+      "LeBron James"
+     ],
+     "rarity": "purple",
+     "type": "sport",
+     "hp": 130,
+     "attack": "Wsad z linii rzutów",
+     "dmg": 110
+    },
+    {
+     "id": "w_macron",
+     "name": "Emmanuel Macron",
+     "wiki": [
+      "en",
+      "Emmanuel Macron"
+     ],
+     "rarity": "blue",
+     "type": "polityka",
+     "hp": 90,
+     "attack": "Miażdżący uścisk dłoni",
+     "dmg": 70
+    },
+    {
+     "id": "w_merkel",
+     "name": "Angela Merkel",
+     "wiki": [
+      "en",
+      "Angela Merkel"
+     ],
+     "rarity": "blue",
+     "type": "polityka",
+     "hp": 95,
+     "attack": "Romb Merkel",
+     "dmg": 70
+    },
+    {
+     "id": "w_zelensky",
+     "name": "Wołodymyr Zełenski",
+     "wiki": [
+      "en",
+      "Volodymyr Zelenskyy"
+     ],
+     "rarity": "blue",
+     "type": "polityka",
+     "hp": 100,
+     "attack": "Potrzebuję amunicji",
+     "dmg": 80
+    },
+    {
+     "id": "w_rock",
+     "name": "Dwayne „The Rock” Johnson",
+     "wiki": [
+      "en",
+      "Dwayne Johnson"
+     ],
+     "rarity": "blue",
+     "type": "kino",
+     "hp": 100,
+     "attack": "Uniesiona brew",
+     "dmg": 80
+    },
+    {
+     "id": "w_rihanna",
+     "name": "Rihanna",
+     "wiki": [
+      "en",
+      "Rihanna"
+     ],
+     "rarity": "blue",
+     "type": "muzyka",
+     "hp": 85,
+     "attack": "Umbrella",
+     "dmg": 70
+    },
+    {
+     "id": "w_dicaprio",
+     "name": "Leonardo DiCaprio",
+     "wiki": [
+      "en",
+      "Leonardo DiCaprio"
+     ],
+     "rarity": "blue",
+     "type": "kino",
+     "hp": 90,
+     "attack": "Wreszcie Oscar",
+     "dmg": 75
+    },
+    {
+     "id": "w_zuckerberg",
+     "name": "Mark Zuckerberg",
+     "wiki": [
+      "en",
+      "Mark Zuckerberg"
+     ],
+     "rarity": "blue",
+     "type": "biznes",
+     "hp": 80,
+     "attack": "Senator, we run ads",
+     "dmg": 60
+    },
+    {
+     "id": "w_bolt",
+     "name": "Usain Bolt",
+     "wiki": [
+      "en",
+      "Usain Bolt"
+     ],
+     "rarity": "blue",
+     "type": "sport",
+     "hp": 95,
+     "attack": "Błyskawica",
+     "dmg": 85
+    },
+    {
+     "id": "w_bieber",
+     "name": "Justin Bieber",
+     "wiki": [
+      "en",
+      "Justin Bieber"
+     ],
+     "rarity": "green",
+     "type": "muzyka",
+     "hp": 55,
+     "attack": "Baby, baby, baby",
+     "dmg": 40
+    },
+    {
+     "id": "w_kardashian",
+     "name": "Kim Kardashian",
+     "wiki": [
+      "en",
+      "Kim Kardashian"
+     ],
+     "rarity": "green",
+     "type": "tv",
+     "hp": 55,
+     "attack": "Selfie",
+     "dmg": 35
+    },
+    {
+     "id": "w_ramsay",
+     "name": "Gordon Ramsay",
+     "wiki": [
+      "en",
+      "Gordon Ramsay"
+     ],
+     "rarity": "green",
+     "type": "kuchnia",
+     "hp": 70,
+     "attack": "IT'S RAW!",
+     "dmg": 50
+    },
+    {
+     "id": "w_mrbeast",
+     "name": "MrBeast",
+     "wiki": [
+      "en",
+      "MrBeast"
+     ],
+     "rarity": "green",
+     "type": "internet",
+     "hp": 65,
+     "attack": "Rozdanie miliona $",
+     "dmg": 50
+    },
+    {
+     "id": "w_boris",
+     "name": "Boris Johnson",
+     "wiki": [
+      "en",
+      "Boris Johnson"
+     ],
+     "rarity": "green",
+     "type": "polityka",
+     "hp": 60,
+     "attack": "Fryzura na wietrze",
+     "dmg": 45
+    },
+    {
+     "id": "w_trudeau",
+     "name": "Justin Trudeau",
+     "wiki": [
+      "en",
+      "Justin Trudeau"
+     ],
+     "rarity": "green",
+     "type": "polityka",
+     "hp": 55,
+     "attack": "Kolorowe skarpetki",
+     "dmg": 40
+    },
+    {
+     "id": "w_gates",
+     "name": "Bill Gates",
+     "wiki": [
+      "en",
+      "Bill Gates"
+     ],
+     "rarity": "green",
+     "type": "biznes",
+     "hp": 60,
+     "attack": "Niebieski ekran",
+     "dmg": 45
+    },
+    {
+     "id": "w_bezos",
+     "name": "Jeff Bezos",
+     "wiki": [
+      "en",
+      "Jeff Bezos"
+     ],
+     "rarity": "green",
+     "type": "biznes",
+     "hp": 60,
+     "attack": "Dostawa w 24h",
+     "dmg": 45
+    },
+    {
+     "id": "w_shakira",
+     "name": "Shakira",
+     "wiki": [
+      "en",
+      "Shakira"
+     ],
+     "rarity": "green",
+     "type": "muzyka",
+     "hp": 60,
+     "attack": "Hips Don't Lie",
+     "dmg": 45
+    },
+    {
+     "id": "w_sheeran",
+     "name": "Ed Sheeran",
+     "wiki": [
+      "en",
+      "Ed Sheeran"
+     ],
+     "rarity": "green",
+     "type": "muzyka",
+     "hp": 55,
+     "attack": "Shape of You",
+     "dmg": 40
+    },
+    {
+     "id": "w_einstein",
+     "name": "Albert Einstein",
+     "wiki": [
+      "en",
+      "Albert Einstein"
+     ],
+     "rarity": "ultra",
+     "type": "nauka",
+     "hp": 290,
+     "attack": "E = mc²",
+     "dmg": 260
+    },
+    {
+     "id": "w_jordan",
+     "name": "Michael Jordan",
+     "wiki": [
+      "en",
+      "Michael Jordan"
+     ],
+     "rarity": "gold",
+     "type": "sport",
+     "hp": 210,
+     "attack": "Air Jordan",
+     "dmg": 185
+    },
+    {
+     "id": "w_elizabeth",
+     "name": "Elżbieta II",
+     "wiki": [
+      "en",
+      "Elizabeth II"
+     ],
+     "rarity": "red",
+     "type": "polityka",
+     "hp": 160,
+     "attack": "Królewskie pozdrowienie",
+     "dmg": 130
+    },
+    {
+     "id": "w_mbappe",
+     "name": "Kylian Mbappé",
+     "wiki": [
+      "en",
+      "Kylian Mbappé"
+     ],
+     "rarity": "red",
+     "type": "sport",
+     "hp": 150,
+     "attack": "Turbo sprint",
+     "dmg": 140
+    },
+    {
+     "id": "w_arnold",
+     "name": "Arnold Schwarzenegger",
+     "wiki": [
+      "en",
+      "Arnold Schwarzenegger"
+     ],
+     "rarity": "red",
+     "type": "kino",
+     "hp": 165,
+     "attack": "I'll be back",
+     "dmg": 135
+    },
+    {
+     "id": "w_xi",
+     "name": "Xi Jinping",
+     "wiki": [
+      "en",
+      "Xi Jinping"
+     ],
+     "rarity": "purple",
+     "type": "polityka",
+     "hp": 120,
+     "attack": "Nowy Jedwabny Szlak",
+     "dmg": 100
+    },
+    {
+     "id": "w_cruise",
+     "name": "Tom Cruise",
+     "wiki": [
+      "en",
+      "Tom Cruise"
+     ],
+     "rarity": "purple",
+     "type": "kino",
+     "hp": 125,
+     "attack": "Mission: Impossible",
+     "dmg": 110
+    },
+    {
+     "id": "w_eminem",
+     "name": "Eminem",
+     "wiki": [
+      "en",
+      "Eminem"
+     ],
+     "rarity": "purple",
+     "type": "muzyka",
+     "hp": 120,
+     "attack": "Lose Yourself",
+     "dmg": 105
+    },
+    {
+     "id": "w_serena",
+     "name": "Serena Williams",
+     "wiki": [
+      "en",
+      "Serena Williams"
+     ],
+     "rarity": "purple",
+     "type": "sport",
+     "hp": 130,
+     "attack": "As serwisowy",
+     "dmg": 105
+    },
+    {
+     "id": "w_gaga",
+     "name": "Lady Gaga",
+     "wiki": [
+      "en",
+      "Lady Gaga"
+     ],
+     "rarity": "blue",
+     "type": "muzyka",
+     "hp": 85,
+     "attack": "Poker Face",
+     "dmg": 75
+    },
+    {
+     "id": "w_willsmith",
+     "name": "Will Smith",
+     "wiki": [
+      "en",
+      "Will Smith"
+     ],
+     "rarity": "blue",
+     "type": "kino",
+     "hp": 95,
+     "attack": "Policzek na gali",
+     "dmg": 80
+    },
+    {
+     "id": "w_depp",
+     "name": "Johnny Depp",
+     "wiki": [
+      "en",
+      "Johnny Depp"
+     ],
+     "rarity": "blue",
+     "type": "kino",
+     "hp": 90,
+     "attack": "Kapitan Jack Sparrow",
+     "dmg": 75
+    },
+    {
+     "id": "w_djokovic",
+     "name": "Novak Đoković",
+     "wiki": [
+      "en",
+      "Novak Djokovic"
+     ],
+     "rarity": "blue",
+     "type": "sport",
+     "hp": 100,
+     "attack": "Ściana na korcie",
+     "dmg": 80
+    },
+    {
+     "id": "w_greta",
+     "name": "Greta Thunberg",
+     "wiki": [
+      "en",
+      "Greta Thunberg"
+     ],
+     "rarity": "blue",
+     "type": "polityka",
+     "hp": 80,
+     "attack": "How dare you!",
+     "dmg": 70
+    },
+    {
+     "id": "w_snoop",
+     "name": "Snoop Dogg",
+     "wiki": [
+      "en",
+      "Snoop Dogg"
+     ],
+     "rarity": "green",
+     "type": "muzyka",
+     "hp": 60,
+     "attack": "Drop It Like It's Hot",
+     "dmg": 45
+    },
+    {
+     "id": "w_grylls",
+     "name": "Bear Grylls",
+     "wiki": [
+      "en",
+      "Bear Grylls"
+     ],
+     "rarity": "green",
+     "type": "tv",
+     "hp": 70,
+     "attack": "Szkoła przetrwania",
+     "dmg": 50
+    },
+    {
+     "id": "w_hilton",
+     "name": "Paris Hilton",
+     "wiki": [
+      "en",
+      "Paris Hilton"
+     ],
+     "rarity": "green",
+     "type": "tv",
+     "hp": 50,
+     "attack": "That's hot",
+     "dmg": 35
+    },
+    {
+     "id": "w_atkinson",
+     "name": "Rowan Atkinson",
+     "wiki": [
+      "en",
+      "Rowan Atkinson"
+     ],
+     "rarity": "green",
+     "type": "kino",
+     "hp": 60,
+     "attack": "Jaś Fasola",
+     "dmg": 45
+    },
+    {
+     "id": "w_norris",
+     "name": "Chuck Norris",
+     "wiki": [
+      "en",
+      "Chuck Norris"
+     ],
+     "rarity": "green",
+     "type": "kino",
+     "hp": 70,
+     "attack": "Kopniak z półobrotu",
+     "dmg": 50
+    },
+    {
+     "id": "w_chan",
+     "name": "Jackie Chan",
+     "wiki": [
+      "en",
+      "Jackie Chan"
+     ],
+     "rarity": "green",
+     "type": "kino",
+     "hp": 65,
+     "attack": "Kung-fu kaskader",
+     "dmg": 50
+    }
+   ]
+  },
+  "prl": {
+   "name": "Skrzynka PRL",
+   "short": "PRL",
+   "code": "PRL",
+   "emoji": "🏭",
+   "color1": "#c8102e",
+   "color2": "#3c3c3c",
+   "price": 500,
+   "shop": true,
+   "restricted": false,
+   "desc": "Polska Ludowa 1945–1989: władza, opozycja i gwiazdy epoki",
+   "weights": {
+    "green": 40.0,
+    "blue": 30.0,
+    "purple": 18.0,
+    "red": 9.0,
+    "gold": 3.0,
+    "ultra": 0.5
+   },
+   "shared": [
+    "pl_secret",
+    "pl_walesa",
+    "pl_krawczyk",
+    "pl_rodowicz"
+   ],
+   "people": [
+    {
+     "id": "prl_gierek",
+     "name": "Edward Gierek",
+     "wiki": [
+      "pl",
+      "Edward Gierek"
+     ],
+     "rarity": "ultra",
+     "type": "polityka",
+     "hp": 290,
+     "attack": "Pomożecie?",
+     "dmg": 250
+    },
+    {
+     "id": "prl_hermaszewski",
+     "name": "Mirosław Hermaszewski",
+     "wiki": [
+      "pl",
+      "Mirosław Hermaszewski"
+     ],
+     "rarity": "gold",
+     "type": "nauka",
+     "hp": 205,
+     "attack": "Lot w kosmos",
+     "dmg": 180
+    },
+    {
+     "id": "prl_jaruzelski",
+     "name": "Wojciech Jaruzelski",
+     "wiki": [
+      "pl",
+      "Wojciech Jaruzelski"
+     ],
+     "rarity": "gold",
+     "type": "polityka",
+     "hp": 205,
+     "attack": "Przemówienie 13 grudnia",
+     "dmg": 180
+    },
+    {
+     "id": "prl_gomulka",
+     "name": "Władysław Gomułka",
+     "wiki": [
+      "pl",
+      "Władysław Gomułka"
+     ],
+     "rarity": "red",
+     "type": "polityka",
+     "hp": 150,
+     "attack": "Odwilż '56",
+     "dmg": 125
+    },
+    {
+     "id": "prl_urban",
+     "name": "Jerzy Urban",
+     "wiki": [
+      "pl",
+      "Jerzy Urban"
+     ],
+     "rarity": "red",
+     "type": "tv",
+     "hp": 145,
+     "attack": "Konferencja prasowa",
+     "dmg": 130
+    },
+    {
+     "id": "prl_bierut",
+     "name": "Bolesław Bierut",
+     "wiki": [
+      "pl",
+      "Bolesław Bierut"
+     ],
+     "rarity": "red",
+     "type": "polityka",
+     "hp": 150,
+     "attack": "Plan sześcioletni",
+     "dmg": 120
+    },
+    {
+     "id": "prl_kiszczak",
+     "name": "Czesław Kiszczak",
+     "wiki": [
+      "pl",
+      "Czesław Kiszczak"
+     ],
+     "rarity": "purple",
+     "type": "polityka",
+     "hp": 120,
+     "attack": "Rozmowy w Magdalence",
+     "dmg": 100
+    },
+    {
+     "id": "prl_rakowski",
+     "name": "Mieczysław Rakowski",
+     "wiki": [
+      "pl",
+      "Mieczysław Rakowski"
+     ],
+     "rarity": "purple",
+     "type": "polityka",
+     "hp": 115,
+     "attack": "Ostatni premier PRL",
+     "dmg": 95
+    },
+    {
+     "id": "prl_walentynowicz",
+     "name": "Anna Walentynowicz",
+     "wiki": [
+      "pl",
+      "Anna Walentynowicz"
+     ],
+     "rarity": "purple",
+     "type": "polityka",
+     "hp": 120,
+     "attack": "Strajk w Stoczni",
+     "dmg": 105
+    },
+    {
+     "id": "prl_kuron",
+     "name": "Jacek Kuroń",
+     "wiki": [
+      "pl",
+      "Jacek Kuroń"
+     ],
+     "rarity": "purple",
+     "type": "polityka",
+     "hp": 115,
+     "attack": "Zupa Kuronia",
+     "dmg": 100
+    },
+    {
+     "id": "prl_bareja",
+     "name": "Stanisław Bareja",
+     "wiki": [
+      "pl",
+      "Stanisław Bareja"
+     ],
+     "rarity": "purple",
+     "type": "kino",
+     "hp": 120,
+     "attack": "Miś",
+     "dmg": 105
+    },
+    {
+     "id": "prl_deyna",
+     "name": "Kazimierz Deyna",
+     "wiki": [
+      "pl",
+      "Kazimierz Deyna"
+     ],
+     "rarity": "purple",
+     "type": "sport",
+     "hp": 125,
+     "attack": "Złoto w Monachium",
+     "dmg": 110
+    },
+    {
+     "id": "prl_michnik",
+     "name": "Adam Michnik",
+     "wiki": [
+      "pl",
+      "Adam Michnik"
+     ],
+     "rarity": "blue",
+     "type": "polityka",
+     "hp": 90,
+     "attack": "Gazeta Wyborcza",
+     "dmg": 75
+    },
+    {
+     "id": "prl_boniek",
+     "name": "Zbigniew Boniek",
+     "wiki": [
+      "pl",
+      "Zbigniew Boniek"
+     ],
+     "rarity": "blue",
+     "type": "sport",
+     "hp": 95,
+     "attack": "Hat-trick z Belgią",
+     "dmg": 80
+    },
+    {
+     "id": "prl_szewinska",
+     "name": "Irena Szewińska",
+     "wiki": [
+      "pl",
+      "Irena Szewińska"
+     ],
+     "rarity": "blue",
+     "type": "sport",
+     "hp": 95,
+     "attack": "Rekord na 400 m",
+     "dmg": 80
+    },
+    {
+     "id": "prl_gorski",
+     "name": "Kazimierz Górski",
+     "wiki": [
+      "pl",
+      "Kazimierz Górski"
+     ],
+     "rarity": "blue",
+     "type": "sport",
+     "hp": 90,
+     "attack": "Orły Górskiego",
+     "dmg": 75
+    },
+    {
+     "id": "prl_niemen",
+     "name": "Czesław Niemen",
+     "wiki": [
+      "pl",
+      "Czesław Niemen"
+     ],
+     "rarity": "blue",
+     "type": "muzyka",
+     "hp": 90,
+     "attack": "Dziwny jest ten świat",
+     "dmg": 75
+    },
+    {
+     "id": "prl_cyrankiewicz",
+     "name": "Józef Cyrankiewicz",
+     "wiki": [
+      "pl",
+      "Józef Cyrankiewicz"
+     ],
+     "rarity": "blue",
+     "type": "polityka",
+     "hp": 85,
+     "attack": "Wieczny premier",
+     "dmg": 70
+    },
+    {
+     "id": "prl_kozakiewicz",
+     "name": "Władysław Kozakiewicz",
+     "wiki": [
+      "pl",
+      "Władysław Kozakiewicz"
+     ],
+     "rarity": "green",
+     "type": "sport",
+     "hp": 65,
+     "attack": "Gest Kozakiewicza",
+     "dmg": 50
+    },
+    {
+     "id": "prl_tomaszewski",
+     "name": "Jan Tomaszewski",
+     "wiki": [
+      "pl",
+      "Jan Tomaszewski (piłkarz)"
+     ],
+     "rarity": "green",
+     "type": "sport",
+     "hp": 70,
+     "attack": "Obrona na Wembley",
+     "dmg": 50
+    },
+    {
+     "id": "prl_lato",
+     "name": "Grzegorz Lato",
+     "wiki": [
+      "pl",
+      "Grzegorz Lato"
+     ],
+     "rarity": "green",
+     "type": "sport",
+     "hp": 60,
+     "attack": "Król strzelców '74",
+     "dmg": 45
+    },
+    {
+     "id": "prl_kora",
+     "name": "Kora",
+     "wiki": [
+      "pl",
+      "Kora (wokalistka)"
+     ],
+     "rarity": "green",
+     "type": "muzyka",
+     "hp": 55,
+     "attack": "Boskie Buenos",
+     "dmg": 40
+    },
+    {
+     "id": "prl_jantar",
+     "name": "Anna Jantar",
+     "wiki": [
+      "pl",
+      "Anna Jantar"
+     ],
+     "rarity": "green",
+     "type": "muzyka",
+     "hp": 55,
+     "attack": "Tyle słońca w całym mieście",
+     "dmg": 40
+    },
+    {
+     "id": "prl_himilsbach",
+     "name": "Jan Himilsbach",
+     "wiki": [
+      "pl",
+      "Jan Himilsbach"
+     ],
+     "rarity": "green",
+     "type": "kino",
+     "hp": 60,
+     "attack": "Rejs",
+     "dmg": 45
+    }
+   ]
+  },
+  "halloween": {
+   "name": "Skrzynia Halloween",
+   "short": "Halloween",
+   "code": "HW",
+   "emoji": "🎃",
+   "color1": "#ff7a00",
+   "color2": "#2b0a3d",
+   "price": 300,
+   "shop": true,
+   "restricted": false,
+   "desc": "każda karta w wersji halloweenowej",
+   "shared": [
+    "pl_tusk"
+   ],
+   "people": []
+  },
+  "specjalne": {
+   "name": "Karty specjalne",
+   "short": "Specjalne",
+   "code": "SP",
+   "emoji": "🃏",
+   "color1": "#19e6ff",
+   "color2": "#3a0a5a",
+   "price": 100,
+   "shop": false,
+   "restricted": false,
+   "special": true,
+   "desc": "tylko z kasyna albo z linku od admina",
+   "people": []
+  }
+ },
+ "specialCrate": "specjalne",
+ "specialSources": {
+  "casino": "🎰 Kasyno — wygrane w grach, które dają nowe karty (ruletka, blackjack)",
+  "link": "🔗 Link od admina — każdy gracz może go użyć raz"
+ },
+ "casinoSpecial": {
+  "per": 50000,
+  "max": 0.05
+ },
+ "secondAttacks": {
+  "pl_malysz": [
+   "Bułka z bananem",
+   120
+  ],
+  "pl_walesa": [
+   "Plusy dodatnie, plusy ujemne",
+   130
+  ],
+  "pl_pilsudski": [
+   "Cud nad Wisłą",
+   150
+  ],
+  "pl_lewandowski": [
+   "Rekord Bundesligi",
+   220
+  ],
+  "pl_curie": [
+   "Odkrycie polonu",
+   230
+  ],
+  "pl_secret": [
+   "Nie lękajcie się!",
+   280
+  ],
+  "w_ronaldo": [
+   "Rzut wolny z 35 metrów",
+   160
+  ],
+  "w_messi": [
+   "Osiem Złotych Piłek",
+   170
+  ],
+  "w_jordan": [
+   "Sześć pierścieni",
+   160
+  ],
+  "w_trump": [
+   "You're fired!",
+   220
+  ],
+  "w_einstein": [
+   "Teoria względności",
+   230
+  ],
+  "w_secret": [
+   "Debata na kampusie",
+   260
+  ],
+  "prl_gierek": [
+   "Druga Polska",
+   210
+  ],
+  "prl_hermaszewski": [
+   "Eksperyment na orbicie",
+   130
+  ],
+  "prl_jaruzelski": [
+   "Ciemne okulary",
+   140
+  ],
+  "pl_korwin": [
+   "Muszka bojowa",
+   120
+  ]
+ },
+ "arena": {
+  "deckSize": 8,
+  "boardSlots": 4,
+  "actions": 2,
+  "maxCoins": 10,
+  "cardCost": {
+   "green": 1,
+   "uncommon": 1,
+   "blue": 2,
+   "purple": 3,
+   "red": 4,
+   "gold": 5,
+   "special": 5,
+   "ultra": 6,
+   "secret": 7
+  },
+  "abilityCost": [
+   [
+    0,
+    0
+   ],
+   [
+    150,
+    1
+   ],
+   [
+    250,
+    2
+   ]
+  ],
+  "rewardWins": [
+   1,
+   3,
+   9
+  ],
+  "rewardChest": "daily"
+ },
+ "arenaEffects": {
+  "burn": {
+   "name": "Podpalenie",
+   "icon": "🔥",
+   "value": "obrażenia na turę",
+   "turns": true,
+   "desc": "Zadaje obrażenia na początku każdej tury właściciela karty."
+  },
+  "poison": {
+   "name": "Trucizna",
+   "icon": "☠️",
+   "value": "obrażenia na turę",
+   "turns": true,
+   "desc": "Obrażenia co turę; zatrutej karty nie da się leczyć."
+  },
+  "stun": {
+   "name": "Ogłuszenie",
+   "icon": "💫",
+   "value": null,
+   "turns": true,
+   "desc": "Karta nie może nic robić przez podaną liczbę tur."
+  },
+  "shield": {
+   "name": "Tarcza",
+   "icon": "🛡️",
+   "value": "punkty osłony",
+   "turns": true,
+   "desc": "Pochłania obrażenia, zanim trafią w HP."
+  },
+  "heal": {
+   "name": "Leczenie",
+   "icon": "💚",
+   "value": "leczone HP",
+   "turns": false,
+   "desc": "Od razu przywraca HP (nie więcej niż na starcie)."
+  },
+  "taunt": {
+   "name": "Prowokacja",
+   "icon": "📢",
+   "value": null,
+   "turns": true,
+   "desc": "Rywal musi atakować tę kartę, dopóki prowokacja trwa."
+  },
+  "boost": {
+   "name": "Wzmocnienie",
+   "icon": "💪",
+   "value": "+obrażenia",
+   "turns": true,
+   "desc": "Zdolności tej karty zadają więcej obrażeń."
+  },
+  "weaken": {
+   "name": "Osłabienie",
+   "icon": "🩸",
+   "value": "-obrażenia",
+   "turns": true,
+   "desc": "Zdolności tej karty zadają mniej obrażeń."
+  },
+  "lifesteal": {
+   "name": "Wampiryzm",
+   "icon": "🧛",
+   "value": "% zadanych obrażeń",
+   "turns": false,
+   "desc": "Atakujący leczy się o część zadanych obrażeń."
+  },
+  "splash": {
+   "name": "Odłamki",
+   "icon": "💥",
+   "value": "obrażenia",
+   "turns": false,
+   "desc": "Rani też karty stojące obok celu."
+  },
+  "steal_coins": {
+   "name": "Kradzież monet",
+   "icon": "💰",
+   "value": "monety",
+   "turns": false,
+   "unique": true,
+   "desc": "Rywal ma mniej monet w następnej turze."
+  },
+  "extra_action": {
+   "name": "Dodatkowa akcja",
+   "icon": "⚡",
+   "value": "akcje",
+   "turns": false,
+   "unique": true,
+   "desc": "Daje od razu dodatkowe akcje w tej turze."
+  },
+  "knockback": {
+   "name": "Do ławki!",
+   "icon": "🔁",
+   "value": null,
+   "turns": false,
+   "unique": true,
+   "desc": "Odsyła trafioną kartę rywala z planszy na jego ławkę."
+  }
+ },
+ "arenaTargets": {
+  "enemy": "wybrany wróg",
+  "all_enemies": "wszyscy wrogowie",
+  "self": "ta karta",
+  "ally": "wybrany sojusznik",
+  "all_allies": "wszyscy sojusznicy"
+ },
+ "arenaEffectTargets": {
+  "target": "cel zdolności",
+  "self": "ta karta",
+  "all_allies": "wszyscy sojusznicy",
+  "all_enemies": "wszyscy wrogowie",
+  "random_enemy": "losowy wróg"
+ },
+ "arenaVisuals": {
+  "hit": {
+   "name": "Zwykłe uderzenie",
+   "icon": "👊"
+  },
+  "tomato": {
+   "name": "Rzut pomidorem",
+   "icon": "🍅"
+  },
+  "lightning": {
+   "name": "Piorun",
+   "icon": "⚡"
+  },
+  "explosion": {
+   "name": "Wybuch",
+   "icon": "💥"
+  },
+  "money": {
+   "name": "Deszcz pieniędzy",
+   "icon": "💸"
+  },
+  "mic": {
+   "name": "Fala z mikrofonu",
+   "icon": "🎤"
+  },
+  "ball": {
+   "name": "Strzał piłką",
+   "icon": "⚽"
+  },
+  "fire": {
+   "name": "Ogień",
+   "icon": "🔥"
+  },
+  "ice": {
+   "name": "Lód",
+   "icon": "❄️"
+  },
+  "hearts": {
+   "name": "Serduszka (leczenie)",
+   "icon": "💖"
+  },
+  "bubble": {
+   "name": "Bańka ochronna",
+   "icon": "🫧"
+  }
+ },
+ "maxAbilityEffects": 3,
+ "market": {
+  "fee": 0.0,
+  "maxPrice": 100000000,
+  "maxListings": 50,
+  "maxWanted": 20,
+  "auctionHours": [
+   1,
+   6,
+   12,
+   24,
+   48
+  ],
+  "snipeSeconds": 120
+ },
+ "roulette": {
+  "maxCards": 20,
+  "maxPayoutCards": 100
+ },
+ "casinoTop": 0.75,
+ "rouletteWheel": [
+  0,
+  32,
+  15,
+  19,
+  4,
+  21,
+  2,
+  25,
+  17,
+  34,
+  6,
+  27,
+  13,
+  36,
+  11,
+  30,
+  8,
+  23,
+  10,
+  5,
+  24,
+  16,
+  33,
+  1,
+  20,
+  14,
+  31,
+  9,
+  22,
+  18,
+  29,
+  7,
+  28,
+  12,
+  35,
+  3,
+  26
+ ],
+ "rouletteRed": [
+  1,
+  3,
+  5,
+  7,
+  9,
+  12,
+  14,
+  16,
+  18,
+  19,
+  21,
+  23,
+  25,
+  27,
+  30,
+  32,
+  34,
+  36
+ ],
+ "rouletteBets": {
+  "red": {
+   "name": "Czerwone",
+   "numbers": [
+    1,
+    3,
+    5,
+    7,
+    9,
+    12,
+    14,
+    16,
+    18,
+    19,
+    21,
+    23,
+    25,
+    27,
+    30,
+    32,
+    34,
+    36
+   ],
+   "pays": 1
+  },
+  "black": {
+   "name": "Czarne",
+   "numbers": [
+    2,
+    4,
+    6,
+    8,
+    10,
+    11,
+    13,
+    15,
+    17,
+    20,
+    22,
+    24,
+    26,
+    28,
+    29,
+    31,
+    33,
+    35
+   ],
+   "pays": 1
+  },
+  "green": {
+   "name": "Zielone (0)",
+   "numbers": [
+    0
+   ],
+   "pays": 35
+  },
+  "even": {
+   "name": "Parzyste",
+   "numbers": [
+    2,
+    4,
+    6,
+    8,
+    10,
+    12,
+    14,
+    16,
+    18,
+    20,
+    22,
+    24,
+    26,
+    28,
+    30,
+    32,
+    34,
+    36
+   ],
+   "pays": 1
+  },
+  "odd": {
+   "name": "Nieparzyste",
+   "numbers": [
+    1,
+    3,
+    5,
+    7,
+    9,
+    11,
+    13,
+    15,
+    17,
+    19,
+    21,
+    23,
+    25,
+    27,
+    29,
+    31,
+    33,
+    35
+   ],
+   "pays": 1
+  },
+  "low": {
+   "name": "1–18",
+   "numbers": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18
+   ],
+   "pays": 1
+  },
+  "high": {
+   "name": "19–36",
+   "numbers": [
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36
+   ],
+   "pays": 1
+  },
+  "dozen1": {
+   "name": "1–12",
+   "numbers": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12
+   ],
+   "pays": 2
+  },
+  "dozen2": {
+   "name": "13–24",
+   "numbers": [
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24
+   ],
+   "pays": 2
+  },
+  "dozen3": {
+   "name": "25–36",
+   "numbers": [
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36
+   ],
+   "pays": 2
+  },
+  "col1": {
+   "name": "1. kolumna",
+   "numbers": [
+    1,
+    4,
+    7,
+    10,
+    13,
+    16,
+    19,
+    22,
+    25,
+    28,
+    31,
+    34
+   ],
+   "pays": 2
+  },
+  "col2": {
+   "name": "2. kolumna",
+   "numbers": [
+    2,
+    5,
+    8,
+    11,
+    14,
+    17,
+    20,
+    23,
+    26,
+    29,
+    32,
+    35
+   ],
+   "pays": 2
+  },
+  "col3": {
+   "name": "3. kolumna",
+   "numbers": [
+    3,
+    6,
+    9,
+    12,
+    15,
+    18,
+    21,
+    24,
+    27,
+    30,
+    33,
+    36
+   ],
+   "pays": 2
+  },
+  "n1": {
+   "name": "Liczba 1",
+   "numbers": [
+    1
+   ],
+   "pays": 35
+  },
+  "n2": {
+   "name": "Liczba 2",
+   "numbers": [
+    2
+   ],
+   "pays": 35
+  },
+  "n3": {
+   "name": "Liczba 3",
+   "numbers": [
+    3
+   ],
+   "pays": 35
+  },
+  "n4": {
+   "name": "Liczba 4",
+   "numbers": [
+    4
+   ],
+   "pays": 35
+  },
+  "n5": {
+   "name": "Liczba 5",
+   "numbers": [
+    5
+   ],
+   "pays": 35
+  },
+  "n6": {
+   "name": "Liczba 6",
+   "numbers": [
+    6
+   ],
+   "pays": 35
+  },
+  "n7": {
+   "name": "Liczba 7",
+   "numbers": [
+    7
+   ],
+   "pays": 35
+  },
+  "n8": {
+   "name": "Liczba 8",
+   "numbers": [
+    8
+   ],
+   "pays": 35
+  },
+  "n9": {
+   "name": "Liczba 9",
+   "numbers": [
+    9
+   ],
+   "pays": 35
+  },
+  "n10": {
+   "name": "Liczba 10",
+   "numbers": [
+    10
+   ],
+   "pays": 35
+  },
+  "n11": {
+   "name": "Liczba 11",
+   "numbers": [
+    11
+   ],
+   "pays": 35
+  },
+  "n12": {
+   "name": "Liczba 12",
+   "numbers": [
+    12
+   ],
+   "pays": 35
+  },
+  "n13": {
+   "name": "Liczba 13",
+   "numbers": [
+    13
+   ],
+   "pays": 35
+  },
+  "n14": {
+   "name": "Liczba 14",
+   "numbers": [
+    14
+   ],
+   "pays": 35
+  },
+  "n15": {
+   "name": "Liczba 15",
+   "numbers": [
+    15
+   ],
+   "pays": 35
+  },
+  "n16": {
+   "name": "Liczba 16",
+   "numbers": [
+    16
+   ],
+   "pays": 35
+  },
+  "n17": {
+   "name": "Liczba 17",
+   "numbers": [
+    17
+   ],
+   "pays": 35
+  },
+  "n18": {
+   "name": "Liczba 18",
+   "numbers": [
+    18
+   ],
+   "pays": 35
+  },
+  "n19": {
+   "name": "Liczba 19",
+   "numbers": [
+    19
+   ],
+   "pays": 35
+  },
+  "n20": {
+   "name": "Liczba 20",
+   "numbers": [
+    20
+   ],
+   "pays": 35
+  },
+  "n21": {
+   "name": "Liczba 21",
+   "numbers": [
+    21
+   ],
+   "pays": 35
+  },
+  "n22": {
+   "name": "Liczba 22",
+   "numbers": [
+    22
+   ],
+   "pays": 35
+  },
+  "n23": {
+   "name": "Liczba 23",
+   "numbers": [
+    23
+   ],
+   "pays": 35
+  },
+  "n24": {
+   "name": "Liczba 24",
+   "numbers": [
+    24
+   ],
+   "pays": 35
+  },
+  "n25": {
+   "name": "Liczba 25",
+   "numbers": [
+    25
+   ],
+   "pays": 35
+  },
+  "n26": {
+   "name": "Liczba 26",
+   "numbers": [
+    26
+   ],
+   "pays": 35
+  },
+  "n27": {
+   "name": "Liczba 27",
+   "numbers": [
+    27
+   ],
+   "pays": 35
+  },
+  "n28": {
+   "name": "Liczba 28",
+   "numbers": [
+    28
+   ],
+   "pays": 35
+  },
+  "n29": {
+   "name": "Liczba 29",
+   "numbers": [
+    29
+   ],
+   "pays": 35
+  },
+  "n30": {
+   "name": "Liczba 30",
+   "numbers": [
+    30
+   ],
+   "pays": 35
+  },
+  "n31": {
+   "name": "Liczba 31",
+   "numbers": [
+    31
+   ],
+   "pays": 35
+  },
+  "n32": {
+   "name": "Liczba 32",
+   "numbers": [
+    32
+   ],
+   "pays": 35
+  },
+  "n33": {
+   "name": "Liczba 33",
+   "numbers": [
+    33
+   ],
+   "pays": 35
+  },
+  "n34": {
+   "name": "Liczba 34",
+   "numbers": [
+    34
+   ],
+   "pays": 35
+  },
+  "n35": {
+   "name": "Liczba 35",
+   "numbers": [
+    35
+   ],
+   "pays": 35
+  },
+  "n36": {
+   "name": "Liczba 36",
+   "numbers": [
+    36
+   ],
+   "pays": 35
+  }
+ },
+ "blackjack": {
+  "maxCards": 20,
+  "decks": 6,
+  "blackjackPays": 1.5
+ },
+ "jackpot": {
+  "maxCards": 20,
+  "expireHours": 24
+ },
+ "patchNotes": [
+  {
+   "v": 12,
+   "date": "2026-10-21",
+   "title": "Wygrane w kasynie w wariantach",
+   "items": [
+    "✨ Wygrane w <b>ruletce</b> i <b>blackjacku</b> mogą teraz przyjść w <b>wariantach</b> — Złota, Holo, Szmaragdowa, Diamentowa, Galaktyczna, Negatyw… Im większa wygrana, tym droższe warianty (wartość wygranej się nie zmienia).",
+    "🃏 Przypominamy: przy każdej wygranej w blackjacku — tak jak w ruletce — możesz dostać kartę specjalną <b>Jokerową</b>."
+   ]
+  },
+  {
+   "v": 11,
+   "date": "2026-10-21",
+   "title": "Blackjack, seria logowań, nowe kolory i wymiany bez pieniędzy",
+   "items": [
+    "🃏 Nowa gra w 🎰 Kasynie: <b>Blackjack</b>! Postaw karty (jak w ruletce) i zagraj z krupierem — <b>Dobierz</b>, <b>Stój</b> albo <b>Podwój</b> (dokładasz karty warte najwyżej tyle, co stawka, i dostajesz jeszcze jedną kartę).",
+    "💰 Wygrana 1:1, <b>blackjack 3:2</b> — w kartach ze skrzynek ze sklepu, remis = karty wracają. Krupier staje na 17. Przy wygranej możesz też dostać kartę specjalną 🃏 Jokerową.",
+    "🎨 Nowe kolory rzadkości: <b>Zwykła</b> jest teraz <b>szara</b>, a <b>Niepospolita</b> — <b>zielona</b>.",
+    "🔄 <b>Wymiany</b> są już tylko na karty — nie da się w nich przekazywać pieniędzy. Czekające oferty z pieniędzmi nie dadzą się przyjąć (można je odrzucić albo wycofać).",
+    "🔥 <b>MEGA skrzynka</b> 💎 nie zależy już od dnia tygodnia — dostajesz ją po <b>7 dniach logowania z rzędu</b> (odbierz codzienną skrzynkę dzień w dzień). Pominięty dzień zaczyna serię od nowa.",
+    "🎁 <b>Codzienna skrzynka</b> daje teraz od <b>5 000 gr</b> do <b>20 000 gr</b>, a <b>MEGA skrzynka</b> od <b>10 000 gr</b> do <b>67 000 gr</b>.",
+    "📋 Pod karuzelą w sklepie jest <b>lista wszystkich skrzynek</b> — kliknij skrzynkę, a karuzela od razu do niej przejedzie."
+   ]
+  },
+  {
+   "v": 10,
+   "date": "2026-10-21",
+   "title": "Codzienna skrzynka",
+   "items": [
+    "🎁 <b>Codzienna skrzynka</b> daje teraz od <b>5 000 gr</b> do <b>15 000 gr</b>. MEGA skrzynka 💎 w niedzielę bez zmian."
+   ]
+  },
+  {
+   "v": 9,
+   "date": "2026-10-22",
+   "title": "Ametyst i porządek z duplikatami",
+   "items": [
+    "💜 Nowy wariant <b>Ametystowa</b> — fioletowy kamień szlachetny we wszystkich skrzynkach, rzadszy od Szmaragdowej, częstszy od Rubinowej (wartość ×12,5).",
+    "♻️ W <b>ruletce</b> i <b>jackpocie</b> jednym przyciskiem dodasz wszystkie <b>duplikaty</b> — z każdej karty zostaje jeden egzemplarz, a ulubione ⭐ zostają zawsze.",
+    "🔁 Nowe sortowanie <b>Duplikaty</b> w ekwipunku, kasynie, kuźni, na rynku i w wymianach — karty, które masz kilka razy, są na górze.",
+    "🃏 Nowy wygląd kart Jokerowych: <b>Talia Kasynowa</b> — karta do gry na zielonym suknie z żetonami."
+   ]
+  },
+  {
+   "v": 8,
+   "date": "2026-10-21",
+   "title": "Karty specjalne i nowy sklep",
+   "items": [
+    "🃏 Nowa rzadkość <b>Specjalna</b> — między Legendarną a ULTRA. Kart specjalnych nie ma w skrzynkach!",
+    "🎰 <b>Joker</b>: przy każdej <b>wygranej w ruletce</b> możesz dostać dodatkowo kartę specjalną w wariancie <b>Jokerowa</b>. Im większa wygrana, tym większa szansa (do 5%).",
+    "🔗 Niektóre karty specjalne (np. w wariancie <b>Dżinsowa</b> 👖) rozdajemy linkiem — każdy gracz może go użyć raz.",
+    "🔒 Kart specjalnych nie da się sprzedać grze, postawić w kasynie ani zużyć w kuźni — możesz je wymienić ze znajomym albo sprzedać na 🏪 Rynku.",
+    "🎠 Sklep ze skrzynkami to teraz <b>karuzela</b> — skrzynki same się obracają, możesz je przesuwać strzałkami, palcem albo klawiszami ← →.",
+    "🔍 W ekwipunku możesz wyszukać kartę po nazwie."
+   ]
+  },
+  {
+   "v": 7,
+   "date": "2026-10-20",
+   "title": "Większe nagrody i płynniejsza gra",
+   "items": [
+    "🎁 <b>Codzienna skrzynka</b> daje teraz od <b>5 000 gr</b> do <b>100 000 gr</b>, a <b>MEGA skrzynka</b> 💎 (w niedzielę) od <b>25 000 gr</b> do <b>250 000 gr</b> — pięć razy więcej niż wcześniej.",
+    "⚡ Gra działa dużo płynniej: otwieranie skrzynek, ekwipunek, kuźnia i kasyno nie zacinają się już, nawet gdy masz tysiące kart.",
+    "🖼️ Zdjęcia w bębnach i na listach kart ładują się szybciej (lżejsze miniatury), a ekwipunek pobiera się kilkanaście razy szybciej.",
+    "📜 Kliknięcie karty w kuźni albo w kasynie nie przewija już listy kart z powrotem na górę."
+   ]
+  },
+  {
+   "v": 6,
+   "date": "2026-10-19",
+   "title": "Wyszukiwanie kart",
+   "items": [
+    "🏮😈 Karty <b>Lampionowe</b> i <b>Diabelskie</b> nie łączą się już z innymi wariantami (np. Diabelska + Złota) — to są osobne, rzadkie warianty. Łączyć się z innymi może tylko <b>Halloweenowa</b>. Karty, które już masz, zostają bez zmian.",
+    "🔍 <b>Wyszukiwanie kart</b> w kontrakcie i ulepszaczu w kuźni (w kasynie, na rynku i w wymianach już było).",
+    "🔍 Wyszukiwanie działa teraz także po wariancie i rzadkości (np. „złota”, „diabelska legendarna”) i bez polskich znaków („zlota” znajdzie „Złota”)."
+   ]
+  },
+  {
+   "v": 5,
+   "date": "2026-10-19",
+   "title": "Nowe warianty, grosze i sortowanie",
+   "items": [
+    "🎃 Nowa <b>Skrzynia Halloween</b> — każda karta z niej ma jeden z trzech wariantów halloweenowych: <b>Halloweenowa</b> (najczęstsza), <b>Lampionowa</b> 🏮 (rzadsza) albo <b>Diabelska</b> 😈 (najrzadsza) i może dodatkowo trafić w inny wariant, np. Diabelska + Złota. Tylko z tej skrzynki!",
+    "✒️ Nowy wariant <b>Rysunkowa</b> — karta jak szkic ołówkiem. Może wypaść każda karta.",
+    "🌌 Nowy wariant <b>Galaktyczna</b> — ruchome mgławice i gwiazdy, a co jakiś czas przelatuje spadająca gwiazda.",
+    "💛 Wariant <b>Rzulty</b> nie ma już żółtego filtra (ma własne zdjęcie) i jest tylko dla Jana Pawła II.",
+    "🟢 Nowa rzadkość <b>Niepospolita</b> — między Zwykłą a Rzadką. Karty tej rzadkości pojawią się wkrótce.",
+    "🪙 Waluta gry to teraz <b>grosze</b> (gr) — zmienia się tylko nazwa, wartości zostają te same.",
+    "🔃 Sortowanie kart w kuźni, kasynie, na rynku, w wymianach i przy wyborze ikony.",
+    "🏳️ W podglądzie karty widać wszystkie możliwe połączenia z wariantem Flagowym (np. Flagowa + Złota).",
+    "🏆 Hall of Fame pokazuje tylko graczy widocznych w rankingu."
+   ]
+  },
+  {
+   "v": 4,
+   "date": "2026-10-19",
+   "title": "Jackpot jako lobby",
+   "items": [
+    "💰 <b>Jackpot</b> działa teraz jak lobby: załóż je jako <b>publiczne</b> albo <b>prywatne</b> (możesz to zmienić później) i zaproś graczy po nicku. Zaproszenia zobaczysz na zakładce 🎰 Kasyno.",
+    "🃏 Obaj gracze wybierają karty w lobby i mogą je zmieniać. Losowanie startuje dopiero, gdy <b>obaj zaakceptują</b> — każda zmiana kart cofa akceptację.",
+    "🏆 Zwycięzca bierze wszystkie karty z lobby — swoje z powrotem i karty rywala. Wynik zobaczysz od razu, nawet gdy jesteś w innej zakładce albo wrócisz do gry później.",
+    "🔄 Ekwipunek i saldo same się odświeżają, gdy ktoś kupi twoją kartę na rynku albo wygrasz licytację."
+   ]
+  },
+  {
+   "v": 3,
+   "date": "2026-10-19",
+   "title": "Rynek kart, Kasyno i flagowe karty z dodatkowym wariantem",
+   "items": [
+    "🏪 Nowa zakładka <b>Rynek</b> — wystawiaj karty za stałą cenę albo na <b>licytację</b> (cena wywoławcza i minimalne przebicie). Kupujący mogą zaproponować niższą cenę, a ty decydujesz, czy ją przyjąć.",
+    "📢 <b>Szukam</b> — dodaj zlecenie kupna karty za wybraną cenę. Każdy, kto ją ma, może ci ją od razu sprzedać.",
+    "🎰 Nowa zakładka <b>Kasyno</b>: <b>Ruletka</b> na karty (czerwone / czarne ×2, zielone ×36 i inne zakłady jak w prawdziwej ruletce) oraz <b>Jackpot</b> dla dwóch graczy — im więcej warte twoje karty, tym większa szansa, a zwycięzca bierze wszystkie karty ze stołu.",
+    "🏳️ Flagowa karta ma teraz 40% szansy na <b>dodatkowy wariant</b> — np. Flagowa + Złota. Wartości obu wariantów się mnożą!",
+    "💚 Nowe rodzaje zdolności kart: <b>lecząca</b> i <b>ekonomiczna</b> 🪙.",
+    "⚒️ Kuźnia (kontrakt i ulepszacz) daje już tylko karty ze skrzynek, które są teraz w sklepie."
+   ]
+  },
+  {
+   "v": 2,
+   "date": "2026-10-15",
+   "title": "Hall of Fame i wiele kontraktów naraz",
+   "items": [
+    "🏆 Nowa podstrona w Ekwipunku: <b>Hall of Fame</b> — kto pierwszy zdobył każdą kartę i każdy jej wariant, kiedy i ile ich wypadło.",
+    "🥇 Zdobędziesz kartę albo wariant jako pierwsza osoba w grze? Dostaniesz powiadomienie i trafisz do Hall of Fame.",
+    "📜 W Kuźni możesz zrobić <b>wiele kontraktów naraz</b> — karty dobierają się same (domyślnie tylko duplikaty, bez ulubionych, gabloty i specjalnych wariantów)."
+   ]
+  },
+  {
+   "v": 1,
+   "date": "2026-10-14",
+   "title": "Witaj w ScamBox!",
+   "items": [
+    "🏷️ Nowa nazwa: Skrzynki Sław to teraz <b>ScamBox</b>.",
+    "👑 Nowy wariant <b>Królewski</b> — ozdobna złota rama i korona. Wypada tylko ze <b>Skrzyni Królów</b>.",
+    "🏳️ Nowy wariant <b>Flagowy</b> — karta w barwach flagi swojego kraju. Tylko w wybranych skrzynkach.",
+    "💎 Wyjątkowe warianty wypadają wyłącznie ze skrzynek, które je mają — nie zrobisz ich w kontrakcie ani ulepszaczu.",
+    "📰 Po każdej aktualizacji zobaczysz tu, co się zmieniło. Listę zmian znajdziesz też na swoim profilu."
+   ]
+  }
+ ]
+}

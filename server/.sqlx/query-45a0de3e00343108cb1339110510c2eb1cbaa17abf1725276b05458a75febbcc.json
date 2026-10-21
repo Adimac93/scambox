@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE jackpots SET status = 'done', value_a = $1, value_b = $2, winner_id = $3, roll = $4, finished_at = $5,\n         updated_at = $5 WHERE id = $6 AND status = 'open'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8",
+        "Float8",
+        "Float8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "45a0de3e00343108cb1339110510c2eb1cbaa17abf1725276b05458a75febbcc"
+}

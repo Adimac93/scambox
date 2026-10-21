@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT (SELECT COUNT(*) FROM market_offers o JOIN market_listings l ON l.id = o.listing_id \n                 WHERE l.seller_id = $1 AND l.status = 'active' AND o.status = 'pending') \n              + (SELECT COUNT(*) FROM market_listings WHERE status IN ('sold', 'expired') AND updated_at > $2 \n                 AND (seller_id = $1 OR buyer_id = $1)) \n              + (SELECT COUNT(*) FROM market_wanted WHERE status = 'filled' AND buyer_id = $1 AND updated_at > $2) \n              + (SELECT COUNT(*) FROM market_offers WHERE buyer_id = $1 AND status IN ('declined', 'lost') AND updated_at > $2) \n              + (SELECT COUNT(*) FROM market_bids WHERE bidder_id = $1 AND status = 'outbid' AND updated_at > $2) AS \"n!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "n!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Float8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "38e171f86ffa19e7ea74fe5c81353bd5cff9ff721d091e979deedad3566797e4"
+}

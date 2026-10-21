@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT s.item_id FROM showcase s JOIN items i ON i.id = s.item_id AND i.user_id = s.user_id WHERE s.user_id = $1 ORDER BY s.pos",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "item_id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "85f89d938c769c6faf2bc0fe52fb69cbf09fce379b243aa13fe781f9fc212a83"
+}

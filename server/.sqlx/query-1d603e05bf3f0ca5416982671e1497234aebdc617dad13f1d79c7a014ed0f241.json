@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM jackpot_items WHERE jackpot_id = $1 AND side = 'b'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1d603e05bf3f0ca5416982671e1497234aebdc617dad13f1d79c7a014ed0f241"
+}

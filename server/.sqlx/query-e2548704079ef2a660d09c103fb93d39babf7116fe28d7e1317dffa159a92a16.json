@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COUNT(*) AS \"n!\" FROM feed f JOIN users u ON u.id = f.author_id\n           WHERE (f.author_id = $1 OR f.to_user_id = $1\n              OR (f.to_user_id IS NULL AND f.author_id IN (\n                  SELECT addressee_id FROM friendships WHERE requester_id = $1 AND status = 'accepted'\n                  UNION SELECT requester_id FROM friendships WHERE addressee_id = $1 AND status = 'accepted')))\n           AND f.author_id != $1 AND f.id > $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "n!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "e2548704079ef2a660d09c103fb93d39babf7116fe28d7e1317dffa159a92a16"
+}
