@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT side AS \"side: Seat\", item_id, person_id, variant, value FROM jackpot_items WHERE jackpot_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "side: Seat",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "item_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "person_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "variant",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "value",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "67b85345eac94eeb65014fea6f2e688ac9e9e7bd6cae317843629abfa8873662"
+}

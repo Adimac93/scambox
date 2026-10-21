@@ -12,8 +12,10 @@ use crate::auth::{Admin, MaybeUser, Me};
 use crate::data::g;
 use crate::db::{now, Conn};
 use crate::error::{AppError, Res};
-use crate::game::{discovered, friend_ids, market::get_listing};
+use crate::game::market::{get_listing, ListingStatus};
+use crate::game::{discovered, friend_ids};
 use crate::images::{mimetype, Kind};
+use crate::routes::casino::JackpotStatus;
 use crate::state::AppState;
 use crate::web::{send_file, svg_response};
 
@@ -257,7 +259,9 @@ pub async fn arena_shows(st: &AppState, me: i64, bid: Option<&String>, pid: &str
 pub async fn market_shows(c: &mut Conn, me: i64, lid: Option<&String>, pid: &str) -> sqlx::Result<bool> {
     let Some(lid) = lid.and_then(|l| l.trim().parse::<i64>().ok()) else { return Ok(false) };
     let l = get_listing(c, lid).await?;
-    Ok(l.is_some_and(|l| l.person_id == pid && (l.status == "active" || me == l.seller_id || Some(me) == l.buyer_id)))
+    Ok(l.is_some_and(|l| {
+        l.person_id == pid && (l.status == ListingStatus::Active || me == l.seller_id || Some(me) == l.buyer_id)
+    }))
 }
 
 /// Tajna karta w lobby jackpota (lobby, które widzę, moja gra albo gra z ostatniej doby)
@@ -272,8 +276,8 @@ pub async fn jackpot_shows(c: &mut Conn, me: i64, jid: Option<&String>, pid: &st
     if !has {
         return Ok(false);
     }
-    if j.status == "open" {
+    if j.status == JackpotStatus::Open {
         return crate::routes::casino::jackpot_can_see(c, &j, me).await;
     }
-    Ok(j.side(me).is_some() || j.finished_at.unwrap_or(0.0) > now() - 86400.0)
+    Ok(j.seat(me).is_some() || j.finished_at.unwrap_or(0.0) > now() - 86400.0)
 }

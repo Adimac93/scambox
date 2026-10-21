@@ -1,0 +1,70 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, buyer_id, person_id, variant, price, status AS \"status: WantedStatus\", seller_id, created_at, updated_at\n           FROM market_wanted WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "buyer_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "person_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "variant",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "price",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "status: WantedStatus",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "seller_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 8,
+        "name": "updated_at",
+        "type_info": "Float8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "20e13b9604bef7da771f1970e34437fe0688229d90ba6883dbd77951c8761687"
+}

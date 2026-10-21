@@ -2,128 +2,215 @@
 //! codzienna nagroda i seria logowań.
 
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use axum::extract::State;
+use axum::http::StatusCode;
 use chrono::{Duration, Local, NaiveDate};
+use indexmap::IndexMap;
 use rand::seq::SliceRandom;
-use serde_json::{json, Map, Value};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 
-use super::{ok, Body};
+use super::{ok, JsonBody};
 use crate::auth::Me;
-use crate::catalog::Catalog;
-use crate::data::g;
+use crate::catalog::{Catalog, Person};
+use crate::data::{g, GameData};
 use crate::db::{lock_me, Conn};
-use crate::error::{bad, bad_code, AppError, Res};
+use crate::error::{bad, fail, AppError, Res};
 use crate::game::roll::{random, roll, roll_money, roll_variant};
-use crate::game::views::{crate_json, public_person};
+use crate::game::views::{public_person, CrateJson, PublicPerson};
 use crate::game::*;
-use crate::py;
 use crate::state::AppState;
 
 const MAX_BULK_CONTRACTS: usize = 50; // ile kontraktów naraz
 
+fn one() -> i64 {
+    1
+}
+
+fn yes() -> bool {
+    true
+}
+
+fn normal() -> String {
+    "normal".into()
+}
+
+// ---------------------------------------------------------------- konfiguracja i stan gracza
+
+/// Skrzynka w sklepie: czy gracz może ją kupić
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShopCrate {
+    #[serde(flatten)]
+    info: CrateJson,
+    can_buy: bool,
+}
+
+/// Wszystko, czego przeglądarka potrzebuje na start: zasady gry, karty, skrzynki
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigResponse {
+    rarities: &'static Value,
+    rarity_order: &'static [String],
+    variants: &'static Value,
+    variant_order: &'static [String],
+    types: &'static Value,
+    ability_kinds: &'static Value,
+    /// Arena (wersja testowa) - tylko admini; bez tego przeglądarka chowa zakładkę i wyzwania
+    arena: Option<Value>,
+    people: IndexMap<String, PublicPerson>,
+    crates: IndexMap<String, ShopCrate>,
+    crate_order: Vec<String>,
+    max_open: i64,
+    starting_balance: i64,
+    contract_size: &'static Value,
+    /// rzadkość wyniku kontraktu (pusta rzadkość jest pomijana)
+    contract_next: IndexMap<String, Option<String>>,
+    contract_variant_bonus: f64,
+    upgrade_edge: f64,
+    upgrade_max: f64,
+    upgrade_max_items: usize,
+    max_deposit: i64,
+    money_chests: &'static Value,
+    daily_streak: i64,
+    secret_odds: i64,
+    showcase_size: usize,
+    market: &'static Value,
+    roulette: &'static Value,
+    jackpot: &'static Value,
+    blackjack: &'static Value,
+    special_variants: &'static [String],
+    special_sources: &'static Value,
+    casino_special: &'static Value,
+}
+
 pub async fn config(State(st): State<AppState>, Me(me): Me) -> Res {
     let cx = Ctx::new(st, me);
-    let g = g();
+    let g: &'static GameData = g();
     let mut c = cx.st.db.acquire().await?;
     let found = discovered(&mut c, cx.uid()).await?;
-    let people: Map<String, Value> = cx
+    let people = cx
         .cat
         .people
         .iter()
         .map(|(pid, p)| (pid.clone(), public_person(&cx.st.images, &cx.cat, p, found.contains(pid))))
         .collect();
-    let mut crates = Map::new();
+    let mut crates = IndexMap::new();
     for (cid, cr) in &cx.cat.crates {
-        let mut j = crate_json(&cx.cat, cr);
-        j.insert("canBuy".into(), json!(can_buy(&mut c, &cx.me, cr).await?));
-        crates.insert(cid.clone(), Value::Object(j));
+        crates.insert(cid.clone(), ShopCrate { info: CrateJson::new(&cx.cat, cr), can_buy: can_buy(&mut c, &cx.me, cr).await? });
     }
-    let contract_next: Map<String, Value> = g.contract_size.keys().map(|r| (r.clone(), json!(cx.cat.next_rarity(r)))).collect();
-    ok(json!({
-        "rarities": g.rarities_json,
-        "rarityOrder": g.rarity_order,
-        "variants": g.variants_json,
-        "variantOrder": g.variant_order,
-        "types": g.types_json,
-        "abilityKinds": g.ability_kinds,
-        // Arena (wersja testowa) - tylko admini; bez tego klucza przeglądarka chowa zakładkę i wyzwania
-        "arena": if cx.me.admin() {
-            json!({"rules": g.arena_json, "effects": g.arena_effects_json, "visuals": g.arena_visuals,
-                   "targets": g.arena_targets, "effectTargets": g.arena_effect_targets})
-        } else { Value::Null },
-        "people": people,
-        "crates": crates,
-        "crateOrder": cx.cat.crates.keys().collect::<Vec<_>>(),
-        "maxOpen": g.max_open,
-        "startingBalance": g.starting_balance,
-        "contractSize": g.contract_size_json,
-        "contractNext": contract_next, // rzadkość wyniku (pusta rzadkość jest pomijana)
-        "contractVariantBonus": g.contract_variant_bonus,
-        "upgradeEdge": g.upgrade_edge,
-        "upgradeMax": g.upgrade_max,
-        "upgradeMaxItems": g.upgrade_max_items,
-        "maxDeposit": g.max_deposit,
-        "moneyChests": g.money_chests_json,
-        "dailyStreak": g.daily_streak,
-        "secretOdds": g.secret_odds,
-        "showcaseSize": g.showcase_size,
-        "market": g.market_json,
-        "roulette": g.roulette_json,
-        "jackpot": g.jackpot_json,
-        "blackjack": g.blackjack_json,
-        "specialVariants": g.special_variants,
-        "specialSources": g.special_sources_json,
-        "casinoSpecial": g.casino_special_json,
-    }))
+    let arena = cx.me.admin().then(|| {
+        json!({"rules": g.arena_json, "effects": g.arena_effects_json, "visuals": g.arena_visuals,
+               "targets": g.arena_targets, "effectTargets": g.arena_effect_targets})
+    });
+    ok(ConfigResponse {
+        rarities: &g.rarities_json,
+        rarity_order: &g.rarity_order,
+        variants: &g.variants_json,
+        variant_order: &g.variant_order,
+        types: &g.types_json,
+        ability_kinds: &g.ability_kinds,
+        arena,
+        people,
+        crates,
+        crate_order: cx.cat.crates.keys().cloned().collect(),
+        max_open: g.max_open,
+        starting_balance: g.starting_balance,
+        contract_size: &g.contract_size_json,
+        contract_next: g.contract_size.keys().map(|r| (r.clone(), cx.cat.next_rarity(r))).collect(),
+        contract_variant_bonus: g.contract_variant_bonus,
+        upgrade_edge: g.upgrade_edge,
+        upgrade_max: g.upgrade_max,
+        upgrade_max_items: g.upgrade_max_items,
+        max_deposit: g.max_deposit,
+        money_chests: &g.money_chests_json,
+        daily_streak: g.daily_streak,
+        secret_odds: g.secret_odds,
+        showcase_size: g.showcase_size,
+        market: &g.market_json,
+        roulette: &g.roulette_json,
+        jackpot: &g.jackpot_json,
+        blackjack: &g.blackjack_json,
+        special_variants: &g.special_variants,
+        special_sources: &g.special_sources_json,
+        casino_special: &g.casino_special_json,
+    })
+}
+
+#[derive(Serialize)]
+struct StateResponse {
+    state: GameState,
+    items: Vec<ItemJson>,
+    showcase: Vec<i64>,
+    chests: Chests,
+    collected: Vec<(String, String)>,
 }
 
 pub async fn state(State(st): State<AppState>, Me(me): Me) -> Res {
-    let cx = Ctx::new(st, me);
-    let mut c = cx.st.db.acquire().await?;
-    let uid = cx.uid();
-    ok(json!({
-        "state": get_state(&mut c, uid).await?,
-        "items": my_items(&mut c, &cx.cat, uid).await?,
-        "showcase": showcase_ids(&mut c, uid).await?,
-        "chests": get_chests(&mut c, &cx.cat, uid).await?,
-        "collected": collected_list(&mut c, &cx.cat, uid).await?,
-    }))
+    let cat = st.cat();
+    let mut c = st.db.acquire().await?;
+    ok(StateResponse {
+        state: get_state(&mut c, me.id).await?,
+        items: my_items(&mut c, &cat, me.id).await?,
+        showcase: showcase_ids(&mut c, me.id).await?,
+        chests: get_chests(&mut c, &cat, me.id).await?,
+        collected: collected_list(&mut c, &cat, me.id).await?,
+    })
 }
 
-fn int_or(body: &Body, key: &str, default: i64) -> Result<i64, AppError> {
-    match body.get(key) {
-        None => Ok(default),
-        Some(v) => py::int(v).ok_or_else(|| AppError::bad("Nieprawidłowe żądanie")),
-    }
+// ---------------------------------------------------------------- skrzynki
+
+#[derive(Deserialize, Default)]
+#[serde(default, rename_all = "camelCase")]
+pub struct OpenRequest {
+    #[serde(rename = "crate")]
+    crate_id: String,
+    #[serde(default = "one")]
+    count: i64,
+    /// najpierw skrzynki z ekwipunku
+    #[serde(default = "yes")]
+    use_owned: bool,
 }
 
-pub async fn open_crates(State(st): State<AppState>, Me(me): Me, body: Body) -> Res {
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct OpenResponse {
+    drops: Vec<NewItem>,
+    discovered: Vec<String>,
+    state: GameState,
+    from_inventory: i64,
+    chests: Chests,
+}
+
+pub async fn open_crates(State(st): State<AppState>, Me(me): Me, JsonBody(req): JsonBody<OpenRequest>) -> Res {
     let cx = Ctx::new(st, me);
-    let g = g();
     let mut tx = cx.st.db.begin().await?;
     lock_me(&mut tx, cx.uid()).await?;
-    let cr = body.get("crate").and_then(Value::as_str).and_then(|c| cx.cat.crates.get(c));
-    let count = int_or(&body, "count", 1)?;
-    let Some(cr) = cr.filter(|_| (1..=g.max_open).contains(&count)) else { return bad("Nieprawidłowe żądanie") };
+    let Some(cr) = cx.cat.crates.get(&req.crate_id).filter(|_| (1..=g().max_open).contains(&req.count)) else {
+        return bad("Nieprawidłowe żądanie");
+    };
     if cr.special {
         return bad("Karty specjalne zdobywa się w kasynie albo z linku — tej skrzynki nie da się otworzyć");
     }
     if !cx.cat.crate_people(cr).any(|p| !p.is_special()) {
         return bad("Ta skrzynka jest pusta");
     }
-    let use_owned = body.get("useOwned").map(py::truthy).unwrap_or(true);
-    let owned =
-        if use_owned { get_chests(&mut tx, &cx.cat, cx.uid()).await?.get(&cr.id).copied().unwrap_or(0) as i64 } else { 0 };
-    let from_inv = owned.min(count);
-    if from_inv < count && !can_buy(&mut tx, &cx.me, cr).await? {
+    let owned = if req.use_owned {
+        i64::from(get_chests(&mut tx, &cx.cat, cx.uid()).await?.get(&cr.id).copied().unwrap_or(0))
+    } else {
+        0
+    };
+    let from_inv = owned.min(req.count);
+    if from_inv < req.count && !can_buy(&mut tx, &cx.me, cr).await? {
         let msg =
             if cr.shop { "Ta skrzynka jest dostępna tylko dla wybranych graczy" } else { "Tej skrzynki nie ma teraz w sklepie" };
         let extra = if owned > 0 { format!(" — możesz otworzyć tylko te z ekwipunku ({owned})") } else { String::new() };
-        return bad_code(format!("{msg}{extra}"), 403);
+        return fail(StatusCode::FORBIDDEN, format!("{msg}{extra}"));
     }
-    let cost = (count - from_inv) * cr.price;
-    if get_state(&mut tx, cx.uid()).await?["balance"] < cost {
+    let cost = (req.count - from_inv) * cr.price;
+    if balance(&mut tx, cx.uid()).await? < cost {
         return bad("Za mało pieniędzy!");
     }
     if from_inv > 0 {
@@ -131,126 +218,152 @@ pub async fn open_crates(State(st): State<AppState>, Me(me): Me, body: Body) -> 
     }
     add_state(&mut tx, cx.uid(), "balance", -cost).await?;
     add_state(&mut tx, cx.uid(), "spent", cost).await?;
-    add_state(&mut tx, cx.uid(), "opened", count).await?;
+    add_state(&mut tx, cx.uid(), "opened", req.count).await?;
     let mut drops = vec![];
-    for _ in 0..count {
-        let Some((person, variant)) = roll(&cx.cat, cr) else { return bad("Ta skrzynka jest pusta") };
+    for _ in 0..req.count {
+        let (person, variant) = roll(&cx.cat, cr).ok_or_else(|| AppError::bad("Ta skrzynka jest pusta"))?;
         drops.push(insert_item(&mut tx, &cx, &person.id, &variant, "drop").await?);
     }
-    let new = note_drops(&mut tx, &cx, &drops_of(&drops), "drop").await?;
+    let discovered = note_drops(&mut tx, &cx, &drops_of(&drops), "drop").await?;
     let state = get_state(&mut tx, cx.uid()).await?;
     let chests = get_chests(&mut tx, &cx.cat, cx.uid()).await?;
     tx.commit().await?;
-    metrics::counter!("scambox_crates_opened_total", "crate" => cr.id.clone()).increment(count as u64);
-    ok(json!({"drops": drops, "discovered": new, "state": state, "fromInventory": from_inv, "chests": chests}))
+    metrics::counter!("scambox_crates_opened_total", "crate" => cr.id.clone()).increment(req.count.unsigned_abs());
+    ok(OpenResponse { drops, discovered, state, from_inventory: from_inv, chests })
 }
 
-pub async fn buy_chests(State(st): State<AppState>, Me(me): Me, body: Body) -> Res {
+#[derive(Deserialize, Default)]
+#[serde(default)]
+pub struct BuyRequest {
+    #[serde(rename = "crate")]
+    crate_id: String,
+    #[serde(default = "one")]
+    count: i64,
+}
+
+pub async fn buy_chests(State(st): State<AppState>, Me(me): Me, JsonBody(req): JsonBody<BuyRequest>) -> Res {
     let cx = Ctx::new(st, me);
     let mut tx = cx.st.db.begin().await?;
     lock_me(&mut tx, cx.uid()).await?;
-    let cr = body.get("crate").and_then(Value::as_str).and_then(|c| cx.cat.crates.get(c));
-    let count = int_or(&body, "count", 1)?;
-    let Some(cr) = cr.filter(|_| (1..=100).contains(&count)) else { return bad("Nieprawidłowe żądanie") };
+    let Some(cr) = cx.cat.crates.get(&req.crate_id).filter(|_| (1..=100).contains(&req.count)) else {
+        return bad("Nieprawidłowe żądanie");
+    };
     if !can_buy(&mut tx, &cx.me, cr).await? {
-        return bad_code("Nie możesz kupić tej skrzynki", 403);
+        return fail(StatusCode::FORBIDDEN, "Nie możesz kupić tej skrzynki");
     }
-    let cost = count * cr.price;
-    if get_state(&mut tx, cx.uid()).await?["balance"] < cost {
+    let cost = req.count * cr.price;
+    if balance(&mut tx, cx.uid()).await? < cost {
         return bad("Za mało pieniędzy!");
     }
     add_state(&mut tx, cx.uid(), "balance", -cost).await?;
     add_state(&mut tx, cx.uid(), "spent", cost).await?;
-    add_chests(&mut tx, cx.uid(), &cr.id, count).await?;
+    add_chests(&mut tx, cx.uid(), &cr.id, req.count).await?;
     let state = get_state(&mut tx, cx.uid()).await?;
     let chests = get_chests(&mut tx, &cx.cat, cx.uid()).await?;
     tx.commit().await?;
     ok(json!({"state": state, "chests": chests}))
 }
 
-pub async fn open_money_chest(State(st): State<AppState>, Me(me): Me, body: Body) -> Res {
-    let cx = Ctx::new(st, me);
-    let mut tx = cx.st.db.begin().await?;
-    lock_me(&mut tx, cx.uid()).await?;
-    let Some(kind) = body.get("kind").and_then(Value::as_str).filter(|k| g().money_chests.contains_key(*k)) else {
+#[derive(Deserialize, Default)]
+#[serde(default)]
+pub struct MoneyChestRequest {
+    kind: String,
+}
+
+pub async fn open_money_chest(State(st): State<AppState>, Me(me): Me, JsonBody(req): JsonBody<MoneyChestRequest>) -> Res {
+    let cat = st.cat();
+    let mut tx = st.db.begin().await?;
+    lock_me(&mut tx, me.id).await?;
+    if !g().money_chests.contains_key(&req.kind) {
         return bad("Nieznana skrzynka");
-    };
-    let key = format!("money_{kind}");
-    if get_chests(&mut tx, &cx.cat, cx.uid()).await?.get(&key).copied().unwrap_or(0) < 1 {
+    }
+    let key = format!("money_{}", req.kind);
+    if get_chests(&mut tx, &cat, me.id).await?.get(&key).copied().unwrap_or(0) < 1 {
         return bad("Nie masz takiej skrzynki");
     }
-    let amount = roll_money(kind);
-    add_chests(&mut tx, cx.uid(), &key, -1).await?;
-    add_state(&mut tx, cx.uid(), "balance", amount).await?;
-    add_state(&mut tx, cx.uid(), "daily_total", amount).await?;
-    let state = get_state(&mut tx, cx.uid()).await?;
-    let chests = get_chests(&mut tx, &cx.cat, cx.uid()).await?;
+    let amount = roll_money(&req.kind);
+    add_chests(&mut tx, me.id, &key, -1).await?;
+    add_state(&mut tx, me.id, "balance", amount).await?;
+    add_state(&mut tx, me.id, "daily_total", amount).await?;
+    let state = get_state(&mut tx, me.id).await?;
+    let chests = get_chests(&mut tx, &cat, me.id).await?;
     tx.commit().await?;
-    ok(json!({"amount": amount, "kind": kind, "state": state, "chests": chests}))
+    ok(json!({"amount": amount, "kind": req.kind, "state": state, "chests": chests}))
 }
 
-fn ids_of(body: &Body, key: &str) -> Result<Vec<i64>, AppError> {
-    py::int_list(body.get(key)).ok_or_else(|| AppError::bad("Nieprawidłowe żądanie"))
+// ---------------------------------------------------------------- sprzedaż i ulubione
+
+#[derive(Deserialize, Default)]
+#[serde(default)]
+pub struct IdsRequest {
+    ids: Vec<i64>,
 }
 
-pub async fn sell(State(st): State<AppState>, Me(me): Me, body: Body) -> Res {
-    let cx = Ctx::new(st, me);
-    let mut tx = cx.st.db.begin().await?;
-    lock_me(&mut tx, cx.uid()).await?;
-    let ids = ids_of(&body, "ids")?;
-    if ids.is_empty() {
+pub async fn sell(State(st): State<AppState>, Me(me): Me, JsonBody(req): JsonBody<IdsRequest>) -> Res {
+    let cat = st.cat();
+    let mut tx = st.db.begin().await?;
+    lock_me(&mut tx, me.id).await?;
+    if req.ids.is_empty() {
         return bad("Nic nie wybrano");
     }
     // ulubionych kart nie sprzedajemy, karty specjalne nie znikają z gry
-    let rows =
-        sqlx::query_as!(ItemRow, "SELECT * FROM items WHERE user_id = $1 AND favorite = 0 AND id = ANY($2)", cx.uid(), &ids)
-            .fetch_all(&mut *tx)
-            .await?;
-    let rows: Vec<ItemRow> = rows.into_iter().filter(|r| !cx.person(&r.person_id).is_some_and(|p| p.is_special())).collect();
-    let total: i64 = rows.iter().map(|r| row_value(&cx.cat, r)).sum();
+    let rows = sqlx::query_as!(
+        ItemRow,
+        "SELECT id, person_id, variant, favorite, created_at FROM items WHERE user_id = $1 AND favorite = 0 AND id = ANY($2)",
+        me.id,
+        &req.ids
+    )
+    .fetch_all(&mut *tx)
+    .await?;
+    let rows: Vec<ItemRow> = rows.into_iter().filter(|r| !cat.person(&r.person_id).is_some_and(|p| p.is_special())).collect();
+    let total: i64 = rows.iter().map(|r| row_value(&cat, r)).sum();
     let sold: Vec<i64> = rows.iter().map(|r| r.id).collect();
-    delete_items(&mut tx, cx.uid(), &sold).await?;
-    add_state(&mut tx, cx.uid(), "balance", total).await?;
-    add_state(&mut tx, cx.uid(), "earned", total).await?;
-    let state = get_state(&mut tx, cx.uid()).await?;
+    delete_items(&mut tx, me.id, &sold).await?;
+    add_state(&mut tx, me.id, "balance", total).await?;
+    add_state(&mut tx, me.id, "earned", total).await?;
+    let state = get_state(&mut tx, me.id).await?;
     tx.commit().await?;
     ok(json!({"sold": sold, "total": total, "state": state}))
 }
 
-pub async fn set_favorite(State(st): State<AppState>, Me(me): Me, body: Body) -> Res {
-    let mut ids = ids_of(&body, "ids")?;
-    ids.truncate(500);
-    if ids.is_empty() {
+#[derive(Deserialize, Default)]
+#[serde(default)]
+pub struct FavoriteRequest {
+    ids: Vec<i64>,
+    #[serde(default = "yes")]
+    fav: bool,
+}
+
+pub async fn set_favorite(State(st): State<AppState>, Me(me): Me, JsonBody(mut req): JsonBody<FavoriteRequest>) -> Res {
+    req.ids.truncate(500);
+    if req.ids.is_empty() {
         return bad("Nic nie wybrano");
     }
-    let fav = body.get("fav").map(py::truthy).unwrap_or(true) as i32;
-    sqlx::query!("UPDATE items SET favorite = $1 WHERE user_id = $2 AND id = ANY($3)", fav, me.id, &ids).execute(&st.db).await?;
+    sqlx::query!("UPDATE items SET favorite = $1 WHERE user_id = $2 AND id = ANY($3)", i32::from(req.fav), me.id, &req.ids)
+        .execute(&st.db)
+        .await?;
     ok(json!({"ok": true}))
 }
 
 // ---------------------------------------------------------------- kuźnia
 
-/// Możliwe wyniki kontraktu ze skrzynki (None = ze wszystkich skrzynek w sklepie). Tylko karty ze skrzynek, które są
-/// teraz w sklepie ("forge"); wynik nie może być "droższą" kartą niż najtańsza z włożonych.
-fn contract_candidates<'a>(
-    cat: &'a Catalog,
-    crate_id: Option<&str>,
-    target: &str,
-    max_mult: f64,
-) -> Vec<&'a crate::catalog::Person> {
-    let people: Vec<&crate::catalog::Person> = match crate_id {
-        Some(cid) => cat.crates.get(cid).map(|c| cat.crate_people(c).map(|p| p.as_ref()).collect()).unwrap_or_default(),
-        None => cat.people.values().map(|p| p.as_ref()).collect(),
-    };
-    people.into_iter().filter(|p| p.rarity == target && p.value_mult <= max_mult && p.forge).collect()
+/// Możliwe wyniki kontraktu ze skrzynki (None = ze wszystkich skrzynek). Tylko karty ze skrzynek, które są teraz
+/// w sklepie ("forge"); wynik nie może być "droższą" kartą niż najtańsza z włożonych.
+fn contract_candidates<'a>(cat: &'a Catalog, crate_id: Option<&str>, target: &str, max_mult: f64) -> Vec<&'a Arc<Person>> {
+    let fits = |p: &&Arc<Person>| p.rarity == target && p.value_mult <= max_mult && p.forge;
+    match crate_id {
+        Some(cid) => cat.crates.get(cid).map(|c| cat.crate_people(c).filter(fits).collect()).unwrap_or_default(),
+        None => cat.people.values().filter(fits).collect(),
+    }
 }
 
 /// Skrzynka, z której kontrakt losuje wynik za tę kartę: pierwsza skrzynka karty z kartami wyższej rzadkości
 /// w sklepie; karta tylko ze skrzynek spoza sklepu - None (wszystkie skrzynki w sklepie)
-fn contract_crate(cat: &Catalog, p: &crate::catalog::Person, target: &str, max_mult: f64) -> Option<String> {
+fn contract_crate(cat: &Catalog, p: &Person, target: &str, max_mult: f64) -> Option<String> {
     p.crates.iter().find(|c| !contract_candidates(cat, Some(c), target, max_mult).is_empty()).cloned()
 }
 
+/// Sprawdzony kontrakt
 struct Plan {
     ids: Vec<i64>,
     target: String,
@@ -259,49 +372,56 @@ struct Plan {
     specials: usize,
 }
 
-/// Sprawdza karty jednego kontraktu (nic nie zmienia): plan albo komunikat dla gracza
-async fn contract_check(c: &mut Conn, cx: &Ctx, ids: &[i64]) -> Result<Result<Plan, String>, AppError> {
-    let g = g();
-    let Some(rows) = owned_rows(c, &cx.cat, cx.uid(), ids).await? else { return Ok(Err("Nie masz tych kart".into())) };
+/// Sprawdza karty jednego kontraktu (nic nie zmienia)
+async fn contract_check(c: &mut Conn, cx: &Ctx, ids: &[i64]) -> Res<Plan> {
+    let rows = owned_rows(c, &cx.cat, cx.uid(), ids).await?.ok_or_else(|| AppError::bad("Nie masz tych kart"))?;
+    let person = |r: &ItemRow| &cx.cat.people[&r.person_id];
     if rows.iter().any(|r| r.favorite != 0) {
-        return Ok(Err(FAV_ERROR.into()));
+        return bad(FAV_ERROR);
     }
-    if rows.iter().any(|r| cx.cat.people[&r.person_id].is_special()) {
-        return Ok(Err(SPECIAL_ERROR.into()));
+    if rows.iter().any(|r| person(r).is_special()) {
+        return bad(SPECIAL_ERROR);
     }
-    let rarities: HashSet<&str> = rows.iter().map(|r| cx.cat.people[&r.person_id].rarity.as_str()).collect();
-    let rarity = if rarities.len() == 1 { rarities.into_iter().next() } else { None };
-    let size = rarity.and_then(|r| g.contract_size.get(r).copied());
-    if rarity.is_some() && size.is_none() {
-        return Ok(Err("Z tych kart nie da się nic wytworzyć — tajnych kart nie można zrobić w kuźni".into()));
-    }
-    let (Some(rarity), Some(size)) = (rarity, size) else {
-        return Ok(Err("Wszystkie karty muszą mieć tę samą rzadkość".into()));
+    let rarities: HashSet<&str> = rows.iter().map(|r| person(r).rarity.as_str()).collect();
+    let rarity = match rarities.into_iter().collect::<Vec<_>>()[..] {
+        [r] => r,
+        _ => return bad("Wszystkie karty muszą mieć tę samą rzadkość"),
+    };
+    let Some(&size) = g().contract_size.get(rarity) else {
+        return bad("Z tych kart nie da się nic wytworzyć — tajnych kart nie można zrobić w kuźni");
     };
     if rows.len() != size {
-        return Ok(Err(format!("Kontrakt wymaga {size} kart")));
+        return bad(format!("Kontrakt wymaga {size} kart"));
     }
-    let Some(target) = cx.cat.next_rarity(rarity) else { return Ok(Err("Nie ma kart wyższej rzadkości".into())) };
-    let max_mult = rows.iter().map(|r| cx.cat.people[&r.person_id].value_mult).fold(f64::INFINITY, f64::min);
+    let target = cx.cat.next_rarity(rarity).ok_or_else(|| AppError::bad("Nie ma kart wyższej rzadkości"))?;
+    let max_mult = rows.iter().map(|r| person(r).value_mult).fold(f64::INFINITY, f64::min);
     let pool: Vec<Option<String>> = rows
         .iter()
-        .map(|r| contract_crate(&cx.cat, &cx.cat.people[&r.person_id], &target, max_mult))
+        .map(|r| contract_crate(&cx.cat, person(r), &target, max_mult))
         .filter(|c| !contract_candidates(&cx.cat, c.as_deref(), &target, max_mult).is_empty())
         .collect();
     if pool.is_empty() {
-        return Ok(Err("W skrzynkach ze sklepu nie ma kart wyższej rzadkości".into()));
+        return bad("W skrzynkach ze sklepu nie ma kart wyższej rzadkości");
     }
-    Ok(Ok(Plan { ids: ids.to_vec(), target, max_mult, pool, specials: rows.iter().filter(|r| r.variant != "normal").count() }))
+    let specials = rows.iter().filter(|r| r.variant != "normal").count();
+    Ok(Plan { ids: ids.to_vec(), target, max_mult, pool, specials })
 }
 
-/// Wykonuje sprawdzony kontrakt: zabiera karty, losuje nową. Zwraca (karta, skrzynka wyniku).
-async fn contract_exec(c: &mut Conn, cx: &Ctx, plan: &Plan) -> Res<(NewItem, Option<String>)> {
+#[derive(Serialize)]
+struct ContractResult {
+    item: NewItem,
+    #[serde(rename = "crate")]
+    crate_id: Option<String>,
+}
+
+/// Wykonuje sprawdzony kontrakt: zabiera karty, losuje nową
+async fn contract_exec(c: &mut Conn, cx: &Ctx, plan: &Plan) -> Res<ContractResult> {
     let (crate_id, person_id, person_crate) = {
         let mut rng = rand::thread_rng();
         let crate_id = plan.pool.choose(&mut rng).cloned().flatten();
-        let cands = contract_candidates(&cx.cat, crate_id.as_deref(), &plan.target, plan.max_mult);
+        let candidates = contract_candidates(&cx.cat, crate_id.as_deref(), &plan.target, plan.max_mult);
         let person =
-            cands.choose(&mut rng).ok_or_else(|| AppError::bad("W skrzynkach ze sklepu nie ma kart wyższej rzadkości"))?;
+            candidates.choose(&mut rng).ok_or_else(|| AppError::bad("W skrzynkach ze sklepu nie ma kart wyższej rzadkości"))?;
         (crate_id, person.id.clone(), person.crate_.clone())
     };
     delete_items(c, cx.uid(), &plan.ids).await?;
@@ -309,81 +429,86 @@ async fn contract_exec(c: &mut Conn, cx: &Ctx, plan: &Plan) -> Res<(NewItem, Opt
     let item = insert_item(c, cx, &person_id, &variant, "contract").await?;
     add_state(c, cx.uid(), "contracts", 1).await?;
     metrics::counter!("scambox_forge_total", "kind" => "contract").increment(1);
-    Ok((item, crate_id.or(person_crate)))
+    Ok(ContractResult { item, crate_id: crate_id.or(person_crate) })
 }
 
-pub async fn contract(State(st): State<AppState>, Me(me): Me, body: Body) -> Res {
+pub async fn contract(State(st): State<AppState>, Me(me): Me, JsonBody(req): JsonBody<IdsRequest>) -> Res {
     let cx = Ctx::new(st, me);
     let mut tx = cx.st.db.begin().await?;
     lock_me(&mut tx, cx.uid()).await?;
-    let ids = ids_of(&body, "ids")?;
-    let plan = match contract_check(&mut tx, &cx, &ids).await? {
-        Ok(p) => p,
-        Err(e) => return bad(e),
-    };
-    let (item, crate_id) = contract_exec(&mut tx, &cx, &plan).await?;
+    let plan = contract_check(&mut tx, &cx, &req.ids).await?;
+    let ContractResult { item, crate_id } = contract_exec(&mut tx, &cx, &plan).await?;
     let new = note_drops(&mut tx, &cx, &drops_of(std::slice::from_ref(&item)), "contract").await?;
     let state = get_state(&mut tx, cx.uid()).await?;
     tx.commit().await?;
-    ok(json!({"item": item, "crate": crate_id, "consumed": ids, "discovered": new, "state": state}))
+    ok(json!({"item": item, "crate": crate_id, "consumed": req.ids, "discovered": new, "state": state}))
 }
 
-/// Wiele kontraktów naraz: groups = [[id, id, ...], ...]. Najpierw sprawdzamy wszystkie - błąd w jednym = nic się nie dzieje.
-pub async fn contracts_bulk(State(st): State<AppState>, Me(me): Me, body: Body) -> Res {
+#[derive(Deserialize, Default)]
+#[serde(default)]
+pub struct ContractsRequest {
+    groups: Vec<Vec<i64>>,
+}
+
+/// Wiele kontraktów naraz. Najpierw sprawdzamy wszystkie - błąd w jednym = nic się nie dzieje.
+pub async fn contracts_bulk(State(st): State<AppState>, Me(me): Me, JsonBody(req): JsonBody<ContractsRequest>) -> Res {
     let cx = Ctx::new(st, me);
     let mut tx = cx.st.db.begin().await?;
     lock_me(&mut tx, cx.uid()).await?;
-    let Some(groups) = body.get("groups").and_then(Value::as_array).filter(|g| (1..=MAX_BULK_CONTRACTS).contains(&g.len()))
-    else {
+    if !(1..=MAX_BULK_CONTRACTS).contains(&req.groups.len()) {
         return bad(format!("Naraz można zrobić od 1 do {MAX_BULK_CONTRACTS} kontraktów"));
-    };
-    let Some(groups) = groups
-        .iter()
-        .map(|g| g.as_array().and_then(|a| a.iter().map(py::int).collect::<Option<Vec<i64>>>()))
-        .collect::<Option<Vec<Vec<i64>>>>()
-    else {
-        return bad("Nieprawidłowe żądanie");
-    };
-    let all_ids: Vec<i64> = groups.iter().flatten().copied().collect();
+    }
+    let all_ids: Vec<i64> = req.groups.concat();
     if all_ids.iter().collect::<HashSet<_>>().len() != all_ids.len() {
         return bad("Ta sama karta nie może być w dwóch kontraktach");
     }
     let mut plans = vec![];
-    for group in &groups {
-        match contract_check(&mut tx, &cx, group).await? {
-            Ok(p) => plans.push(p),
-            Err(e) => return bad(e),
-        }
+    for group in &req.groups {
+        plans.push(contract_check(&mut tx, &cx, group).await?);
     }
     let mut results = vec![];
-    let mut items = vec![];
     for plan in &plans {
-        let (item, crate_id) = contract_exec(&mut tx, &cx, plan).await?;
-        results.push(json!({"item": item, "crate": crate_id}));
-        items.push(item);
+        results.push(contract_exec(&mut tx, &cx, plan).await?);
     }
+    let items: Vec<NewItem> = results.iter().map(|r| r.item.clone()).collect();
     let new = note_drops(&mut tx, &cx, &drops_of(&items), "contract").await?;
     let state = get_state(&mut tx, cx.uid()).await?;
     tx.commit().await?;
     ok(json!({"results": results, "consumed": all_ids, "discovered": new, "state": state}))
 }
 
-pub async fn upgrade(State(st): State<AppState>, Me(me): Me, body: Body) -> Res {
+#[derive(Deserialize, Default)]
+#[serde(default)]
+pub struct UpgradeRequest {
+    ids: Vec<i64>,
+    target: String,
+    #[serde(default = "normal")]
+    variant: String,
+}
+
+#[derive(Serialize)]
+struct UpgradeResponse {
+    win: bool,
+    chance: f64,
+    roll: f64,
+    item: Option<NewItem>,
+    consumed: Vec<i64>,
+    discovered: Vec<String>,
+    state: GameState,
+}
+
+pub async fn upgrade(State(st): State<AppState>, Me(me): Me, JsonBody(req): JsonBody<UpgradeRequest>) -> Res {
     let cx = Ctx::new(st, me);
     let g = g();
     let mut tx = cx.st.db.begin().await?;
     lock_me(&mut tx, cx.uid()).await?;
-    let ids = ids_of(&body, "ids")?;
-    let target = body.get("target").and_then(Value::as_str).and_then(|t| cx.cat.person(t)).cloned();
-    let variant = match body.get("variant") {
-        None => "normal".to_owned(),
-        Some(v) => v.as_str().unwrap_or("").to_owned(),
-    };
-    let rows = owned_rows(&mut tx, &cx.cat, cx.uid(), &ids).await?;
-    let (Some(rows), Some(target)) = (rows, target) else { return bad("Nieprawidłowy wybór kart") };
-    if !(1..=g.upgrade_max_items).contains(&rows.len()) || !g.is_variant(&variant) {
+    let rows = owned_rows(&mut tx, &cx.cat, cx.uid(), &req.ids).await?;
+    let (Some(rows), Some(target)) = (rows, cx.cat.person(&req.target).cloned()) else {
         return bad("Nieprawidłowy wybór kart");
-    }
+    };
+    let Some(variant) = g.variants.get(&req.variant).filter(|_| (1..=g.upgrade_max_items).contains(&rows.len())) else {
+        return bad("Nieprawidłowy wybór kart");
+    };
     if rows.iter().any(|r| r.favorite != 0) {
         return bad(FAV_ERROR);
     }
@@ -396,20 +521,20 @@ pub async fn upgrade(State(st): State<AppState>, Me(me): Me, body: Body) -> Res 
     if !target.forge {
         return bad("Tej karty nie ma teraz w żadnej skrzynce w sklepie — nie da się jej wytworzyć");
     }
-    if g.variants[&variant].exclusive {
-        return bad(format!("Wariant „{}” wypada tylko ze skrzynek", g.variants[&variant].name));
+    if variant.exclusive {
+        return bad(format!("Wariant „{}” wypada tylko ze skrzynek", variant.name));
     }
     let stake: i64 = rows.iter().map(|r| row_value(&cx.cat, r)).sum();
-    let goal = target.value(&variant);
+    let goal = target.value(&req.variant);
     if goal <= stake {
         return bad("Cel musi być wart więcej niż twoje karty");
     }
     let chance = g.upgrade_max.min(stake as f64 / goal as f64 * g.upgrade_edge);
-    let roll_ = random();
-    let win = roll_ < chance;
-    delete_items(&mut tx, cx.uid(), &ids).await?;
-    let (item, new) = if win {
-        let item = insert_item(&mut tx, &cx, &target.id, &variant, "upgrade").await?;
+    let roll = random();
+    let win = roll < chance;
+    delete_items(&mut tx, cx.uid(), &req.ids).await?;
+    let (item, discovered) = if win {
+        let item = insert_item(&mut tx, &cx, &target.id, &req.variant, "upgrade").await?;
         let new = note_drops(&mut tx, &cx, &drops_of(std::slice::from_ref(&item)), "upgrade").await?;
         (Some(item), new)
     } else {
@@ -419,7 +544,7 @@ pub async fn upgrade(State(st): State<AppState>, Me(me): Me, body: Body) -> Res 
     let state = get_state(&mut tx, cx.uid()).await?;
     tx.commit().await?;
     metrics::counter!("scambox_forge_total", "kind" => if win { "upgrade_won" } else { "upgrade_lost" }).increment(1);
-    ok(json!({"win": win, "chance": chance, "roll": roll_, "item": item, "consumed": ids, "discovered": new, "state": state}))
+    ok(UpgradeResponse { win, chance, roll, item, consumed: req.ids, discovered, state })
 }
 
 // ---------------------------------------------------------------- codzienna nagroda
@@ -437,30 +562,51 @@ async fn daily_streak(c: &mut Conn, uid: i64, today: NaiveDate) -> sqlx::Result<
             .await?
             .into_iter()
             .collect();
-    let (mut before, mut d) = (0, today - Duration::days(1));
-    while claimed.contains(&d.to_string()) {
-        before += 1;
-        d -= Duration::days(1);
-    }
+    let before = std::iter::successors(Some(today - Duration::days(1)), |d| Some(*d - Duration::days(1)))
+        .take_while(|d| claimed.contains(&d.to_string()))
+        .count() as i64;
     Ok((before, claimed.contains(&today.to_string())))
 }
 
-/// Dzisiejsza skrzynka w serii DAILY_STREAK dni: dzień serii 1..7 (7. = MEGA), które dni serii są już odebrane
-pub async fn daily_info(c: &mut Conn, uid: i64) -> sqlx::Result<Value> {
+#[derive(Serialize)]
+pub struct DailyDay {
+    day: i64,
+    kind: &'static str,
+    claimed: bool,
+    today: bool,
+}
+
+/// Dzisiejsza skrzynka w serii DAILY_STREAK dni (7. = MEGA) i które dni serii są już odebrane
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DailyInfo {
+    today: String,
+    pub claimable: bool,
+    days: Vec<DailyDay>,
+    today_kind: &'static str,
+    streak_day: i64,
+    streak: i64,
+    days_to_jackpot: i64,
+}
+
+pub async fn daily_info(c: &mut Conn, uid: i64) -> sqlx::Result<DailyInfo> {
     let n = g().daily_streak;
+    let kind_of = |day: i64| if day == n { "mega" } else { "daily" };
     let today = today();
     let (before, done) = daily_streak(c, uid, today).await?;
     // dzień serii, który przypada dziś (po MEGA seria liczy się od nowa)
     let pos = before % n + 1;
-    let kind = if pos == n { "mega" } else { "daily" };
-    let days: Vec<Value> = (1..=n)
-        .map(|i| {
-            json!({"day": i, "kind": if i == n { "mega" } else { "daily" }, "claimed": i < pos || (i == pos && done),
-                   "today": i == pos})
-        })
-        .collect();
-    Ok(json!({"today": today.to_string(), "claimable": !done, "days": days, "todayKind": kind, "streakDay": pos,
-              "streak": before + done as i64, "daysToJackpot": n - pos}))
+    Ok(DailyInfo {
+        today: today.to_string(),
+        claimable: !done,
+        days: (1..=n)
+            .map(|i| DailyDay { day: i, kind: kind_of(i), claimed: i < pos || (i == pos && done), today: i == pos })
+            .collect(),
+        today_kind: kind_of(pos),
+        streak_day: pos,
+        streak: before + i64::from(done),
+        days_to_jackpot: n - pos,
+    })
 }
 
 pub async fn daily(State(st): State<AppState>, Me(me): Me) -> Res {
@@ -472,8 +618,7 @@ pub async fn daily_claim(State(st): State<AppState>, Me(me): Me) -> Res {
     let cat = st.cat();
     let mut tx = st.db.begin().await?;
     lock_me(&mut tx, me.id).await?;
-    let info = daily_info(&mut tx, me.id).await?;
-    let kind = info["todayKind"].as_str().unwrap_or("daily").to_owned(); // 7. dzień serii logowań = MEGA skrzynka
+    let kind = daily_info(&mut tx, me.id).await?.today_kind; // 7. dzień serii logowań = MEGA skrzynka
     let inserted = sqlx::query!(
         "INSERT INTO daily_claims (user_id, day, amount) VALUES ($1, $2, 0) ON CONFLICT DO NOTHING",
         me.id,
@@ -490,4 +635,20 @@ pub async fn daily_claim(State(st): State<AppState>, Me(me): Me) -> Res {
     let daily = daily_info(&mut tx, me.id).await?;
     tx.commit().await?;
     ok(json!({"kind": kind, "chests": chests, "daily": daily}))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn request_defaults() {
+        let r: OpenRequest = serde_json::from_str(r#"{"crate": "pl"}"#).unwrap();
+        assert_eq!((r.crate_id.as_str(), r.count, r.use_owned), ("pl", 1, true));
+        let r: FavoriteRequest = serde_json::from_str(r#"{"ids": [1, 2]}"#).unwrap();
+        assert!(r.fav);
+        let r: UpgradeRequest = serde_json::from_str(r#"{"ids": [5], "target": "pl_walesa"}"#).unwrap();
+        assert_eq!(r.variant, "normal");
+        assert!(serde_json::from_str::<IdsRequest>(r#"{"ids": ["x"]}"#).is_err());
+    }
 }

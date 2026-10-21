@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO crate_access (user_id, crate_id) SELECT DISTINCT u, $2 FROM UNNEST($1::bigint[]) AS u ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "595a771f7abd508a29017ba2185ea00b2a3346d5b5e8b730acf0424a698379c1"
+}

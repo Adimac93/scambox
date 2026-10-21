@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO catalog_crates (id, data, deleted) VALUES ($1, $2, 0)\n                 ON CONFLICT(id) DO UPDATE SET data = excluded.data, deleted = 0",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "178d07028d4585690c7e7b195ea9d75beec2ba4207058d5b7eb7ef80da43103a"
+}

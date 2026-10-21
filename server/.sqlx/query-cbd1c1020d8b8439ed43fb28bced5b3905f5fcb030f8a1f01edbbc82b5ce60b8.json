@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE market_wanted SET status = 'cancelled', updated_at = $1 WHERE id = $2 AND buyer_id = $3 AND status = 'active'\n         RETURNING price",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "price",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Float8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "cbd1c1020d8b8439ed43fb28bced5b3905f5fcb030f8a1f01edbbc82b5ce60b8"
+}

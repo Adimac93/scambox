@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE market_offers SET status = 'lost', updated_at = $1 WHERE id = $2 AND status = 'pending'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Float8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "212fb5002b88af94032a9e3f537afbc11bc8777c9ef3a2f99c5fea9887758702"
+}

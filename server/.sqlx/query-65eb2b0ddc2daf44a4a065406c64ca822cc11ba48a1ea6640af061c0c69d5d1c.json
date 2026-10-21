@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO arena_daily (user_id, day, wins) VALUES ($1, $2, 1)\n                 ON CONFLICT (user_id, day) DO UPDATE SET wins = arena_daily.wins + 1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "65eb2b0ddc2daf44a4a065406c64ca822cc11ba48a1ea6640af061c0c69d5d1c"
+}

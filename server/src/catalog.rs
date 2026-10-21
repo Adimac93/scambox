@@ -1,29 +1,34 @@
-//! Katalog kart i skrzynek (port catalog.py).
+//! Katalog kart i skrzynek.
 //!
 //! Domyślne dane pochodzą z data/game.json. Zmiany z panelu admina są zapisane w bazie
-//! (tabele catalog_crates / catalog_cards) i nakładane na dane domyślne:
+//! (tabele catalog_crates / catalog_cards, kolumna `data` = JSON) i nakładane na dane domyślne:
 //!   - wiersz z deleted=1 ukrywa skrzynkę/kartę,
 //!   - wiersz z danymi nadpisuje pola wbudowanej skrzynki/karty albo dodaje nową.
 //!
-//! Karta może należeć do kilku skrzynek: pole "crates" (lista), "crate" to skrzynka główna
-//! (jej kod i numer są nadrukowane na karcie). Katalog jest w pamięci procesu (ArcSwap) - po zmianie
-//! w panelu admina budowany od nowa (`rebuild`), dlatego serwer działa jako jeden proces.
+//! Nakładanie odbywa się na mapach JSON (pole po polu), potem całość jest czytana do `RawCard` / `RawCrate`
+//! i sprawdzana (`Person` / `Crate`). Karta może należeć do kilku skrzynek: `crates`, `crate` to skrzynka główna
+//! (jej kod i numer są nadrukowane na karcie). Katalog jest w pamięci procesu (ArcSwap) - po zmianie w panelu
+//! admina budowany od nowa, dlatego serwer działa jako jeden proces.
 
 use std::collections::HashSet;
 use std::sync::{Arc, LazyLock};
 
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
+use serde_with::{serde_as, DefaultOnError, VecSkipError};
 
-use crate::data::{card_value, g, CRATE_FIELDS};
+use crate::data::{card_value, combine_variant, g, CRATE_FIELDS};
 use crate::db::Conn;
-use crate::py;
+use crate::lenient::Num;
+use crate::text::{clean, Truncate};
 
 pub const SUBTITLE_MAX: usize = 40; // podtytuł (krótki tekst na karcie)
 pub const DESC_MAX: usize = 1000; // opis (obok karty w podglądzie)
 static COUNTRY_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[a-z]{2}(-[a-z0-9]{1,3})?$").unwrap());
+
+// ---------------------------------------------------------------- karta i skrzynka po sprawdzeniu
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Ability {
@@ -48,15 +53,19 @@ pub struct ArenaCfg {
     pub effects: Vec<ArenaEffectCfg>,
 }
 
-#[derive(Debug, Clone)]
+/// Karta w katalogu
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Person {
     pub id: String,
     pub name: String,
+    #[serde(skip)]
     pub wiki: Option<(String, String)>,
     pub rarity: String,
+    #[serde(rename = "type")]
     pub type_: String,
     pub hp: i64,
-    pub attack: Value,
+    pub attack: Option<String>,
     pub dmg: i64,
     pub attack2: Option<String>,
     pub dmg2: i64,
@@ -64,6 +73,7 @@ pub struct Person {
     pub kind2: String,
     pub abilities: Vec<Ability>,
     pub arena: Vec<ArenaCfg>,
+    #[serde(rename = "crate")]
     pub crate_: Option<String>,
     pub crates: Vec<String>,
     pub number: i64,
@@ -75,7 +85,9 @@ pub struct Person {
     pub style: Option<i64>,
     pub subtitle: String,
     pub desc: String,
+    #[serde(skip)]
     pub builtin: bool,
+    #[serde(skip)]
     pub modified: bool,
 }
 
@@ -93,55 +105,24 @@ impl Person {
         self.rarity == "secret"
     }
 
-    pub fn fixed(&self) -> String {
-        self.fixed_variant.clone().unwrap_or_else(|| "normal".into())
-    }
-
-    /// Wszystkie pola karty (jak słownik karty w Pythonie) - do wyboru kluczy w odpowiedziach
-    pub fn to_map(&self) -> Map<String, Value> {
-        let mut m = Map::new();
-        m.insert("id".into(), json!(self.id));
-        m.insert("name".into(), json!(self.name));
-        m.insert("wiki".into(), self.wiki.as_ref().map(|(l, t)| json!([l, t])).unwrap_or(Value::Null));
-        m.insert("rarity".into(), json!(self.rarity));
-        m.insert("type".into(), json!(self.type_));
-        m.insert("hp".into(), json!(self.hp));
-        m.insert("attack".into(), self.attack.clone());
-        m.insert("dmg".into(), json!(self.dmg));
-        m.insert("attack2".into(), json!(self.attack2));
-        m.insert("dmg2".into(), json!(self.dmg2));
-        m.insert("kind1".into(), json!(self.kind1));
-        m.insert("kind2".into(), json!(self.kind2));
-        m.insert("abilities".into(), json!(self.abilities));
-        m.insert("arena".into(), json!(self.arena));
-        m.insert("crate".into(), json!(self.crate_));
-        m.insert("crates".into(), json!(self.crates));
-        m.insert("number".into(), json!(self.number));
-        m.insert("valueMult".into(), json!(self.value_mult));
-        m.insert("country".into(), json!(self.country));
-        m.insert("forge".into(), json!(self.forge));
-        m.insert("source".into(), json!(self.source));
-        m.insert("fixedVariant".into(), json!(self.fixed_variant));
-        m.insert("style".into(), json!(self.style));
-        m.insert("subtitle".into(), json!(self.subtitle));
-        m.insert("desc".into(), json!(self.desc));
-        m.insert("builtin".into(), json!(self.builtin));
-        m.insert("modified".into(), json!(self.modified));
-        m
+    /// Jedyny wariant karty specjalnej
+    pub fn fixed(&self) -> &str {
+        self.fixed_variant.as_deref().unwrap_or("normal")
     }
 }
 
+/// Skrzynka w katalogu
 #[derive(Debug, Clone)]
 pub struct Crate {
     pub id: String,
     pub name: String,
-    pub short: Value,
-    pub code: Value,
+    pub short: String,
+    pub code: String,
     pub emoji: String,
-    pub color1: Value,
-    pub color2: Value,
+    pub color1: String,
+    pub color2: String,
     pub price: i64,
-    pub desc: Value,
+    pub desc: String,
     pub shop: bool,
     pub restricted: bool,
     pub special: bool,
@@ -157,48 +138,175 @@ pub struct Crate {
 impl Crate {
     /// Szansa (waga) rzadkości w danej skrzynce - własna albo domyślna
     pub fn weight(&self, rarity: &str) -> f64 {
-        self.weights.get(rarity).copied().unwrap_or_else(|| g().rarities.get(rarity).map(|r| r.weight).unwrap_or(0.0))
+        self.weights.get(rarity).copied().unwrap_or_else(|| default_weight(rarity))
     }
+}
+
+pub fn default_weight(rarity: &str) -> f64 {
+    g().rarities.get(rarity).map_or(0.0, |r| r.weight)
 }
 
 #[derive(Default)]
 pub struct Catalog {
     pub crates: IndexMap<String, Crate>,
     pub people: IndexMap<String, Arc<Person>>,
-    /// wbudowane, ukryte przez admina (surowe dane, jak w Pythonie)
-    pub hidden_crates: IndexMap<String, Map<String, Value>>,
-    pub hidden_cards: IndexMap<String, Map<String, Value>>,
+    /// wbudowane, ukryte przez admina (do przywrócenia w panelu)
+    pub hidden_crates: IndexMap<String, RawCrate>,
+    pub hidden_cards: IndexMap<String, RawCard>,
 }
 
-// ---------------------------------------------------------------- czyszczenie pól z panelu admina
+// ---------------------------------------------------------------- dane z panelu admina (przed sprawdzeniem)
 
-fn clamp_int(v: Option<&Value>, lo: i64, hi: i64) -> Option<i64> {
-    v.and_then(py::int).map(|x| x.clamp(lo, hi))
+#[serde_as]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct RawAbility {
+    #[serde_as(as = "DefaultOnError")]
+    pub name: String,
+    #[serde_as(as = "DefaultOnError")]
+    pub kind: Option<String>,
+    #[serde_as(as = "DefaultOnError<Num>")]
+    pub value: i64,
 }
 
-/// Dodatkowe zdolności karty: [{"name", "kind": off/def/heal/eco, "value"}], najwyżej MAX_EXTRA_ABILITIES
-pub fn clean_abilities(raw: Option<&Value>) -> Vec<Ability> {
-    let mut out = vec![];
-    for a in raw.and_then(Value::as_array).into_iter().flatten() {
-        let Some(a) = a.as_object() else { continue };
-        let name = py::cut(py::str_or_empty(a.get("name")).trim(), 40);
-        if name.is_empty() {
-            continue;
-        }
-        let value = match a.get("value") {
-            Some(v) if py::truthy(v) => py::int(v).map(|x| x.clamp(0, 9999)).unwrap_or(0),
-            _ => 0,
-        };
-        let kind = a.get("kind").and_then(Value::as_str).filter(|k| g().ability_kinds.get(*k).is_some());
-        out.push(Ability { name, kind: kind.unwrap_or("off").into(), value });
-    }
-    out.truncate(g().max_extra_abilities);
-    out
+#[serde_as]
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct RawEffect {
+    pub id: String,
+    #[serde_as(as = "DefaultOnError<Num>")]
+    pub value: i64,
+    #[serde_as(as = "DefaultOnError<Option<Num>>")]
+    pub turns: Option<i64>,
+    #[serde_as(as = "DefaultOnError")]
+    pub target: Option<String>,
+}
+
+#[serde_as]
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct RawArenaCfg {
+    #[serde_as(as = "DefaultOnError")]
+    pub visual: Option<String>,
+    /// liczba albo "auto" / "" / null = koszt z wartości zdolności
+    #[serde_as(as = "DefaultOnError<Option<Num>>")]
+    pub cost: Option<i64>,
+    #[serde_as(as = "DefaultOnError")]
+    pub target: Option<String>,
+    #[serde_as(as = "DefaultOnError<VecSkipError<_>>")]
+    pub effects: Vec<RawEffect>,
+}
+
+/// Karta z data/game.json z nałożonymi zmianami admina
+#[serde_as]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct RawCard {
+    #[serde_as(as = "DefaultOnError")]
+    pub name: String,
+    #[serde_as(as = "DefaultOnError")]
+    pub wiki: Option<(String, String)>,
+    #[serde_as(as = "DefaultOnError")]
+    pub rarity: Option<String>,
+    #[serde(rename = "type")]
+    #[serde_as(as = "DefaultOnError")]
+    pub type_: Option<String>,
+    #[serde_as(as = "DefaultOnError<Num>")]
+    pub hp: i64,
+    #[serde_as(as = "DefaultOnError")]
+    pub attack: Option<String>,
+    #[serde_as(as = "DefaultOnError<Num>")]
+    pub dmg: i64,
+    #[serde_as(as = "DefaultOnError")]
+    pub attack2: Option<String>,
+    #[serde_as(as = "DefaultOnError<Num>")]
+    pub dmg2: i64,
+    #[serde_as(as = "DefaultOnError")]
+    pub kind1: Option<String>,
+    #[serde_as(as = "DefaultOnError")]
+    pub kind2: Option<String>,
+    #[serde_as(as = "DefaultOnError<VecSkipError<_>>")]
+    pub abilities: Vec<RawAbility>,
+    #[serde(skip_serializing)]
+    #[serde_as(as = "DefaultOnError<Vec<DefaultOnError>>")]
+    pub arena: Vec<RawArenaCfg>,
+    #[serde(rename = "crate")]
+    #[serde_as(as = "DefaultOnError")]
+    pub crate_: Option<String>,
+    #[serde_as(as = "DefaultOnError<VecSkipError<_>>")]
+    pub crates: Vec<String>,
+    #[serde_as(as = "DefaultOnError")]
+    pub country: Option<String>,
+    #[serde_as(as = "DefaultOnError")]
+    pub subtitle: Option<String>,
+    #[serde_as(as = "DefaultOnError")]
+    pub desc: Option<String>,
+    #[serde_as(as = "DefaultOnError")]
+    pub source: Option<String>,
+    #[serde_as(as = "DefaultOnError")]
+    pub fixed_variant: Option<String>,
+    #[serde_as(as = "DefaultOnError<Option<Num>>")]
+    pub style: Option<i64>,
+    pub builtin: bool,
+    pub modified: bool,
+}
+
+/// Skrzynka z data/game.json z nałożonymi zmianami admina
+#[serde_as]
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct RawCrate {
+    #[serde_as(as = "DefaultOnError")]
+    pub name: String,
+    #[serde_as(as = "DefaultOnError")]
+    pub short: String,
+    #[serde_as(as = "DefaultOnError")]
+    pub code: String,
+    #[serde_as(as = "DefaultOnError")]
+    pub emoji: String,
+    #[serde_as(as = "DefaultOnError")]
+    pub color1: String,
+    #[serde_as(as = "DefaultOnError")]
+    pub color2: String,
+    #[serde_as(as = "DefaultOnError<Option<Num>>")]
+    pub price: Option<i64>,
+    #[serde_as(as = "DefaultOnError")]
+    pub desc: String,
+    #[serde_as(as = "DefaultOnError")]
+    pub shop: Option<bool>,
+    #[serde_as(as = "DefaultOnError")]
+    pub restricted: Option<bool>,
+    /// None = admin nie wybierał (domyślne warianty z DEFAULT_CRATE_VARIANTS)
+    #[serde_as(as = "DefaultOnError<Option<VecSkipError<_>>>")]
+    pub variants: Option<Vec<String>>,
+    #[serde_as(as = "DefaultOnError<IndexMap<_, DefaultOnError<Num>>>")]
+    pub weights: IndexMap<String, f64>,
+    pub builtin: bool,
+    pub modified: bool,
+}
+
+fn raw<T: Default + serde::de::DeserializeOwned>(m: Map<String, Value>) -> T {
+    serde_json::from_value(Value::Object(m)).unwrap_or_default()
+}
+
+// ---------------------------------------------------------------- sprawdzanie pól z panelu admina
+
+/// Dodatkowe zdolności karty (najwyżej MAX_EXTRA_ABILITIES): bez pustych nazw, rodzaj off/def/heal/eco
+pub fn clean_abilities(raw: &[RawAbility]) -> Vec<Ability> {
+    let g = g();
+    raw.iter()
+        .filter_map(|a| {
+            let name = clean(&a.name, 40);
+            let kind = a.kind.as_deref().filter(|k| g.ability_kinds.get(*k).is_some()).unwrap_or("off");
+            (!name.is_empty()).then(|| Ability { name, kind: kind.into(), value: a.value.clamp(0, 9999) })
+        })
+        .take(g.max_extra_abilities)
+        .collect()
 }
 
 /// Kod kraju karty (do wariantu flagowego): "PL" -> "pl"; nieprawidłowy -> ""
-pub fn clean_country(raw: Option<&Value>) -> String {
-    let code = py::str_or_empty(raw).trim().to_lowercase().replace('_', "-");
+pub fn clean_country(raw: &str) -> String {
+    let code = raw.trim().to_lowercase().replace('_', "-");
     if COUNTRY_RE.is_match(&code) {
         code
     } else {
@@ -207,46 +315,29 @@ pub fn clean_country(raw: Option<&Value>) -> String {
 }
 
 /// Ustawienia zdolności w Arenie - po jednym na zdolność (1., 2., dodatkowe), w tej samej kolejności
-pub fn clean_arena(raw: Option<&Value>) -> Vec<ArenaCfg> {
+pub fn clean_arena(raw: &[RawArenaCfg]) -> Vec<ArenaCfg> {
     let g = g();
-    let mut out = vec![];
-    let list = raw.and_then(Value::as_array).cloned().unwrap_or_default();
-    for cfg in list.iter().take(2 + g.max_extra_abilities) {
-        let empty = Map::new();
-        let cfg = cfg.as_object().unwrap_or(&empty);
-        let mut effects = vec![];
-        let raw_effects = cfg.get("effects").and_then(Value::as_array).cloned().unwrap_or_default();
-        for e in raw_effects.iter().take(g.max_ability_effects) {
-            let Some(e) = e.as_object() else { continue };
-            let Some(id) = e.get("id").and_then(Value::as_str).filter(|id| g.arena_effects.contains_key(*id)) else {
-                continue;
-            };
-            let target = e.get("target").and_then(Value::as_str).filter(|t| g.arena_effect_targets.get(*t).is_some());
-            effects.push(ArenaEffectCfg {
-                id: id.into(),
-                value: clamp_int(e.get("value"), 0, 9999).unwrap_or(0),
-                turns: clamp_int(e.get("turns"), 1, 9).unwrap_or(1),
-                target: target.unwrap_or("target").into(),
-            });
-        }
-        let cost = match cfg.get("cost") {
-            None | Some(Value::Null) => None,
-            Some(Value::String(s)) if s.is_empty() || s == "auto" => None,
-            Some(v) => clamp_int(Some(v), 0, 10),
-        };
-        out.push(ArenaCfg {
-            visual: cfg
-                .get("visual")
-                .and_then(Value::as_str)
-                .filter(|v| g.arena_visuals.get(*v).is_some())
-                .unwrap_or("hit")
-                .into(),
-            cost,
-            target: cfg.get("target").and_then(Value::as_str).filter(|t| g.arena_targets.get(*t).is_some()).map(str::to_owned),
-            effects,
-        });
-    }
-    out
+    let valid = |v: &Option<String>, set: &Value| v.as_deref().filter(|x| set.get(*x).is_some()).map(str::to_owned);
+    raw.iter()
+        .take(2 + g.max_extra_abilities)
+        .map(|cfg| ArenaCfg {
+            visual: valid(&cfg.visual, &g.arena_visuals).unwrap_or_else(|| "hit".into()),
+            cost: cfg.cost.map(|c| c.clamp(0, 10)),
+            target: valid(&cfg.target, &g.arena_targets),
+            effects: cfg
+                .effects
+                .iter()
+                .take(g.max_ability_effects)
+                .filter(|e| g.arena_effects.contains_key(&e.id))
+                .map(|e| ArenaEffectCfg {
+                    id: e.id.clone(),
+                    value: e.value.clamp(0, 9999),
+                    turns: e.turns.map_or(1, |t| t.clamp(1, 9)),
+                    target: valid(&e.target, &g.arena_effect_targets).unwrap_or_else(|| "target".into()),
+                })
+                .collect(),
+        })
+        .collect()
 }
 
 // ---------------------------------------------------------------- dane wbudowane
@@ -259,82 +350,150 @@ pub fn builtin_crate(cid: &str) -> Option<Map<String, Value>> {
 
 /// Wbudowana karta (z "crate" i "crates") albo None
 pub fn builtin_card(pid: &str) -> Option<Map<String, Value>> {
-    for (cid, c) in &g().crates {
-        for p in &c.people {
-            if p.get("id").and_then(Value::as_str) == Some(pid) {
-                let mut crates = vec![cid.clone()];
-                crates.extend(
-                    g().crates.iter().filter(|(x, cc)| *x != cid && cc.shared.iter().any(|s| s == pid)).map(|(x, _)| x.clone()),
-                );
-                let mut m = p.clone();
-                m.insert("crate".into(), json!(cid));
-                m.insert("crates".into(), json!(crates));
-                return Some(m);
-            }
-        }
-    }
-    None
+    let g = g();
+    let (cid, p) = g
+        .crates
+        .iter()
+        .find_map(|(cid, c)| c.people.iter().find(|p| p.get("id").and_then(Value::as_str) == Some(pid)).map(|p| (cid, p)))?;
+    let crates: Vec<&String> = std::iter::once(cid)
+        .chain(g.crates.iter().filter(|(x, c)| *x != cid && c.shared.iter().any(|s| s == pid)).map(|(x, _)| x))
+        .collect();
+    let mut m = p.clone();
+    m.insert("crate".into(), json!(cid));
+    m.insert("crates".into(), json!(crates));
+    Some(m)
 }
 
-fn s(m: &Map<String, Value>, k: &str) -> Option<String> {
-    m.get(k).and_then(Value::as_str).map(str::to_owned)
-}
-
-fn strings(v: Option<&Value>) -> Vec<String> {
+fn string_list(v: Option<&Value>) -> Vec<String> {
     v.and_then(Value::as_array).map(|a| a.iter().filter_map(|x| x.as_str().map(str::to_owned)).collect()).unwrap_or_default()
 }
 
-fn dedup(v: Vec<String>) -> Vec<String> {
-    let mut seen = HashSet::new();
-    v.into_iter().filter(|x| seen.insert(x.clone())).collect()
-}
+/// Wiersz zmian admina: (id, dane, ukryty)
+pub type OverrideRow = (String, Map<String, Value>, bool);
 
-/// Odczyt zmian admina i złożenie katalogu (catalog.rebuild z Pythona)
+/// Odczyt zmian admina i złożenie katalogu
 pub async fn load(c: &mut Conn) -> anyhow::Result<Catalog> {
     // bez ORDER BY - kolejność skrzynek w sklepie jak w wersji Python (kolejność w tabeli)
     let crate_rows = sqlx::query!("SELECT id, data, deleted FROM catalog_crates").fetch_all(&mut *c).await?;
     let card_rows = sqlx::query!("SELECT id, data, deleted FROM catalog_cards").fetch_all(&mut *c).await?;
-    let parse = |data: &str| -> Map<String, Value> {
-        serde_json::from_str::<Value>(if data.is_empty() { "{}" } else { data })
-            .ok()
-            .and_then(|v| v.as_object().cloned())
-            .unwrap_or_default()
-    };
-    let crates: Vec<_> = crate_rows.into_iter().map(|r| (r.id, parse(&r.data), r.deleted != 0)).collect();
-    let cards: Vec<_> = card_rows.into_iter().map(|r| (r.id, parse(&r.data), r.deleted != 0)).collect();
+    let parse = |data: &str| -> Map<String, Value> { serde_json::from_str(data).unwrap_or_default() };
+    let crates: Vec<OverrideRow> = crate_rows.into_iter().map(|r| (r.id, parse(&r.data), r.deleted != 0)).collect();
+    let cards: Vec<OverrideRow> = card_rows.into_iter().map(|r| (r.id, parse(&r.data), r.deleted != 0)).collect();
     Ok(build(&crates, &cards))
 }
 
-pub fn build(crate_rows: &[(String, Map<String, Value>, bool)], card_rows: &[(String, Map<String, Value>, bool)]) -> Catalog {
+/// Dane wbudowane + zmiany admina -> katalog
+pub fn build(crate_rows: &[OverrideRow], card_rows: &[OverrideRow]) -> Catalog {
+    let g = g();
+    let (crates, hidden_crates) = merge_crates(crate_rows);
+    let (people, hidden_cards) = merge_cards(card_rows);
+
+    // ---- karty: pola sprawdzone
+    let mut persons: IndexMap<String, Person> =
+        people.into_iter().map(|(pid, p)| (pid.clone(), check_card(pid, p, &crates))).collect();
+
+    // ---- skrzynki: lista kart (numery), cena, warianty, szanse
+    let mut out_crates: IndexMap<String, Crate> = IndexMap::new();
+    let mut final_ids: IndexSet<String> = IndexSet::new();
+    for (cid, c) in crates {
+        let mut members: Vec<&Person> = persons.values().filter(|p| p.crates.contains(&cid)).collect();
+        members.sort_by(|a, b| g.rarity_idx(&b.rarity).cmp(&g.rarity_idx(&a.rarity)).then_with(|| a.name.cmp(&b.name)));
+        let present: HashSet<String> = members.iter().map(|p| p.rarity.clone()).collect();
+        let member_ids: Vec<String> = members.iter().map(|p| p.id.clone()).collect();
+        final_ids.extend(member_ids.iter().cloned());
+        let cr = check_crate(&cid, c, &present, member_ids);
+        // numer karty na skrzynce głównej
+        for (n, id) in cr.people.iter().enumerate() {
+            if let Some(p) = persons.get_mut(id).filter(|p| p.crate_.as_deref() == Some(cid.as_str())) {
+                p.number = n as i64 + 1;
+            }
+        }
+        out_crates.insert(cid, cr);
+    }
+
+    // wartość karty rośnie z ceną NAJTAŃSZEJ skrzynki, w której można ją zdobyć; kuźnia i kasyno: tylko karty
+    // ze skrzynek, które są teraz w sklepie
+    let people = final_ids
+        .into_iter()
+        .filter_map(|id| {
+            let mut p = persons.swap_remove(&id)?;
+            let cheapest = p.crates.iter().map(|c| out_crates[c].price).min().unwrap_or(g.crate_price);
+            p.value_mult = (cheapest as f64 / g.crate_price as f64).max(1.0);
+            p.forge = p.crates.iter().any(|c| out_crates[c].shop);
+            Some((id, Arc::new(p)))
+        })
+        .collect();
+
+    Catalog { crates: out_crates, people, hidden_crates, hidden_cards }
+}
+
+/// Skrzynki: wbudowane + zmiany admina (szanse łączone z domyślnymi), ukryte osobno
+fn merge_crates(rows: &[OverrideRow]) -> (IndexMap<String, RawCrate>, IndexMap<String, RawCrate>) {
     let g = g();
     let mut crates: IndexMap<String, Map<String, Value>> = IndexMap::new();
-    let mut people: IndexMap<String, Map<String, Value>> = IndexMap::new();
-    let mut hidden_crates = IndexMap::new();
-    let mut hidden_cards = IndexMap::new();
-
-    for (cid, c) in &g.crates {
+    for cid in g.crates.keys() {
         let mut m = Map::new();
         m.insert("shop".into(), json!(true));
         m.insert("restricted".into(), json!(false));
         m.insert("weights".into(), json!({}));
         m.extend(builtin_crate(cid).unwrap_or_default());
-        m.insert("id".into(), json!(cid));
         m.insert("builtin".into(), json!(true));
-        m.insert("modified".into(), json!(false));
         crates.insert(cid.clone(), m);
+    }
+    let mut hidden = IndexMap::new();
+    for (cid, d, deleted) in rows {
+        if *deleted {
+            if let Some(c) = crates.shift_remove(cid) {
+                hidden.insert(cid.clone(), raw(c));
+            }
+            continue;
+        }
+        match crates.get_mut(cid) {
+            Some(cur) => {
+                // szanse: zmiany admina + domyślne
+                let mut weights = cur.get("weights").and_then(Value::as_object).cloned().unwrap_or_default();
+                if let Some(w) = d.get("weights").and_then(Value::as_object) {
+                    weights.extend(w.clone());
+                }
+                cur.extend(d.clone());
+                cur.insert("weights".into(), Value::Object(weights));
+                cur.insert("modified".into(), json!(true));
+            }
+            None => {
+                let mut m = Map::new();
+                m.insert("name".into(), json!(cid));
+                m.insert("short".into(), json!(cid));
+                m.insert("code".into(), json!(cid.truncate_chars(2).to_uppercase()));
+                m.insert("emoji".into(), json!("📦"));
+                m.insert("color1".into(), json!("#888888"));
+                m.insert("color2".into(), json!("#333333"));
+                m.extend(d.clone());
+                m.insert("builtin".into(), json!(false));
+                m.insert("modified".into(), json!(false));
+                crates.insert(cid.clone(), m);
+            }
+        }
+    }
+    (crates.into_iter().map(|(k, v)| (k, raw(v))).collect(), hidden)
+}
+
+/// Karty: wbudowane + zmiany admina (lista skrzynek uzupełniana o skrzynki dodane później), ukryte osobno
+fn merge_cards(rows: &[OverrideRow]) -> (IndexMap<String, RawCard>, IndexMap<String, RawCard>) {
+    let g = g();
+    let mut people: IndexMap<String, Map<String, Value>> = IndexMap::new();
+    for (cid, c) in &g.crates {
         for p in &c.people {
             let mut pm = p.clone();
             pm.insert("crate".into(), json!(cid));
             pm.insert("crates".into(), json!([cid]));
             pm.insert("builtin".into(), json!(true));
-            pm.insert("modified".into(), json!(false));
-            people.insert(s(p, "id").unwrap_or_default(), pm);
+            people.insert(p.get("id").and_then(Value::as_str).unwrap_or_default().to_owned(), pm);
         }
     }
     for (cid, c) in &g.crates {
         for pid in &c.shared {
             if let Some(p) = people.get_mut(pid) {
-                let mut list = strings(p.get("crates"));
+                let mut list = string_list(p.get("crates"));
                 if !list.contains(cid) {
                     list.push(cid.clone());
                     p.insert("crates".into(), json!(list));
@@ -342,234 +501,139 @@ pub fn build(crate_rows: &[(String, Map<String, Value>, bool)], card_rows: &[(St
             }
         }
     }
-
-    for (cid, d, deleted) in crate_rows {
-        if *deleted {
-            if let Some(c) = crates.shift_remove(cid) {
-                hidden_crates.insert(cid.clone(), c);
-            }
-            continue;
-        }
-        if let Some(cur) = crates.get_mut(cid) {
-            // szanse: zmiany admina + domyślne
-            let mut merged = cur.get("weights").and_then(Value::as_object).cloned().unwrap_or_default();
-            if let Some(w) = d.get("weights").and_then(Value::as_object) {
-                merged.extend(w.clone());
-            }
-            cur.extend(d.clone());
-            cur.insert("weights".into(), Value::Object(merged));
-            cur.insert("modified".into(), json!(true));
-        } else {
-            let mut m = Map::new();
-            m.insert("name".into(), json!(cid));
-            m.insert("short".into(), json!(cid));
-            m.insert("code".into(), json!(py::cut(cid, 2).to_uppercase()));
-            m.insert("emoji".into(), json!("📦"));
-            m.insert("color1".into(), json!("#888888"));
-            m.insert("color2".into(), json!("#333333"));
-            m.insert("price".into(), json!(g.crate_price));
-            m.insert("desc".into(), json!(""));
-            m.insert("shop".into(), json!(true));
-            m.insert("restricted".into(), json!(false));
-            m.insert("weights".into(), json!({}));
-            m.extend(d.clone());
-            m.insert("id".into(), json!(cid));
-            m.insert("builtin".into(), json!(false));
-            m.insert("modified".into(), json!(false));
-            crates.insert(cid.clone(), m);
-        }
-    }
-
-    let all_builtin: HashSet<&String> = g.crates.keys().collect();
-    for (pid, d, deleted) in card_rows {
+    let mut hidden = IndexMap::new();
+    for (pid, d, deleted) in rows {
         if *deleted {
             if let Some(p) = people.shift_remove(pid) {
-                hidden_cards.insert(pid.clone(), p);
+                hidden.insert(pid.clone(), raw(p));
             }
             continue;
         }
-        if let Some(cur) = people.get_mut(pid) {
-            let old_crates = strings(cur.get("crates"));
-            cur.extend(d.clone());
-            cur.insert("modified".into(), json!(true));
-            if !d.contains_key("crates") && d.contains_key("crate") {
-                // starszy zapis z jedną skrzynką - zachowaj pozostałe
-                let main = s(d, "crate").unwrap_or_default();
-                let mut list = vec![main.clone()];
-                list.extend(old_crates.into_iter().filter(|c| *c != main));
-                cur.insert("crates".into(), json!(list));
-            } else if d.contains_key("crates") {
-                // skrzynki dodane w kodzie PO zapisaniu karty w panelu dopisujemy; skrzynki, które już istniały
-                // i admin je odznaczył ("crates_seen"), zostają odznaczone
-                let seen: HashSet<String> = match d.get("crates_seen") {
-                    Some(v) if py::truthy(v) => strings(Some(v)).into_iter().collect(),
-                    _ => all_builtin.iter().filter(|c| !g.crates_added_later.contains(**c)).map(|c| (*c).clone()).collect(),
-                };
-                let chosen = strings(d.get("crates"));
-                let mut list = chosen.clone();
-                list.extend(old_crates.into_iter().filter(|c| !seen.contains(c) && !chosen.contains(c)));
-                cur.insert("crates".into(), json!(list));
+        match people.get_mut(pid) {
+            Some(cur) => {
+                let old_crates = string_list(cur.get("crates"));
+                cur.extend(d.clone());
+                cur.insert("modified".into(), json!(true));
+                if let Some(chosen) = d.get("crates") {
+                    // skrzynki dodane w kodzie PO zapisaniu karty w panelu dopisujemy; skrzynki, które już istniały
+                    // i admin je odznaczył ("crates_seen"), zostają odznaczone
+                    let seen: HashSet<String> = match d.get("crates_seen").map(|v| string_list(Some(v))) {
+                        Some(list) if !list.is_empty() => list.into_iter().collect(),
+                        _ => g.crates.keys().filter(|c| !g.crates_added_later.contains(*c)).cloned().collect(),
+                    };
+                    let chosen = string_list(Some(chosen));
+                    let added = old_crates.into_iter().filter(|c| !seen.contains(c) && !chosen.contains(c));
+                    let list: Vec<String> = chosen.iter().cloned().chain(added).collect();
+                    cur.insert("crates".into(), json!(list));
+                } else if let Some(main) = d.get("crate").and_then(Value::as_str) {
+                    // starszy zapis z jedną skrzynką - zachowaj pozostałe
+                    let list: Vec<String> =
+                        std::iter::once(main.to_owned()).chain(old_crates.into_iter().filter(|c| c != main)).collect();
+                    cur.insert("crates".into(), json!(list));
+                }
             }
-        } else {
-            let mut m = d.clone();
-            m.insert("id".into(), json!(pid));
-            m.insert("builtin".into(), json!(false));
-            m.insert("modified".into(), json!(false));
-            if !m.contains_key("crates") {
-                m.insert("crates".into(), json!([d.get("crate").cloned().unwrap_or(Value::Null)]));
+            None => {
+                let mut m = d.clone();
+                m.insert("builtin".into(), json!(false));
+                m.insert("modified".into(), json!(false));
+                if !m.contains_key("crates") {
+                    m.insert("crates".into(), json!([d.get("crate")]));
+                }
+                people.insert(pid.clone(), m);
             }
-            people.insert(pid.clone(), m);
         }
     }
+    (people.into_iter().map(|(k, v)| (k, raw(v))).collect(), hidden)
+}
 
-    // ---- karty: pola znormalizowane jak w catalog.rebuild
-    let mut persons: IndexMap<String, Person> = IndexMap::new();
-    for (pid, p) in &people {
-        let wiki = p.get("wiki").and_then(Value::as_array).and_then(|w| {
-            let l = w.first()?.as_str()?.to_owned();
-            let t = w.get(1)?.as_str()?.to_owned();
-            Some((l, t))
+fn check_card(id: String, p: RawCard, crates: &IndexMap<String, RawCrate>) -> Person {
+    let g = g();
+    let rarity = p.rarity.filter(|r| g.rarities.contains_key(r)).unwrap_or_else(|| "green".into());
+    let kind = |k: Option<String>| k.filter(|x| g.ability_kinds.get(x).is_some()).unwrap_or_else(|| "off".into());
+    let attack2 = p.attack2.as_deref().map(str::trim).filter(|a| !a.is_empty()).map(str::to_owned);
+    let crates: Vec<String> =
+        p.crates.into_iter().filter(|c| crates.contains_key(c)).collect::<IndexSet<_>>().into_iter().collect();
+    // karta specjalna: skąd (kasyno / link), jedyny wariant i wygląd
+    let (source, fixed_variant, style) = if rarity == "special" {
+        let source = p.source.filter(|x| g.special_sources.contains_key(x)).unwrap_or_else(|| "casino".into());
+        let fixed = p.fixed_variant.filter(|x| g.special_variants.contains(x)).unwrap_or_else(|| {
+            if source == "link" {
+                "jeans".into()
+            } else {
+                "joker".into()
+            }
         });
-        let num = |k: &str| match p.get(k) {
-            Some(v) if py::truthy(v) => py::int(v).unwrap_or(0),
-            _ => 0,
-        };
-        let attack2 = Some(py::str_or_empty(p.get("attack2")).trim().to_owned()).filter(|a| !a.is_empty());
-        let kind = |k: &str| p.get(k).and_then(Value::as_str).filter(|x| g.ability_kinds.get(*x).is_some()).map(str::to_owned);
-        let rarity = s(p, "rarity").filter(|r| g.rarities.contains_key(r)).unwrap_or_else(|| "green".into());
-        let crates_list: Vec<String> = dedup(strings(p.get("crates"))).into_iter().filter(|c| crates.contains_key(c)).collect();
-        let (source, fixed_variant, style) = if rarity == "special" {
-            let source = s(p, "source").filter(|x| g.special_sources.contains_key(x)).unwrap_or_else(|| "casino".into());
-            let fixed = s(p, "fixedVariant").filter(|x| g.special_variants.contains(x)).unwrap_or_else(|| {
-                if source == "link" {
-                    "jeans".into()
-                } else {
-                    "joker".into()
-                }
-            });
-            let styles = g.variants.get(&fixed).map(|v| v.styles.len()).filter(|n| *n > 0).unwrap_or(1) as i64;
-            let style = clamp_int(p.get("style"), 1, styles).unwrap_or(1);
-            (Some(source), Some(fixed), Some(style))
-        } else {
-            (None, None, None)
-        };
-        persons.insert(
-            pid.clone(),
-            Person {
-                id: pid.clone(),
-                name: s(p, "name").unwrap_or_default(),
-                wiki,
-                rarity,
-                type_: s(p, "type").filter(|t| g.types.contains_key(t)).unwrap_or_else(|| "tv".into()),
-                hp: num("hp"),
-                attack: p.get("attack").cloned().unwrap_or(Value::Null),
-                dmg: num("dmg"),
-                dmg2: if attack2.is_some() { num("dmg2") } else { 0 },
-                kind2: if attack2.is_some() { kind("kind2") } else { None }.unwrap_or_else(|| "off".into()),
-                attack2,
-                kind1: kind("kind1").unwrap_or_else(|| "off".into()),
-                abilities: clean_abilities(p.get("abilities")),
-                arena: clean_arena(p.get("arena")),
-                crate_: crates_list.first().cloned(),
-                crates: crates_list,
-                number: 0,
-                value_mult: 1.0,
-                country: clean_country(p.get("country")),
-                forge: false,
-                source,
-                fixed_variant,
-                style,
-                subtitle: py::cut(py::str_or_empty(p.get("subtitle")).trim(), SUBTITLE_MAX),
-                desc: py::cut(py::str_or_empty(p.get("desc")).trim(), DESC_MAX),
-                builtin: p.get("builtin").and_then(Value::as_bool).unwrap_or(false),
-                modified: p.get("modified").and_then(Value::as_bool).unwrap_or(false),
-            },
-        );
+        let styles = g.variants.get(&fixed).map_or(0, |v| v.styles.len()).max(1) as i64;
+        let style = p.style.map_or(1, |s| s.clamp(1, styles));
+        (Some(source), Some(fixed), Some(style))
+    } else {
+        (None, None, None)
+    };
+    Person {
+        id,
+        name: p.name,
+        wiki: p.wiki,
+        type_: p.type_.filter(|t| g.types.contains_key(t)).unwrap_or_else(|| "tv".into()),
+        hp: p.hp,
+        attack: p.attack,
+        dmg: p.dmg,
+        dmg2: if attack2.is_some() { p.dmg2 } else { 0 },
+        kind2: if attack2.is_some() { kind(p.kind2) } else { "off".into() },
+        attack2,
+        kind1: kind(p.kind1),
+        abilities: clean_abilities(&p.abilities),
+        arena: clean_arena(&p.arena),
+        crate_: crates.first().cloned(),
+        crates,
+        rarity,
+        number: 0,
+        value_mult: 1.0,
+        country: clean_country(p.country.as_deref().unwrap_or_default()),
+        forge: false,
+        source,
+        fixed_variant,
+        style,
+        subtitle: clean(p.subtitle.as_deref().unwrap_or_default(), SUBTITLE_MAX),
+        desc: clean(p.desc.as_deref().unwrap_or_default(), DESC_MAX),
+        builtin: p.builtin,
+        modified: p.modified,
     }
+}
 
-    // ---- skrzynki: lista kart (numery), cena, warianty, szanse
-    let mut out_crates: IndexMap<String, Crate> = IndexMap::new();
-    let mut final_ids: IndexMap<String, ()> = IndexMap::new();
-    for (cid, c) in &crates {
-        let mut members: Vec<&Person> = persons.values().filter(|p| p.crates.contains(cid)).collect();
-        members.sort_by(|a, b| g.rarity_idx(&b.rarity).cmp(&g.rarity_idx(&a.rarity)).then_with(|| a.name.cmp(&b.name)));
-        let member_ids: Vec<String> = members.iter().map(|p| p.id.clone()).collect();
-        for id in &member_ids {
-            final_ids.insert(id.clone(), ());
-        }
-        let price = match c.get("price") {
-            Some(v) if py::truthy(v) => py::int(v).unwrap_or(g.crate_price),
-            _ => g.crate_price,
-        }
-        .max(1);
-        // skrzynka kart specjalnych: nigdy w sklepie, nie da się jej kupić ani otworzyć
-        let special = g.crates.get(cid).map(|b| b.special).unwrap_or(false);
-        let shop = c.get("shop").map(py::truthy).unwrap_or(true) && !special;
-        let restricted = c.get("restricted").map(py::truthy).unwrap_or(false);
-        // warianty wyjątkowe - tylko te, które admin włączył (albo domyślne)
-        let chosen: Vec<String> = if c.contains_key("variants") {
-            strings(c.get("variants"))
-        } else {
-            g.default_crate_variants.get(cid).cloned().unwrap_or_default()
-        };
-        let variants = g.crate_variants.iter().filter(|v| chosen.contains(v)).cloned().collect();
-        let mut weights: IndexMap<String, f64> = IndexMap::new();
-        for (r, w) in c.get("weights").and_then(Value::as_object).into_iter().flatten() {
-            if g.rarities.contains_key(r) {
-                weights.insert(r.clone(), py::float(w).unwrap_or(0.0));
-            }
-        }
-        let mut crate_ = Crate {
-            id: cid.clone(),
-            name: py::str_of(c.get("name").unwrap_or(&Value::Null)),
-            short: c.get("short").cloned().unwrap_or(Value::Null),
-            code: c.get("code").cloned().unwrap_or(Value::Null),
-            emoji: c.get("emoji").and_then(Value::as_str).unwrap_or("📦").into(),
-            color1: c.get("color1").cloned().unwrap_or(Value::Null),
-            color2: c.get("color2").cloned().unwrap_or(Value::Null),
-            price,
-            desc: c.get("desc").cloned().unwrap_or(Value::Null),
-            shop,
-            restricted,
-            special,
-            variants,
-            weights,
-            auto_secret: false,
-            builtin: c.get("builtin").and_then(Value::as_bool).unwrap_or(false),
-            modified: c.get("modified").and_then(Value::as_bool).unwrap_or(false),
-            people: member_ids,
-        };
-        // tajna karta: zawsze 1 na SECRET_ODDS otwartych skrzynek (chyba że admin ustawi inaczej)
-        crate_.auto_secret = !crate_.weights.contains_key("secret");
-        if crate_.auto_secret {
-            let present: HashSet<&str> = members.iter().map(|p| p.rarity.as_str()).collect();
-            let others: f64 = present.iter().filter(|r| **r != "secret").map(|r| crate_.weight(r)).sum();
-            let w = if others != 0.0 { others / (g.secret_odds - 1) as f64 } else { 0.0 };
-            crate_.weights.insert("secret".into(), w);
-        }
-        // numer karty na skrzynce głównej
-        for (n, id) in crate_.people.iter().enumerate() {
-            if let Some(p) = persons.get_mut(id) {
-                if p.crate_.as_deref() == Some(cid) {
-                    p.number = n as i64 + 1;
-                }
-            }
-        }
-        out_crates.insert(cid.clone(), crate_);
+fn check_crate(cid: &str, c: RawCrate, present: &HashSet<String>, people: Vec<String>) -> Crate {
+    let g = g();
+    // skrzynka kart specjalnych: nigdy w sklepie, nie da się jej kupić ani otworzyć
+    let special = g.crates.get(cid).is_some_and(|b| b.special);
+    // warianty wyjątkowe - tylko te, które admin włączył (albo domyślne)
+    let chosen = c.variants.unwrap_or_else(|| g.default_crate_variants.get(cid).cloned().unwrap_or_default());
+    let mut weights: IndexMap<String, f64> = c.weights.into_iter().filter(|(r, _)| g.rarities.contains_key(r)).collect();
+    // tajna karta: zawsze 1 na SECRET_ODDS otwartych skrzynek (chyba że admin ustawi inaczej)
+    let auto_secret = !weights.contains_key("secret");
+    if auto_secret {
+        let others: f64 =
+            present.iter().filter(|r| *r != "secret").map(|r| weights.get(r).copied().unwrap_or_else(|| default_weight(r))).sum();
+        weights.insert("secret".into(), if others != 0.0 { others / (g.secret_odds - 1) as f64 } else { 0.0 });
     }
-
-    // wartość karty rośnie z ceną NAJTAŃSZEJ skrzynki, w której można ją zdobyć; kuźnia i kasyno: tylko karty
-    // ze skrzynek, które są teraz w sklepie
-    let mut final_people = IndexMap::new();
-    for id in final_ids.keys() {
-        let mut p = persons.swap_remove(id).expect("karta");
-        let cheapest = p.crates.iter().map(|c| out_crates[c].price).min().unwrap_or(g.crate_price);
-        p.value_mult = (cheapest as f64 / g.crate_price as f64).max(1.0);
-        p.forge = p.crates.iter().any(|c| out_crates[c].shop);
-        final_people.insert(id.clone(), Arc::new(p));
+    Crate {
+        id: cid.to_owned(),
+        name: c.name,
+        short: c.short,
+        code: c.code,
+        emoji: if c.emoji.is_empty() { "📦".into() } else { c.emoji },
+        color1: c.color1,
+        color2: c.color2,
+        price: c.price.filter(|p| *p != 0).unwrap_or(g.crate_price).max(1),
+        desc: c.desc,
+        shop: c.shop.unwrap_or(true) && !special,
+        restricted: c.restricted.unwrap_or(false),
+        special,
+        variants: g.crate_variants.iter().filter(|v| chosen.contains(v)).cloned().collect(),
+        weights,
+        auto_secret,
+        builtin: c.builtin,
+        modified: c.modified,
+        people,
     }
-
-    Catalog { crates: out_crates, people: final_people, hidden_crates, hidden_cards }
 }
 
 // ---------------------------------------------------------------- zapis zmian admina
@@ -588,17 +652,17 @@ async fn override_data(c: &mut Conn, table: Table, key: &str) -> sqlx::Result<Op
     }
 }
 
-pub async fn save_override(c: &mut Conn, table: Table, key: &str, fields: &Map<String, Value>) -> sqlx::Result<()> {
-    let row = override_data(c, table, key).await?;
+/// Zapis zmienionych pól (pozostałe pola zapisu zostają)
+pub async fn save_override(c: &mut Conn, table: Table, key: &str, fields: Map<String, Value>) -> sqlx::Result<()> {
     let mut current: Map<String, Value> =
-        row.and_then(|d| serde_json::from_str::<Value>(&d).ok()).and_then(|v| v.as_object().cloned()).unwrap_or_default();
-    current.extend(fields.clone());
+        override_data(c, table, key).await?.and_then(|d| serde_json::from_str(&d).ok()).unwrap_or_default();
+    current.extend(fields);
     let data = Value::Object(current).to_string();
     match table {
         Table::Crates => {
             sqlx::query!(
-                "INSERT INTO catalog_crates (id, data, deleted) VALUES ($1, $2, 0) \
-             ON CONFLICT(id) DO UPDATE SET data = excluded.data, deleted = 0",
+                "INSERT INTO catalog_crates (id, data, deleted) VALUES ($1, $2, 0)
+                 ON CONFLICT(id) DO UPDATE SET data = excluded.data, deleted = 0",
                 key,
                 data
             )
@@ -607,8 +671,8 @@ pub async fn save_override(c: &mut Conn, table: Table, key: &str, fields: &Map<S
         }
         Table::Cards => {
             sqlx::query!(
-                "INSERT INTO catalog_cards (id, data, deleted) VALUES ($1, $2, 0) \
-             ON CONFLICT(id) DO UPDATE SET data = excluded.data, deleted = 0",
+                "INSERT INTO catalog_cards (id, data, deleted) VALUES ($1, $2, 0)
+                 ON CONFLICT(id) DO UPDATE SET data = excluded.data, deleted = 0",
                 key,
                 data
             )
@@ -679,50 +743,37 @@ impl Catalog {
     /// warianty z polem "photo" (np. Halloweenowa), jeśli są włączone w którejś skrzynce karty
     pub fn photo_variants(&self, pid: &str) -> Vec<String> {
         let g = g();
-        let mut out = g.card_variants(pid);
+        let mut out: IndexSet<String> = g.card_variants(pid).into_iter().collect();
         if let Some(p) = self.people.get(pid) {
-            for c in &p.crates {
-                if let Some(cr) = self.crates.get(c) {
-                    for v in &cr.variants {
-                        if g.variants[v].photo && !out.contains(v) {
-                            out.push(v.clone());
-                        }
-                    }
-                }
-            }
+            let from_crates = p.crates.iter().filter_map(|c| self.crates.get(c)).flat_map(|cr| cr.variants.iter());
+            out.extend(from_crates.filter(|v| g.variants[*v].photo).cloned());
         }
-        out
+        out.into_iter().collect()
     }
 
     /// Warianty, w których ta karta może istnieć: zwykłe zawsze, wyjątkowe tylko z jej skrzynek (flagowy - z krajem),
-    /// własne warianty karty i połączenia flagi z każdym z nich (bez "noCombo"). Karta specjalna - tylko jej jeden wariant.
+    /// własne warianty karty i połączenia warstw z każdym z nich (bez "noCombo"). Karta specjalna - tylko jej wariant.
     pub fn possible_variants(&self, p: &Person) -> Vec<String> {
         let g = g();
         if p.is_special() {
-            return vec![p.fixed()];
+            return vec![p.fixed().to_owned()];
         }
         let mut extra: HashSet<String> = g.card_variants(&p.id).into_iter().collect();
-        for c in &p.crates {
-            if let Some(cr) = self.crates.get(c) {
-                extra.extend(self.crate_variants(cr, Some(p)));
-            }
+        for cr in p.crates.iter().filter_map(|c| self.crates.get(c)) {
+            extra.extend(self.crate_variants(cr, Some(p)));
         }
         let base: Vec<&String> = g
             .variant_order
             .iter()
             .filter(|v| !g.variants[*v].combo && (!g.variants[*v].exclusive || extra.contains(*v)))
             .collect();
-        let mut combos = HashSet::new();
-        for layer in &base {
-            let lx = &g.variants[*layer];
-            if lx.layer && !lx.no_combo {
-                for b in &base {
-                    if *b != "normal" && !g.variants[*b].layer {
-                        combos.insert(crate::data::combine_variant(layer, b));
-                    }
-                }
-            }
-        }
+        let combos: HashSet<String> = base
+            .iter()
+            .filter(|l| g.variants[**l].layer && !g.variants[**l].no_combo)
+            .flat_map(|layer| {
+                base.iter().filter(|b| **b != "normal" && !g.variants[**b].layer).map(move |b| combine_variant(layer, b))
+            })
+            .collect();
         g.variant_order.iter().filter(|v| base.contains(v) || combos.contains(*v)).cloned().collect()
     }
 
@@ -754,5 +805,33 @@ mod tests {
         assert!(!pv.contains(&"devil+gold".to_string()));
         assert!(!cat.crates["specjalne"].shop);
         assert_eq!(cat.next_rarity("green").as_deref(), Some("blue"));
+    }
+
+    #[test]
+    fn admin_overrides() {
+        let crate_data: Map<String, Value> =
+            serde_json::from_str(r#"{"name": "Nowa", "price": "300", "weights": {"green": "40", "blue": 10}}"#).unwrap();
+        let card_data: Map<String, Value> = serde_json::from_str(
+            r#"{"name": "Testowa", "crates": ["nowa"], "rarity": "blue", "type": "tv", "hp": "80", "dmg": 20,
+                "abilities": [{"name": "Cios", "kind": "def", "value": "50"}, "zle", {"name": ""}],
+                "arena": [{"visual": "fire", "cost": "auto", "effects": [{"id": "burn", "value": 5, "turns": 99}]}, 7],
+                "country": "PL"}"#,
+        )
+        .unwrap();
+        let hide: Map<String, Value> = Map::new();
+        let cat = build(
+            &[("nowa".into(), crate_data, false)],
+            &[("nowa_testowa".into(), card_data, false), ("pl_zenek".into(), hide, true)],
+        );
+        let cr = &cat.crates["nowa"];
+        assert_eq!((cr.price, cr.weights["green"], cr.weights["blue"]), (300, 40.0, 10.0));
+        assert!(cr.auto_secret && cr.weights["secret"] > 0.0);
+        let p = cat.person("nowa_testowa").unwrap();
+        assert_eq!((p.hp, p.value_mult, p.country.as_str()), (80, 3.0, "pl"));
+        assert_eq!(p.abilities, vec![Ability { name: "Cios".into(), kind: "def".into(), value: 50 }]);
+        assert_eq!(p.arena.len(), 2);
+        assert_eq!((p.arena[0].visual.as_str(), p.arena[0].cost, p.arena[0].effects[0].turns), ("fire", None, 9));
+        assert_eq!(p.arena[1].visual, "hit");
+        assert!(!cat.has("pl_zenek") && cat.hidden_cards.contains_key("pl_zenek"));
     }
 }
