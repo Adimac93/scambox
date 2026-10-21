@@ -883,6 +883,143 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 :is(.vdot, .vchip, .hof-vtag).vt-combo.vt-l-devil { box-shadow: 0 0 0 2px #120002, 0 0 0 3.5px #ff1a1a; }
 .ph.vt-combo.vt-l-devil { box-shadow: 0 0 0 1.5px #120002, 0 0 0 3px #ff1a1a; }
 
+/* ============================================================ MLG „Quickscope” (wariant wyjątkowy - domyślnie w żadnej skrzynce)
+   parodia "montage" z gier ~2014: tęczowa ramka kręcąca się jak szalona, jaskrawy neonowy gradient przesuwający się po
+   skosie w środku karty (mlgBG w app.js), białe paski pod napisami (czytelne na każdym kolorze), Comic Sans. Na zdjęciu co 8 s
+   celownik namierza twarz i strzela (błysk + hitmarkery), potem kilka sekund zwykłego zdjęcia (mlgPhoto); nad kartą killfeed,
+   obracające się 360°, napis i oko Illuminati (mlgDeco). Naklejki od admina (.v-stickers) - niżej, wspólne dla wariantów ze "stickers" */
+.card.v-mlg {
+  --spin: #9cff00, #ffe100, #ff7a00, #ff2bd6, #00e5ff, #9cff00;
+  --frame: conic-gradient(from 0deg, var(--spin));
+  box-shadow: 0 6px 18px #000a, 0 0 22px #9cff00aa, 0 0 46px #ff2bd666;
+}
+.card.v-mlg::before {   /* obracająca się ramka (style.css) - dużo szybciej niż ULTRA */
+  background: conic-gradient(from var(--ang, 0deg), var(--spin, transparent 0 0)), var(--frame);
+  animation: ultraSpin 1.1s linear infinite;
+}
+/* czarny kontur oddziela tęczową ramkę od równie kolorowego środka (outline rysuje się nad tłem .mlg-bg) */
+.card.v-mlg .card-inner { background: #ffe100; color: #111; outline: .7cqw solid #111; outline-offset: -.7cqw; }
+.card.v-mlg .card-inner > :not(.mlg-bg) { position: relative; z-index: 1; }
+/* jaskrawe tło pod napisami: pasy kolorów płynnie przesuwające się po skosie */
+.mlg-bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; border-radius: inherit; }
+.r-secret .mlg-bg { z-index: 1; mix-blend-mode: screen; opacity: .45; }
+.mlg-grad {
+  position: absolute; left: 50%; top: 50%; width: 320cqw; height: 320cqw; translate: -50% -50%; rotate: 35deg; will-change: transform;
+  background: repeating-linear-gradient(90deg, #9cff00 0, #ffe100 20cqw, #ff7a00 40cqw, #ff2bd6 60cqw, #00e5ff 80cqw, #9cff00 100cqw);
+  animation: mlgGrad 5s linear infinite;
+}
+@keyframes mlgGrad { to { transform: translateX(-100cqw); } }   /* dokładnie jeden okres pasów - bez skoku */
+/* napisy na półprzezroczystych białych paskach (tło prześwituje) + biała poświata liter - czytelne na każdym kolorze */
+.card.v-mlg :is(.card-head, .card-attack, .card-stats, .card-foot) { text-shadow: 0 0 .2em #fff, 0 0 .45em #fff; }
+.card.v-mlg .card-head { background: #ffffff8c; border-radius: .45em; padding: .12em .4em; margin: -.15em -.25em 0; box-shadow: .12em .12em 0 #000; }
+.card.v-mlg .card-name { font-family: "Comic Neue", "Comic Sans MS", "Comic Sans", cursive; font-size: 1.08em; color: #111; }
+.card.v-mlg .card-hp { color: #d4004a; }
+.card.v-mlg .card-type { background: #1d3a0a; box-shadow: 0 0 0 .1em #9cff00, 0 0 .4em #9cff00; }
+.card.v-mlg .card-sub {
+  background: #111; color: #9cff00; border-radius: .3em; margin-inline: -.1em;
+  font-family: Impact, "Arial Black", "Haettenschweiler", sans-serif; letter-spacing: .06em;
+}
+.card.v-mlg .card-attack { background: #ffffff80; border: none; border-radius: .4em; padding-inline: .4em; box-shadow: .1em .1em 0 #0006; }
+.card.v-mlg .card-attack + .card-attack { margin-top: .25em; }
+.card.v-mlg .atk-name { font-family: "Comic Neue", "Comic Sans MS", "Comic Sans", cursive; font-weight: 700; color: #111; }
+.card.v-mlg :is(.card-stats, .card-foot) { background: #ffffff80; border-radius: .6em; padding: .25em .5em; color: #222; }
+.card.v-mlg .card-stats b { color: #111; }
+.card.v-mlg .card-value { color: #0a7a00; }
+.card.v-mlg .gem { box-shadow: 0 0 .4em #9cff00; }
+.card.v-mlg .card-photo { border-image: none; border-color: #111; box-shadow: 0 0 0 .15em #fff, .2em .2em 0 .15em #000; }
+.card.v-mlg .card-photo > img { filter: saturate(1.6) contrast(1.15); animation: mlgScopeZoom 8s ease-in-out infinite; will-change: transform; }
+.r-secret.v-mlg .sc-art img { filter: saturate(1.6) contrast(1.15); }
+/* cykl 8 s: 0-3 s celownik (zdjęcie lekko się przybliża), strzał w ~3 s, potem ~5 s zwykłego zdjęcia */
+@keyframes mlgScopeZoom { 0%, 4%, 46%, 100% { transform: none; } 32%, 38% { transform: scale(1.12); } }
+.mlg-photo { position: absolute; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; border-radius: inherit; }
+.mlg-scope { position: absolute; left: 50%; top: 42%; width: 64%; aspect-ratio: 1; translate: -50% -50%; opacity: 0; will-change: transform, opacity; animation: mlgScope 8s ease-in-out infinite; }
+.mlg-scope::before { content: ""; position: absolute; inset: -150%; background: radial-gradient(circle closest-side, transparent 0 24%, #000c 25%); }
+.mlg-scope img { position: relative; display: block; width: 100%; }
+@keyframes mlgScope {
+  0% { transform: translate(-35%, -25%) scale(1.3); opacity: 0; }
+  4% { transform: translate(-35%, -25%); opacity: 1; }
+  18% { transform: translate(30%, 15%); }
+  32%, 38% { transform: none; opacity: 1; }
+  44%, 100% { transform: scale(1.5); opacity: 0; }
+}
+.mlg-shot { position: absolute; inset: 0; background: #fff; opacity: 0; animation: mlgShot 8s linear infinite; }
+@keyframes mlgShot { 0%, 37.5%, 41%, 100% { opacity: 0; } 38% { opacity: .9; } }
+.mlg-deco { position: absolute; inset: 0; z-index: 5; pointer-events: none; overflow: hidden; border-radius: inherit; }
+.mlg-hit { position: absolute; width: 13%; translate: -50% -50%; opacity: 0; will-change: transform; animation: mlgHit 3.6s linear infinite; }
+@keyframes mlgHit { 0%, 9%, 100% { opacity: 0; transform: scale(1); } 1% { opacity: 1; transform: scale(1.4); } 6% { opacity: 1; transform: scale(1); } }
+.mlg-photo .mlg-hit { animation: mlgHitShot 8s linear infinite !important; }   /* wszystkie naraz, w chwili strzału */
+.card-photo .mlg-hit { width: 13%; height: auto; }   /* nie jak zdjęcie (.card-photo img: 100%) */
+@keyframes mlgHitShot { 0%, 38%, 50%, 100% { opacity: 0; transform: scale(1); } 38.5% { opacity: 1; transform: scale(1.5); } 45% { opacity: 1; transform: scale(1); } }
+/* killfeed: wpis pojawia się po strzale i znika przed kolejnym celowaniem */
+.mlg-feed { position: absolute; right: 7%; top: 11%; display: flex; flex-direction: column; align-items: flex-end; gap: 1cqw; }
+.mlg-kill {
+  display: flex; align-items: center; gap: 1cqw; padding: .6cqw 1.6cqw; background: #000c; border-right: .8cqw solid #ff3b3b;
+  font: 700 3.6cqw/1.2 Rubik, sans-serif; color: #fff; white-space: nowrap; opacity: 0; will-change: transform, opacity; animation: mlgKill 8s ease-out infinite;
+}
+.mlg-kill b { color: #4fc3ff; } .mlg-kill i { font-style: normal; color: #ff6b6b; } .mlg-kill img { width: 4cqw; }
+@keyframes mlgKill { 0%, 38% { opacity: 0; transform: translateX(30%); } 41%, 85% { opacity: 1; transform: none; } 92%, 100% { opacity: 0; transform: none; } }
+.mlg-word {
+  position: absolute; translate: -50% -50%; rotate: var(--wr, 0deg); white-space: nowrap; opacity: 0; will-change: transform;
+  font: 400 10cqw/1 Impact, "Arial Black", "Haettenschweiler", sans-serif; letter-spacing: .02em;
+  color: #ffe100; -webkit-text-stroke: .45cqw #000; paint-order: stroke fill; text-shadow: .6cqw .6cqw 0 #ff2bd6;
+  animation: mlgWord 5.2s ease-out infinite;
+}
+@keyframes mlgWord {
+  0%, 30%, 100% { opacity: 0; transform: scale(.3); }
+  3% { opacity: 1; transform: scale(1.3); }
+  7% { opacity: 1; transform: scale(1); }
+  24% { opacity: 1; transform: scale(1.06); }
+  29% { opacity: 0; transform: scale(1.7); }
+}
+.mlg-word.spin360 { left: 50%; top: 66%; opacity: 1; font-size: 13cqw; color: #ff2bd6; text-shadow: .6cqw .6cqw 0 #9cff00; animation: mlgSpin360 3s ease-in-out infinite; }
+@keyframes mlgSpin360 { 0% { transform: rotate(0) scale(.8); } 50%, 100% { transform: rotate(360deg) scale(1.15); } }
+.mlg-eye {
+  position: absolute; left: 50%; top: -8.5%; width: 21%; translate: -50% 0; z-index: 6; pointer-events: none;
+  filter: drop-shadow(0 .6cqw .8cqw #0009) drop-shadow(0 0 1.6cqw #ffe680aa); will-change: transform;
+  animation: mlgEye 3s ease-in-out infinite;
+}
+@keyframes mlgEye { 50% { transform: translateY(-5%) rotate(5deg) scale(1.06); } }
+.r-secret.v-mlg { box-shadow: 0 6px 18px #000c, 0 0 26px #9cff00aa, 0 0 60px #ff2bd655; }
+.r-secret.v-mlg .sc-border { background: conic-gradient(from var(--ang, 0deg), #9cff00, #ffe100, #ff7a00, #ff2bd6, #00e5ff, #9cff00); }
+.r-secret.v-mlg :is(.sc-name, .secret-text) { font-family: "Comic Neue", "Comic Sans MS", "Comic Sans", cursive; }
+.r-secret.v-mlg .sc-attack b { color: #9cff00; }
+.var-tag.vt-mlg, .ph.vt-mlg {
+  background: linear-gradient(90deg, #9cff00, #ffe100, #ff7a00, #ff2bd6, #00e5ff, #9cff00); background-size: 200% 100%;
+  color: #000; text-shadow: none; font-family: Impact, "Arial Black", sans-serif; font-weight: 400; letter-spacing: .14em;
+  box-shadow: 0 0 .7em #9cff00, .15em .15em 0 #000; transform: rotate(-4deg); animation: rainbowSlide 1.5s linear infinite;
+}
+.pick.v-mlg { box-shadow: inset 0 0 0 2px #9cff00, 0 0 10px #ff2bd688, inset 0 -26px 26px -18px var(--rc); }
+.pick.v-mlg img { filter: saturate(1.6) contrast(1.15); }
+.vdot.vt-mlg { background: conic-gradient(#9cff00, #ffe100, #ff7a00, #ff2bd6, #00e5ff, #9cff00); box-shadow: 0 0 6px #9cff00; }
+.odd.odd-v.vt-mlg { border-left-color: #9cff00; }
+.vchip.vt-mlg.active { background: linear-gradient(90deg, #9cff00, #ffe100, #ff7a00, #ff2bd6); color: #000; }
+
+/* Naklejki od admina (strona /stickers, stickersHTML w app.js): --x/--y = środek naklejki, --w = szerokość (w % karty),
+   --r = obrót, --f = odbicie w poziomie; ruch (vsa-*) jest na obrazku w środku, więc nie kasuje obrotu */
+.v-stickers { position: absolute; inset: 0; z-index: 8; pointer-events: none; }
+.v-sticker { position: absolute; display: block; left: var(--x); top: var(--y); width: var(--w); translate: -50% -50%; rotate: var(--r, 0deg); scale: var(--f, 1) 1; }
+.v-sticker img { display: block; width: 100%; height: auto; filter: drop-shadow(0 .5cqw .7cqw #0008); }
+.v-sticker[class*="vsa-"] img { will-change: transform, opacity; }
+.vsa-pulse img { animation: vsPulse 1.1s ease-in-out infinite; }
+.vsa-spin img { animation: vsSpin 2.4s linear infinite; }
+.vsa-shake img { animation: vsShake .35s steps(2) infinite; }
+.vsa-float img { animation: vsFloat 2.2s ease-in-out infinite alternate; }
+.vsa-drop img { animation: vsDrop 5s ease-in infinite; }
+.vsa-blink img { animation: vsBlink 1s steps(1) infinite; }
+@keyframes vsPulse { 50% { transform: scale(1.14); } }
+@keyframes vsSpin { to { transform: rotate(360deg); } }
+@keyframes vsShake { 0% { transform: translate(3%, -2%) rotate(2deg); } 50% { transform: translate(-3%, 2%) rotate(-2deg); } }
+@keyframes vsFloat { from { transform: translateY(6%); } to { transform: translateY(-6%); } }
+/* jak okulary "deal with it": spadają z góry, zostają chwilę i znikają */
+@keyframes vsDrop {
+  0% { transform: translateY(-140cqw); opacity: 1; animation-timing-function: ease-in; }
+  16% { transform: translateY(0); }
+  19% { transform: translateY(-4%); }
+  22%, 88% { transform: translateY(0); opacity: 1; }
+  96%, 100% { transform: translateY(0); opacity: 0; }
+}
+@keyframes vsBlink { 50% { opacity: 0; } }
+
 /* ============================================================ WYDAJNOŚĆ
    Tajne i flagowe karty mają własne tło (czarne / flaga) - bez animowanej ramki w ::before (style.css). */
 .card:is(.r-secret, .v-flag)::before { content: none; }

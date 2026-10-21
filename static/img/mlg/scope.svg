@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- celownik snajperski -->
+  <g fill="none" stroke-linecap="round">
+    <circle cx="50" cy="50" r="40" stroke="#000" stroke-width="7" opacity=".5"/>
+    <circle cx="50" cy="50" r="40" stroke="#fff" stroke-width="3.5"/>
+    <path d="M50 4V38M50 62V96M4 50H38M62 50H96" stroke="#000" stroke-width="6" opacity=".5"/>
+    <path d="M50 4V38M50 62V96M4 50H38M62 50H96" stroke="#fff" stroke-width="2.6"/>
+  </g>
+  <g fill="#fff"><circle cx="50" cy="22" r="1.8"/><circle cx="50" cy="78" r="1.8"/><circle cx="22" cy="50" r="1.8"/><circle cx="78" cy="50" r="1.8"/></g>
+  <circle cx="50" cy="50" r="3.6" fill="#ff1a1a" stroke="#000" stroke-width="1"/>
+</svg>

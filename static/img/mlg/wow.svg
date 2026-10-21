@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 80">
+  <!-- napis WOW -->
+  <defs>
+    <linearGradient id="t" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fffbd0"/><stop offset=".5" stop-color="#ffe100"/><stop offset="1" stop-color="#ff8a00"/>
+    </linearGradient>
+  </defs>
+  <g transform="rotate(-8 80 40)" font-family="Impact, 'Arial Black', 'Haettenschweiler', sans-serif" font-size="58" text-anchor="middle" letter-spacing="2">
+    <text x="84" y="64" fill="#000" opacity=".55">WOW</text>
+    <text x="80" y="60" fill="url(#t)" stroke="#d1007a" stroke-width="5" paint-order="stroke" stroke-linejoin="round">WOW</text>
+  </g>
+</svg>

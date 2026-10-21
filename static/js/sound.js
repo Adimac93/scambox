@@ -133,6 +133,29 @@ const Sound = (() => {
       noise(t + 0.78, 1.2, { vol: 0.15, freq: 8000, q: 0.5, type: "highpass" });
     },
 
+    // wariant MLG: trąbka na sprężone powietrze - trzy krótkie "BWA" i długie "BWAAA" (rozstrojony akord piłokształtny
+    // przez filtr, z płaską głośnością zamiast wybrzmiewania jak w tone())
+    airhorn() {
+      if (!enabled) return;
+      const c = ac(), t = c.currentTime;
+      const f = c.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 2600; f.Q.value = 2;
+      f.connect(master);
+      [[0, 0.15], [0.2, 0.15], [0.4, 0.15], [0.62, 0.75]].forEach(([d, len]) => {
+        [349.23, 440, 523.25, 698.46].forEach((hz, i) => {
+          const o = c.createOscillator(), g = c.createGain(), s = t + d;
+          o.type = "sawtooth";
+          o.frequency.setValueAtTime(hz * (i % 2 ? 1.006 : 0.994), s);
+          o.frequency.linearRampToValueAtTime(hz * 0.985, s + len);
+          g.gain.setValueAtTime(0, s);
+          g.gain.linearRampToValueAtTime(0.07, s + 0.02);
+          g.gain.setValueAtTime(0.07, s + len - 0.04);
+          g.gain.linearRampToValueAtTime(0, s + len);
+          o.connect(g).connect(f);
+          o.start(s); o.stop(s + len + 0.05);
+        });
+      });
+    },
+
     ultra(noRise = false) {
       if (!enabled) return;
       const t = ac().currentTime;

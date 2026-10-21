@@ -470,6 +470,7 @@ const LOG_ACTIONS = {
   card_save: "🎴 Zapis karty", card_delete: "🎴 Usunięcie karty", card_restore: "🎴 Przywrócenie karty",
   link_create: "🔗 Nowy link do karty", link_on: "🔗 Włączył link", link_off: "🔗 Wyłączył link",
   message_add: "📢 Nowa wiadomość do graczy", message_delete: "📢 Usunięcie wiadomości",
+  stickers_save: "🎨 Naklejki wariantu", stickers_card: "🎨 Naklejki jednej karty",
 };
 
 async function loadLog() {

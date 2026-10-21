@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 90">
+  <!-- trąbka na sprężone powietrze -->
+  <defs>
+    <linearGradient id="r" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff7a7a"/><stop offset=".45" stop-color="#e3001b"/><stop offset="1" stop-color="#7a000e"/>
+    </linearGradient>
+    <linearGradient id="w" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#dfe4ea"/><stop offset="1" stop-color="#9aa3ae"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke="#ffe100" stroke-width="4" stroke-linecap="round">
+    <path d="M118 22Q128 45 118 68"/><path d="M127 12Q142 45 127 78" opacity=".7"/>
+  </g>
+  <rect x="6" y="30" width="46" height="30" rx="9" fill="url(#r)" stroke="#4a0008" stroke-width="2.4"/>
+  <rect x="12" y="38" width="24" height="5" rx="2.5" fill="#fff" opacity=".45"/>
+  <rect x="52" y="38" width="12" height="14" rx="2" fill="url(#w)" stroke="#3a3f46" stroke-width="2"/>
+  <path d="M60 34H70V28H58Z" fill="#1d1f24" stroke="#000" stroke-width="1.5"/>
+  <path d="M64 41L108 14Q114 45 108 76L64 49Z" fill="url(#w)" stroke="#3a3f46" stroke-width="2.4" stroke-linejoin="round"/>
+  <ellipse cx="108" cy="45" rx="6" ry="31" fill="#bfc6cf" stroke="#3a3f46" stroke-width="2.4"/>
+  <ellipse cx="108" cy="45" rx="3" ry="22" fill="#5d6673"/>
+</svg>

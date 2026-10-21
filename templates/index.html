@@ -14,7 +14,7 @@
   <title>ScamBox</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Caveat:wght@700&family=Creepster&family=Cinzel:wght@700;900&family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Caveat:wght@700&family=Comic+Neue:wght@700&family=Creepster&family=Cinzel:wght@700;900&family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ asset('css/style.css') }}">
   <link rel="stylesheet" href="{{ asset('css/fx.css') }}">
   <link rel="stylesheet" href="{{ asset('css/cards2.css') }}">
@@ -27,6 +27,7 @@
   <link rel="stylesheet" href="{{ asset('css/shop.css') }}">
   <link rel="stylesheet" href="{{ asset('css/market.css') }}">
   <link rel="stylesheet" href="{{ asset('css/casino.css') }}">
+  <link rel="stylesheet" href="{{ asset('css/stickers.css') }}">
 </head>
 <body>
   <!-- wariant Rysunkowy: zdjęcie jak szkic ołówkiem - szarość rozjaśniona odwróconym, rozmytym obrazem ("color dodge"),
@@ -265,6 +266,9 @@
     <!-- MAKIETY KART SPECJALNYCH (tylko admini, /mockups) -->
     <section class="view" id="view-mockups"><div id="mockupsBody"></div></section>
 
+    <!-- EDYTOR NAKLEJEK WARIANTÓW (tylko admini, /stickers) -->
+    <section class="view" id="view-stickers"><div id="stickersBody"></div></section>
+
     <!-- KUŹNIA -->
     <section class="view" id="view-forge">
       <div class="forge-toolbar">
@@ -319,6 +323,7 @@
   <script src="{{ asset('js/social.js') }}"></script>
   <script src="{{ asset('js/arena.js') }}"></script>
   <script src="{{ asset('js/hof.js') }}"></script>
+  <script src="{{ asset('js/stickers.js') }}"></script>
   <script src="{{ asset('js/app.js') }}"></script>
 </body>
 </html>

@@ -179,6 +179,13 @@ def delete(pid, alt=False):
         os.remove(p)
 
 
+def delete_other_alts(pid, keep):
+    """Usuwa pliki <pid>__<nazwa>.* poza nazwami z keep (np. wgrane naklejki wariantu, których admin nie zapisał)."""
+    for p in glob.glob(glob.escape(_stem(pid)) + "__*.*"):
+        if os.path.basename(p)[len(pid) + 2:].rsplit(".", 1)[0] not in keep:
+            os.remove(p)
+
+
 # ---------------------------------------------------------------- Wikipedia (główne zdjęcie)
 
 def _query_pages(lang, titles, props):

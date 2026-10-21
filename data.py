@@ -47,6 +47,10 @@ VARIANTS = {
     "sketch":  {"name": "Rysunkowa",    "chance": 0.004, "mult": 10.0,
                 "desc": "Karta narysowana piórem i tuszem na starym papierze."},
     "emerald": {"name": "Szmaragdowa",  "chance": 0.005, "mult": 11.0},
+    # wyjątkowy, domyślnie w ŻADNEJ skrzynce - admin włącza go w nowej skrzynce. "stickers": admin może nakleić na ten
+    # wariant własne grafiki (PNG) albo wbudowane (static/img/mlg/) i ustawić je, gdzie chce - strona /stickers
+    "mlg":     {"name": "MLG",          "chance": 0.005, "mult": 12.0, "exclusive": True, "stickers": True,
+                "desc": "Jak montaże „MLG” z 2014: tęczowa ramka, hitmarkery, napisy WOW i 360 NO SCOPE, oko Illuminati."},
     "amethyst": {"name": "Ametystowa",  "chance": 0.0045, "mult": 12.5},   # między Szmaragdową a Rubinową
     "ruby":    {"name": "Rubinowa",     "chance": 0.004, "mult": 14.0},
     "royal":   {"name": "Królewska",    "chance": 0.004, "mult": 15.0, "exclusive": True,   # wyjątkowy (Skrzynia Królów)
@@ -92,6 +96,15 @@ EXCLUSIVE_VARIANTS = [v for v, x in VARIANTS.items() if x.get("exclusive")]
 CRATE_VARIANTS = [v for v in EXCLUSIVE_VARIANTS if not VARIANTS[v].get("cards") and not VARIANTS[v].get("combo")
                   and not VARIANTS[v].get("special")]
 SPECIAL_VARIANTS = [v for v, x in VARIANTS.items() if x.get("special")]   # warianty kart specjalnych (do wyboru w panelu)
+STICKER_VARIANTS = [v for v, x in VARIANTS.items() if x.get("stickers")]  # warianty z naklejkami od admina (/stickers)
+# Naklejki: wbudowane grafiki (static/img/mlg/<id>.svg) - do wyboru obok własnych plików PNG
+STICKER_LIBRARY = {
+    "glasses": "Okulary „deal with it”", "illuminati": "Oko Illuminati", "hitmarker": "Hitmarker", "scope": "Celownik",
+    "chip": "Chips nacho", "soda": "Zielona puszka", "airhorn": "Trąbka", "wow": "Napis WOW", "noscope": "360 NO SCOPE",
+}
+STICKER_ANIMS = {"none": "Bez ruchu", "pulse": "Pulsowanie", "spin": "Obrót", "shake": "Trzęsienie", "float": "Unoszenie",
+                 "drop": "Spada z góry (okulary)", "blink": "Miganie"}
+STICKER_MAX = 30   # najwięcej naklejek na jednym wariancie
 
 
 def combine_variant(layer, base):

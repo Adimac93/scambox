@@ -19,6 +19,7 @@ CARD_FIELDS = ("name", "wiki", "rarity", "type", "hp", "attack", "dmg", "attack2
                "arena", "crate", "crates", "country", "source", "fixedVariant", "style", "subtitle", "desc")
 SUBTITLE_MAX, DESC_MAX = 40, 1000   # podtytuł (krótki tekst na karcie) i opis (obok karty w podglądzie) - z panelu admina
 COUNTRY_RE = re.compile(r"^[a-z]{2}(-[a-z0-9]{1,3})?$")   # kod kraju ISO 3166 (np. pl, de, gb-eng) - do wariantu flagowego
+STICKER_ID_RE = re.compile(r"^[a-f0-9]{8}$")
 
 
 def clean_abilities(raw):
@@ -91,6 +92,72 @@ def _int(v, lo, hi, default=None):
         return default
 
 
+def _num(v, lo, hi, default):
+    try:
+        return round(max(lo, min(hi, float(v))), 2)
+    except (TypeError, ValueError):
+        return default
+
+
+def sticker_file_id(variant):
+    """Nazwa, pod którą images.save/find trzymają wgrane naklejki wariantu: image_cache/__stk_mlg__<id>.png"""
+    return f"__stk_{variant}"
+
+
+def clean_stickers(raw):
+    """Naklejki wariantu (strona /stickers), w kolejności od spodu: [{"id", "src": "upload" (plik wgrany przez admina) albo
+    nazwa z data.STICKER_LIBRARY, "x", "y" - środek naklejki w % szerokości / wysokości karty (może wystawać poza kartę),
+    "w" - szerokość w % szerokości karty, "rot" - obrót w stopniach, "flip" - odbicie w poziomie, "anim", "v" - wersja pliku}]"""
+    out, seen = [], set()
+    for s in raw if isinstance(raw, list) else []:
+        if not isinstance(s, dict) or not STICKER_ID_RE.match(str(s.get("id") or "")) or s["id"] in seen:
+            continue
+        if s.get("src") != "upload" and s.get("src") not in data.STICKER_LIBRARY:
+            continue
+        seen.add(s["id"])
+        out.append({"id": s["id"], "src": s["src"], **_placement(s), "v": _int(s.get("v"), 0, 10 ** 9, 0)})
+    return out[:data.STICKER_MAX]
+
+
+def _placement(s):
+    """Położenie i wygląd naklejki (bez id, pliku i wersji) - wspólne dla naklejek i zmian na jednej karcie."""
+    return {"x": _num(s.get("x"), -25, 125, 50), "y": _num(s.get("y"), -25, 125, 50), "w": _num(s.get("w"), 2, 160, 30),
+            "rot": _num(s.get("rot"), -180, 180, 0), "flip": bool(s.get("flip")),
+            "anim": s.get("anim") if s.get("anim") in data.STICKER_ANIMS else "none"}
+
+
+def clean_card_stickers(raw):
+    """Naklejki jednej karty ponad standardowe naklejki wariantu: "edits" - zmiany standardowych naklejek na tej karcie
+    ({id: położenie jak w _placement} albo {id: {"hidden": True}} - ukryta), "extra" - naklejki tylko tej karty (jak
+    w clean_stickers; leżą nad standardowymi). None = karta ma same standardowe naklejki."""
+    raw = raw if isinstance(raw, dict) else {}
+    edits = {sid: {"hidden": True} if e.get("hidden") else _placement(e)
+             for sid, e in (raw.get("edits") if isinstance(raw.get("edits"), dict) else {}).items()
+             if STICKER_ID_RE.match(str(sid)) and isinstance(e, dict)}
+    extra = clean_stickers(raw.get("extra"))
+    return {"edits": edits, "extra": extra} if edits or extra else None
+
+
+def card_stickers(variant, pid):
+    """Naklejki karty w tym wariancie: standardowe (ze zmianami tej karty, bez ukrytych) i nad nimi naklejki tylko tej karty."""
+    base = STICKERS.get(variant, [])
+    own = STICKER_CARDS.get(variant, {}).get(pid)
+    if not own:
+        return base
+    out = []
+    for s in base:
+        e = own["edits"].get(s["id"])
+        if not (e and e.get("hidden")):
+            out.append(dict(s, **e) if e else s)
+    return out + own["extra"]
+
+
+def sticker_uploads(variant):
+    """Id wgranych plików, których używają naklejki wariantu (standardowe i na pojedynczych kartach)."""
+    lists = [STICKERS.get(variant, [])] + [own["extra"] for own in STICKER_CARDS.get(variant, {}).values()]
+    return {s["id"] for lst in lists for s in lst if s["src"] == "upload"}
+
+
 def clean_arena(raw):
     """Ustawienia zdolności w Arenie - po jednym na zdolność (1., 2., dodatkowe), w tej samej kolejności:
     {"visual", "cost": None = automatycznie z wartości, "target", "effects": [{"id", "value", "turns", "target"}]}"""
@@ -113,12 +180,17 @@ CRATES = {}         # id -> skrzynka (z listą "people" w kolejności numerów)
 PEOPLE = {}         # id -> karta
 HIDDEN_CRATES = {}  # wbudowane, ukryte przez admina
 HIDDEN_CARDS = {}
+STICKERS = {}       # wariant -> naklejki od admina (clean_stickers), tylko warianty z "stickers" w data.VARIANTS
+STICKER_CARDS = {}  # wariant -> {karta: zmiany naklejek na tej karcie (clean_card_stickers)}
 
 
 def init_tables(conn):
+    # catalog_variants: zmiany wariantów z panelu admina - na razie naklejki (id = klucz wariantu):
+    # {"stickers": [standardowe naklejki], "cards": {karta: {"edits": {...}, "extra": [...]}}}
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS catalog_crates (id TEXT PRIMARY KEY, data TEXT NOT NULL DEFAULT '{}', deleted INTEGER NOT NULL DEFAULT 0);
         CREATE TABLE IF NOT EXISTS catalog_cards  (id TEXT PRIMARY KEY, data TEXT NOT NULL DEFAULT '{}', deleted INTEGER NOT NULL DEFAULT 0);
+        CREATE TABLE IF NOT EXISTS catalog_variants (id TEXT PRIMARY KEY, data TEXT NOT NULL DEFAULT '{}', deleted INTEGER NOT NULL DEFAULT 0);
     """)
 
 
@@ -143,8 +215,15 @@ def crate_weight(crate, rarity):
 
 
 def rebuild(conn):
-    global CRATES, PEOPLE, HIDDEN_CRATES, HIDDEN_CARDS
+    global CRATES, PEOPLE, HIDDEN_CRATES, HIDDEN_CARDS, STICKERS, STICKER_CARDS
     crates, people, hidden_crates, hidden_cards = {}, {}, {}, {}
+    STICKERS, STICKER_CARDS = {}, {}
+    for row in conn.execute("SELECT id, data FROM catalog_variants WHERE deleted = 0"):
+        if row[0] in data.STICKER_VARIANTS:
+            d = json.loads(row[1] or "{}")
+            STICKERS[row[0]] = clean_stickers(d.get("stickers"))
+            cards = {pid: clean_card_stickers(own) for pid, own in (d.get("cards") or {}).items()}
+            STICKER_CARDS[row[0]] = {pid: own for pid, own in cards.items() if own}
 
     for cid, c in data.CRATES.items():
         crates[cid] = dict({"shop": True, "restricted": False, "weights": {}}, **builtin_crate(cid),

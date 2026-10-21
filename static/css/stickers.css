@@ -1,0 +1,58 @@
+/* ============================================================ EDYTOR NAKLEJEK WARIANTÓW (/stickers, tylko admini, stickers.js)
+   po lewej duża karta, na której przeciąga się naklejki, i kilka innych kart z tymi samymi naklejkami;
+   po prawej biblioteka grafik, wgrywanie pliku, lista naklejek i ustawienia zaznaczonej */
+.stk-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 18px; align-items: start; }
+.stk-side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 12px; }
+.stk-h { margin: 0 0 10px; }
+.stk-tools { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin-bottom: 14px; }
+.stk-tools label { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.stk-mode { display: flex; flex-wrap: wrap; margin-bottom: 10px; }
+.stk-mode button { cursor: pointer; }
+.stk-mode button.active { color: #000; background: linear-gradient(90deg, #9cff00, #ffe100); }
+.stk-custom { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }
+.stk-chip { cursor: pointer; font: inherit; font-size: 12px; padding: 3px 9px; border-radius: 99px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); }
+.stk-chip.active, .stk-chip:hover { border-color: #9cff00; }
+.stk-note { color: #ffb84a; margin: 0 0 6px; }
+/* tryb jednej karty: zielona obwódka sceny przypomina, że zmiany dotyczą tylko tej karty */
+.stk-stage.card-mode { outline: 2px dashed #9cff0066; outline-offset: -8px; border-radius: 18px; }
+.stk-kind { display: block; font-size: 11px; color: var(--muted); }
+.stk-row.k-edited .stk-kind { color: #ffb84a; }
+.stk-row.k-extra .stk-kind { color: #9cff00; }
+.stk-row.k-hidden { opacity: .5; }
+.stk-row.k-hidden .stk-rname { text-decoration: line-through; }
+.stk-stage { display: flex; justify-content: center; padding: 60px 16px 40px; touch-action: none; }
+.stk-stage .card { width: min(360px, 100%); --cw: min(360px, 100%); }
+.stk-stage .v-sticker { pointer-events: auto; cursor: grab; }
+.stk-stage .v-sticker:active { cursor: grabbing; }
+.stk-stage .v-sticker.sel { outline: 2px dashed #fff; outline-offset: 3px; box-shadow: 0 0 0 4px #0008; }
+.stk-help { text-align: center; margin: 0 0 18px; }
+.stk-others { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 30px 16px; padding-top: 24px; }
+.stk-other .card { width: 100%; --cw: 100%; }
+.stk-lib { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+.stk-libitem {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px; border-radius: 12px; cursor: pointer;
+  background: var(--panel2); border: 1px solid var(--line); color: var(--text); font: inherit; font-size: 11px; line-height: 1.15;
+}
+.stk-libitem:hover { border-color: #9cff00; box-shadow: 0 0 10px #9cff0055; }
+.stk-libitem img { height: 40px; max-width: 90%; object-fit: contain; background: repeating-conic-gradient(#ffffff10 0 25%, transparent 0 50%) 0 0 / 10px 10px; border-radius: 6px; }
+.stk-upload { display: block; text-align: center; cursor: pointer; }
+.stk-list { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow: auto; margin-bottom: 12px; }
+.stk-row { display: flex; align-items: center; gap: 6px; padding: 5px 6px; border-radius: 10px; background: var(--panel2); border: 1px solid transparent; cursor: pointer; }
+.stk-row.sel { border-color: var(--accent); }
+.stk-row img { width: 34px; height: 34px; object-fit: contain; flex: none; }
+.stk-rname { flex: 1; min-width: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stk-row .btn { padding: 4px 8px; font-size: 12px; }
+.stk-props { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; }
+.stk-props-head { font-weight: 700; }
+.stk-props label { display: grid; grid-template-columns: 74px 1fr 52px; align-items: center; gap: 8px; font-size: 13px; }
+.stk-props label.chk { display: flex; }
+.stk-props label:has(select) { grid-template-columns: 74px 1fr; }
+.stk-props input[type=range] { width: 100%; accent-color: var(--accent); }
+.stk-props output { font-variant-numeric: tabular-nums; text-align: right; color: var(--muted); }
+.stk-save { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.stk-dirty { color: #ffb84a; font-size: 13px; }
+@media (max-width: 900px) {
+  .stk-wrap { grid-template-columns: 1fr; }
+  .stk-side { position: static; }
+}
+

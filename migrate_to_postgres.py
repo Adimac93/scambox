@@ -16,7 +16,7 @@ import database
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TABLES = ("users", "user_state", "user_discovered", "items", "daily_claims", "friendships", "showcase", "trades",
           "trade_lines", "crate_access", "user_chests", "feed", "state", "discovered",
-          "catalog_crates", "catalog_cards", "market_listings", "market_offers", "market_bids", "market_wanted",
+          "catalog_crates", "catalog_cards", "catalog_variants", "market_listings", "market_offers", "market_bids", "market_wanted",
           "jackpots", "jackpot_items", "jackpot_invites", "card_links", "card_link_claims",
           "admin_messages", "admin_message_seen", "blackjack_games")
 IDENTITY_TABLES = ("users", "items", "trades", "feed", "market_listings", "market_offers", "market_bids",

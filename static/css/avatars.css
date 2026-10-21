@@ -37,5 +37,7 @@
 
 .avv-rzulty img { box-shadow: 0 0 0 2px #ffe600, 0 0 12px #ffe600 !important; }
 .av-vname.vt-rzulty { color: #ffe600; }
+.avv-mlg img { filter: saturate(1.6) contrast(1.15); box-shadow: 0 0 0 2px #9cff00, 0 0 0 4px #ff2bd6, 0 0 12px #9cff00 !important; }
+.av-vname.vt-mlg { color: #9cff00; }
 .avv-sketch img { filter: url(#inkSketch); box-shadow: 0 0 0 2px #1b1712, 0 0 0 4px #efe4c8 !important; }
 .avv-galaxy img { filter: saturate(1.3) hue-rotate(-15deg); box-shadow: 0 0 0 2px #7b4dff, 0 0 12px #1fb6ff !important; }

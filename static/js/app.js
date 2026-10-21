@@ -9,7 +9,7 @@ const fmt = n => Math.round(n).toLocaleString("pl-PL") + " gr";   // waluta gry:
 
 const COUNT_CHIPS = [1, 2, 3, 5, 10, 15, 20];
 const INV_PAGE = 120;
-const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", silver: "SILVER", holo: "HOLO", gold: "GOLDEN", flag: "FLAG", halloween: "🎃 HALLOWEEN", lantern: "🏮 LAMPION", devil: "😈 DEVIL", joker: "🃏 JOKER", jeans: "👖 DŻINS", clear: "🫧 CLEAR", sketch: "✒️ SKETCH", emerald: "💚 EMERALD", amethyst: "💜 AMETHYST", ruby: "❤️ RUBY", royal: "👑 ROYAL", diamond: "💎 DIAMOND", galaxy: "🌌 GALAXY", negative: "◐ NEGATIVE", rzulty: "💛 RZULTY" };
+const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", silver: "SILVER", holo: "HOLO", gold: "GOLDEN", flag: "FLAG", halloween: "🎃 HALLOWEEN", lantern: "🏮 LAMPION", devil: "😈 DEVIL", joker: "🃏 JOKER", jeans: "👖 DŻINS", clear: "🫧 CLEAR", sketch: "✒️ SKETCH", emerald: "💚 EMERALD", amethyst: "💜 AMETHYST", ruby: "❤️ RUBY", mlg: "🎯 MLG", royal: "👑 ROYAL", diamond: "💎 DIAMOND", galaxy: "🌌 GALAXY", negative: "◐ NEGATIVE", rzulty: "💛 RZULTY" };
 const GEMS = ["emerald", "amethyst", "ruby", "diamond"];  // warianty z kamieniami szlachetnymi - wspólny wygląd, inne kolory
 
 const S = {
@@ -228,6 +228,7 @@ function variantLayers(v, p = null) {
   let html = "";
   for (const x of parts) {
     if (x === "royal") html += '<div class="gold-sheen"></div><div class="royal-border"></div><div class="royal-crown"></div>';
+    if (x === "mlg") html += mlgDeco(p);
     if (x === "flag") html += '<div class="flag-tint"></div><div class="flag-wave"></div>';
     if (x === "halloween") html += halloweenDeco();
     if (x === "lantern") html += lanternDeco();
@@ -241,6 +242,7 @@ function variantLayers(v, p = null) {
     if (x === "joker") html += jokerDeco();
     if (x === "jeans") html += jeansDeco();
     if (GEMS.includes(x)) html += '<div class="diamond-layer"></div><div class="diamond-glints"><i></i><i></i><i></i><i></i><i></i></div>';
+    html += stickersHTML(x, stickerList(x, p));
   }
   parts.forEach((x, i) => {
     const cls = `var-tag vt-${x}${i ? " vt-second" : ""}`;
@@ -326,6 +328,46 @@ function jeansDeco() {
   return `<div class="dz-deco"><i class="dz-stitch"></i>${rivets}</div>`;
 }
 
+// MLG "Quickscope": jaskrawy gradient przesuwający się po skosie w środku karty (mlgBG), na zdjęciu celownik, który co jakiś
+// czas namierza twarz i strzela (błysk + hitmarkery, potem kilka sekund zwykłego zdjęcia - mlgPhoto), nad kartą killfeed
+// z nazwą karty, obracające się 360°, napisy i oko Illuminati (mlgDeco). Grafiki z biblioteki naklejek (static/img/mlg).
+const MLG_WORDS = ["NO SCOPE", "QUICKSCOPE", "REKT", "WOW", "GG EZ", "+1000", "SKILL", "MLG", "#1"];
+const MLG_TAGS = ["xX_Sn1p3r_Xx", "N0Sc0pe420", "FaZe_Tata", "MLG_Pro2137", "QuickScoper"];
+const mlgPos = (a, b) => rand(a, b).toFixed(0) + "%";
+const mlgImg = (k, cls, style = "") => `<img class="${cls}" src="${S.cfg.stickerLibrary[k].url}" alt="" draggable="false" style="${style}">`;
+function mlgHits(n, x = [14, 86], y = [14, 84]) {
+  return Array.from({ length: n }, (_, k) => mlgImg("hitmarker", "mlg-hit",
+    `left:${mlgPos(...x)};top:${mlgPos(...y)};animation-delay:-${(k * 3.6 / n + rand(0, 0.5)).toFixed(2)}s`)).join("");
+}
+function mlgBG(variant) {
+  if (!variantParts(variant).includes("mlg")) return "";
+  return '<div class="mlg-bg"><i class="mlg-grad"></i></div>';
+}
+function mlgPhoto(variant) {
+  if (!variantParts(variant).includes("mlg")) return "";
+  return `<i class="mlg-photo"><i class="mlg-scope">${mlgImg("scope", "")}</i><i class="mlg-shot"></i>${mlgHits(5, [40, 60], [30, 55])}</i>`;
+}
+function mlgDeco(p) {
+  const tag = () => MLG_TAGS[Math.floor(rand(0, MLG_TAGS.length))];
+  const row = (k, victim) => `<span class="mlg-kill" style="animation-delay:${k * 0.8}s"><b>${tag()}</b>${mlgImg("scope", "")}<i>${esc(victim)}</i></span>`;
+  const word = MLG_WORDS[Math.floor(rand(0, MLG_WORDS.length))];
+  return `<div class="mlg-deco"><span class="mlg-feed">${row(0, p?.name || "noob")}${row(1, "Rywal")}</span>${mlgHits(3)}` +
+    `<b class="mlg-word spin360">360°</b><b class="mlg-word" style="left:${mlgPos(30, 70)};top:${mlgPos(20, 40)};--wr:${
+      rand(-16, 16).toFixed(0)}deg;animation-delay:-${rand(0, 5).toFixed(1)}s">${word}</b></div>${mlgImg("illuminati", "mlg-eye")}`;
+}
+// Naklejki od admina (strona /stickers) na wariantach z "stickers" (MLG): środek i szerokość w % karty, obrót, odbicie
+// i ruch (klasy vsa-*); kolejność listy = od spodu. Obrazek w środku <i>, żeby ruch nie kasował obrotu.
+// Karta z własnymi naklejkami (edytor, tryb "Tylko ta karta") ma gotową listę w cardStickers - reszta ma standardowe.
+function stickerList(v, p) { return (p && S.cfg.cardStickers?.[v]?.[p.imgAs || p.id]) || S.cfg.variantStickers?.[v]; }
+function stickersHTML(v, list = S.cfg.variantStickers?.[v]) {
+  return list?.length ? `<div class="v-stickers">${list.map(stickerHTML).join("")}</div>` : "";
+}
+function stickerHTML(s) {
+  return `<i class="v-sticker${s.anim && s.anim !== "none" ? " vsa-" + s.anim : ""}" data-sid="${s.id}" style="${stickerStyle(s)}">` +
+    `<img src="${esc(s.url)}" alt="" draggable="false"></i>`;
+}
+function stickerStyle(s) { return `--x:${s.x}%;--y:${s.y}%;--w:${s.w}%;--r:${s.rot}deg;--f:${s.flip ? -1 : 1}`; }
+
 // wszystkie zdolności karty po kolei: [{ name, kind: "off" | "def" | "heal" | "eco", value }]
 function abilitiesOf(p) {
   const list = [{ name: p.attack, kind: p.kind1 || "off", value: p.dmg }];
@@ -350,13 +392,13 @@ function cardHTML(pid, variant = "normal") {
   <div class="card r-${p.rarity} ${vClass(variant)}${p.style ? " vs-" + p.style : ""}${abils.length > 1 ? " two-atk" : ""}${abils.length > 2 ? ` atk-${abils.length}` : ""}" data-pid="${p.id}" data-variant="${variant}"${flagStyle(p, variant)}>
     <div class="card-inner">
       ${baseVariant(variant) === "reverse" ? '<div class="rev-foil"></div>' : ""}
-      ${galaxyBG(variant)}${devilBG(variant)}
+      ${galaxyBG(variant)}${devilBG(variant)}${mlgBG(variant)}
       <div class="card-head">
         <span class="card-name">${esc(p.name)}</span>
         <span class="card-hp"><small>HP</small>${p.hp}</span>
         <span class="card-type">${type.icon}</span>
       </div>
-      <div class="card-photo"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false">${galaxyPhoto(variant)}${halloweenPhoto(variant)}</div>
+      <div class="card-photo"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false">${galaxyPhoto(variant)}${halloweenPhoto(variant)}${mlgPhoto(variant)}</div>
       <div class="card-sub${p.subtitle ? " has-subtitle" : ""}">${p.subtitle ? esc(p.subtitle) : `${type.name} · ${esc(crate.short)}`}</div>
       ${abils.map((a, i) => `<div class="card-attack${i ? " atk2" : ""}${a.kind !== "off" ? " " + a.kind : ""}">
         <span class="atk-cost">${a.kind === "off" ? cost + (i ? type.icon : "") : S.cfg.abilityKinds[a.kind]?.icon || ""}</span>
@@ -387,7 +429,7 @@ function secretCardHTML(p, variant) {
   <div class="card r-secret ${vClass(variant)}" data-pid="${p.id}" data-variant="${variant}"${flagStyle(p, variant)}>
     <div class="sc">
       <div class="sc-art"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false"></div>
-      ${galaxyBG(variant)}${devilBG(variant)}${halloweenPhoto(variant)}
+      ${galaxyBG(variant)}${devilBG(variant)}${halloweenPhoto(variant)}${mlgBG(variant)}${mlgPhoto(variant)}
       <div class="sc-halo"></div>
       <div class="sc-stars"></div>
       ${baseVariant(variant) === "reverse" ? '<div class="rev-foil"></div>' : ""}
@@ -468,7 +510,7 @@ function tiltMove(e) {
   const b = zone ? zone.getBoundingClientRect() : flatRect(card);
   const px = Math.min(1, Math.max(0, (e.clientX - b.left) / b.width));
   const py = Math.min(1, Math.max(0, (e.clientY - b.top) / b.height));
-  const fancy = card.matches(".r-secret, .v-holo, .v-reverse, .v-gold, .v-silver, .v-diamond, .v-emerald, .v-ruby, .v-amethyst, .v-bw, .v-clear, .v-negative, .v-sketch, .v-galaxy");
+  const fancy = card.matches(".r-secret, .v-holo, .v-reverse, .v-gold, .v-silver, .v-diamond, .v-emerald, .v-ruby, .v-amethyst, .v-bw, .v-clear, .v-negative, .v-sketch, .v-galaxy, .v-mlg");
   const strength = card.closest(".viewer") ? 1.5 : fancy || card.closest(".modal") ? 1 : 0.6;
   card.classList.add("tilting");
   card.style.setProperty("--rx", ((0.5 - py) * 16 * strength).toFixed(2) + "deg");
@@ -644,7 +686,8 @@ function setupInstall() {
 // ================================================================ ADRESY STRON
 // każda zakładka ma swój adres (/inventory...), profil gracza: /player/<nazwa>; "/" = skrzynki
 const VIEW_PATHS = { crates: "/crates", binder: "/binder", inventory: "/inventory", forge: "/forge", market: "/market", casino: "/casino",
-                     friends: "/friends", ranking: "/ranking", arena: "/arena", mockups: "/mockups" };
+                     friends: "/friends", ranking: "/ranking", arena: "/arena", mockups: "/mockups",
+                     stickers: "/stickers" };
 
 function viewPath(view) {
   if (view === "inventory" && S.inv.mode === "hof") return "/inventory/hall-of-fame";
@@ -672,7 +715,7 @@ function showRoute(how = "none") {
 // how: "push" - nowy wpis w historii (kliknięcie), "replace" - podmiana (start), "none" - bez zmian (wstecz/dalej)
 function switchView(view, how = "push") {
   if (view === "arena" && !S.cfg.arena) view = "crates";  // Arena: na razie tylko dla adminów
-  if (view === "mockups" && !S.me?.isAdmin) view = "crates";
+  if ((view === "mockups" || view === "stickers") && !S.me?.isAdmin) view = "crates";
   const path = viewPath(view);
   if (how !== "none" && location.pathname !== path) history[how === "replace" ? "replaceState" : "pushState"](null, "", path);
   const tab = $(`.tab[data-view="${view}"]`);
@@ -692,6 +735,7 @@ function switchView(view, how = "push") {
   if (view === "profile") renderProfile();
   if (view === "arena") renderArena();
   if (view === "mockups") renderMockups();
+  if (view === "stickers") renderStickers();
   else document.body.classList.remove("hs-open");  // walka w Arenie zajmuje cały ekran tylko w jej zakładce
   updateSellbar();
 }
@@ -1184,7 +1228,9 @@ function showResults(afterEpic = false) {
       rzulty: ["#ffe600", "#fff6a0", "#ffffff"], flag: ["#ffffff", "#dc143c", "#ffcf3f"], halloween: ["#ff7a00", "#1a0a12", "#8a2be2", "#ffd84a"],
       lantern: ["#ffb347", "#ff7a00", "#fff1c1", "#3a1a06"], devil: ["#ff1a1a", "#b3001b", "#ffcf5a", "#120002"],
       sketch: ["#1b1712", "#f4ecd8", "#6b5d4a"], galaxy: ["#7b4dff", "#1fb6ff", "#ff4fd8", "#ffffff"],
+      mlg: ["#9cff00", "#ffe100", "#ff7a00", "#ff2bd6", "#00e5ff"],
     }[topBase] || GOLDS;
+    if (topBase === "mlg") setTimeout(() => Sound.airhorn(), 250);
     const rare = varRank(top.variant) >= varRank("gold");
     setTimeout(() => confetti(colors, topBase === "negative" ? 360 : varRank(top.variant) > varRank("gold") ? 260 : rare ? 140 : 60), 300);
     if (rare) toast(`✨ ${variantName(top.variant).toUpperCase()}: ${person(top.person).name}!`);

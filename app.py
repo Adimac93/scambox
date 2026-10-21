@@ -27,7 +27,8 @@ from data import (ABILITY_KINDS, ARENA, ARENA_EFFECT_TARGETS, ARENA_EFFECTS, ARE
                   STARTING_BALANCE, TYPES, UPGRADE_EDGE, UPGRADE_MAX, UPGRADE_MAX_ITEMS, VARIANT_ORDER,
                   VARIANTS, CRATE_VARIANTS, PATCH_NOTES, MARKET, ROULETTE, ROULETTE_BETS, ROULETTE_RED, ROULETTE_WHEEL,
                   JACKPOT, card_value, card_variants, combine_variant, SPECIAL_VARIANTS, SPECIAL_SOURCES, SPECIAL_CRATE,
-                  CASINO_SPECIAL, CASINO_VARIANTS, CASINO_TOP, BLACKJACK)
+                  CASINO_SPECIAL, CASINO_VARIANTS, CASINO_TOP, BLACKJACK, STICKER_VARIANTS, STICKER_LIBRARY,
+                  STICKER_ANIMS)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEST_MODE = "--test" in sys.argv  # osobny zapis do testów: python app.py --test
@@ -744,9 +745,11 @@ def public_person(p, found):
 @app.route("/player/<name>")
 @app.route("/link/<token>")   # link do karty specjalnej - kartę odbiera przeglądarka (/api/links/<token>/claim)
 @app.route("/mockups")         # makiety kart specjalnych - tylko dla adminów
+@app.route("/stickers")        # edytor naklejek wariantów (np. MLG) - tylko dla adminów
 @login_required
 def index(view=None, name=None, token=None):
-    if (view == "arena" or request.path == "/mockups") and not current_user()["is_admin"]:  # Arena i makiety: tylko admini
+    # Arena, makiety i naklejki: tylko admini
+    if (view == "arena" or request.path in ("/mockups", "/stickers")) and not current_user()["is_admin"]:
         return redirect("/")
     return render_template("index.html")
 
@@ -856,6 +859,24 @@ def image(person_id, kind="main"):
             fill="{color}" text-anchor="middle">{initials}</text></svg>""")
 
 
+@app.route("/sticker/<variant>/<sid>")
+def sticker_image(variant, sid):
+    """Naklejka wgrana przez admina na wariant (np. MLG) - ?v=<wersja> zmienia się razem z plikiem."""
+    if variant not in STICKER_VARIANTS or not catalog.STICKER_ID_RE.match(sid):
+        return "", 404
+    path = images.find(catalog.sticker_file_id(variant), sid)
+    if not path:
+        return "", 404
+    path = images.web_version(path)
+    return send_file(path, mimetype=images.mimetype(path), max_age=30 * 86400 if request.args.get("v") else 3600)
+
+
+def sticker_json(variant, s):
+    """Naklejka dla przeglądarki - z adresem obrazka (wgrany plik albo wbudowana grafika z static/img/mlg)."""
+    url = f"/sticker/{variant}/{s['id']}?v={s['v']}" if s["src"] == "upload" else asset(f"img/mlg/{s['src']}.svg")
+    return dict(s, url=url)
+
+
 # ---------------------------------------------------------------- API gry
 
 def crate_json(c):
@@ -901,6 +922,13 @@ def config():
         "jackpot": JACKPOT,
         "blackjack": BLACKJACK,
         "specialVariants": SPECIAL_VARIANTS, "specialSources": SPECIAL_SOURCES, "casinoSpecial": CASINO_SPECIAL,
+        # naklejki od admina na wariantach (MLG...) i wbudowane grafiki (część z nich jest też w samym wyglądzie MLG)
+        "variantStickers": {v: [sticker_json(v, s) for s in catalog.STICKERS.get(v, [])] for v in STICKER_VARIANTS},
+        # karty z własnymi naklejkami (zmienione standardowe + tylko tej karty) - gotowa lista dla każdej z nich
+        "cardStickers": {v: {pid: [sticker_json(v, s) for s in catalog.card_stickers(v, pid)]
+                             for pid in catalog.STICKER_CARDS.get(v, {}) if pid in catalog.PEOPLE} for v in STICKER_VARIANTS},
+        "stickerLibrary": {k: {"name": n, "url": asset(f"img/mlg/{k}.svg")} for k, n in STICKER_LIBRARY.items()},
+        "stickerAnims": STICKER_ANIMS,
     })
 
 
@@ -3620,6 +3648,107 @@ def admin_restore_card(pid):
     db().commit()
     refresh_catalog()
     return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------- naklejki wariantów (strona /stickers)
+# Admin nakleja na wariant (np. MLG) wbudowane grafiki albo własne pliki PNG i ustawia je na karcie. Wgrany plik od razu
+# trafia do image_cache (__stk_<wariant>__<id>.png), ale gracze widzą go dopiero po zapisaniu układu naklejek.
+
+@app.post("/api/admin/stickers/<variant>/upload")
+@admin_required
+def admin_sticker_upload(variant):
+    if variant not in STICKER_VARIANTS:
+        return jsonify({"error": "Ten wariant nie ma naklejek"}), 404
+    upload = request.files.get("image")
+    if not upload or not upload.filename:
+        return jsonify({"error": "Wybierz plik"}), 400
+    sid = secrets.token_hex(4)
+    try:
+        images.save(catalog.sticker_file_id(variant), upload.read(), sid)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    path = images.find(catalog.sticker_file_id(variant), sid)
+    v = int(os.path.getmtime(path)) % 10 ** 9
+    return jsonify({"ok": True, "sticker": sticker_json(variant, catalog.clean_stickers([{"id": sid, "src": "upload", "v": v}])[0])})
+
+
+@app.post("/api/admin/stickers/<variant>")
+@admin_required
+def admin_stickers_save(variant):
+    """Standardowy układ naklejek wariantu naraz (kolejność = od spodu) - zmiany na pojedynczych kartach zostają."""
+    if variant not in STICKER_VARIANTS:
+        return jsonify({"error": "Ten wariant nie ma naklejek"}), 404
+    stickers = with_sticker_files(variant, catalog.clean_stickers((request.get_json(force=True) or {}).get("stickers")))
+    catalog.save_override(db(), "catalog_variants", variant, {"stickers": stickers})
+    log_admin("stickers_save", details=f"{VARIANTS[variant]['name']}: {len(stickers)} naklejek")
+    db().commit()
+    refresh_catalog()
+    drop_unused_stickers(variant)
+    return jsonify({"ok": True, "stickers": [sticker_json(variant, s) for s in catalog.STICKERS.get(variant, [])],
+                    # karty z własnymi naklejkami - ich listy po zmianie standardu
+                    "cardStickers": {pid: [sticker_json(variant, s) for s in catalog.card_stickers(variant, pid)]
+                                     for pid in catalog.STICKER_CARDS.get(variant, {}) if pid in catalog.PEOPLE}})
+
+
+@app.post("/api/admin/stickers/<variant>/card/<pid>")
+@admin_required
+def admin_card_stickers_save(variant, pid):
+    """Naklejki jednej karty: zmiany standardowych naklejek ("edits") i naklejki tylko tej karty ("extra").
+    Pusty zapis = karta wraca do samych standardowych naklejek."""
+    if variant not in STICKER_VARIANTS:
+        return jsonify({"error": "Ten wariant nie ma naklejek"}), 404
+    if pid not in catalog.PEOPLE:
+        return jsonify({"error": "Nie ma takiej karty"}), 404
+    own = catalog.clean_card_stickers(request.get_json(force=True))
+    if own:
+        own["extra"] = with_sticker_files(variant, own["extra"])
+    row = db().execute("SELECT data FROM catalog_variants WHERE id = ?", (variant,)).fetchone()
+    cards = (json.loads(row[0] or "{}").get("cards") or {}) if row else {}
+    if own:
+        cards[pid] = own
+    else:
+        cards.pop(pid, None)
+    catalog.save_override(db(), "catalog_variants", variant, {"cards": cards})
+    log_admin("stickers_card", details=f"{VARIANTS[variant]['name']} · {catalog.PEOPLE[pid]['name']}: "
+                                       + (f"{len(own['edits'])} zmian, {len(own['extra'])} własnych" if own else "standardowe"))
+    db().commit()
+    refresh_catalog()
+    drop_unused_stickers(variant)
+    return jsonify({"ok": True, "card": admin_card_stickers_json(variant, pid),
+                    "stickers": [sticker_json(variant, s) for s in catalog.card_stickers(variant, pid)]})
+
+
+@app.get("/api/admin/stickers/<variant>")
+@admin_required
+def admin_stickers_get(variant):
+    """Do edytora: standardowe naklejki i zmiany na pojedynczych kartach (surowe - edytor sam je nakłada)."""
+    if variant not in STICKER_VARIANTS:
+        return jsonify({"error": "Ten wariant nie ma naklejek"}), 404
+    return jsonify({"stickers": [sticker_json(variant, s) for s in catalog.STICKERS.get(variant, [])],
+                    "cards": {pid: admin_card_stickers_json(variant, pid) for pid in catalog.STICKER_CARDS.get(variant, {})}})
+
+
+def admin_card_stickers_json(variant, pid):
+    own = catalog.STICKER_CARDS.get(variant, {}).get(pid)
+    return {"edits": own["edits"], "extra": [sticker_json(variant, s) for s in own["extra"]]} if own else None
+
+
+def with_sticker_files(variant, stickers):
+    """Wgrane naklejki tylko z istniejącym plikiem (mógł zniknąć, np. usunięty w innej karcie przeglądarki) i jego wersją."""
+    out = []
+    for s in stickers:
+        if s["src"] == "upload":
+            path = images.find(catalog.sticker_file_id(variant), s["id"])
+            if not path:
+                continue
+            s["v"] = int(os.path.getmtime(path)) % 10 ** 9
+        out.append(s)
+    return out
+
+
+def drop_unused_stickers(variant):
+    """Usuwa wgrane pliki naklejek, których nie używa już żadna naklejka (także wgrane, ale niezapisane)."""
+    images.delete_other_alts(catalog.sticker_file_id(variant), catalog.sticker_uploads(variant))
 
 
 # ---------------------------------------------------------------- linki do kart specjalnych

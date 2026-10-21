@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 110">
+  <!-- piramida z okiem i promieniami -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff6b0"/><stop offset=".35" stop-color="#ffd23f"/><stop offset=".7" stop-color="#c9952c"/><stop offset="1" stop-color="#8a5b00"/>
+    </linearGradient>
+    <radialGradient id="i" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#7dff8a"/><stop offset=".55" stop-color="#1fae4a"/><stop offset="1" stop-color="#0a4a1e"/>
+    </radialGradient>
+    <radialGradient id="glow" cx=".5" cy=".55" r=".5">
+      <stop offset="0" stop-color="#fff59d" stop-opacity=".9"/><stop offset="1" stop-color="#fff59d" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="60" cy="62" r="52" fill="url(#glow)"/>
+  <g stroke="#ffe680" stroke-width="2.4" stroke-linecap="round" opacity=".85">
+    <path d="M60 10V2M28 26L21 19M92 26L99 19M14 56H4M106 56H116M22 86L13 92M98 86L107 92"/>
+  </g>
+  <path d="M60 12L110 100H10Z" fill="url(#g)" stroke="#5a3a00" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M60 24L99 93H21Z" fill="#14532d" stroke="#5a3a00" stroke-width="1.5" stroke-linejoin="round"/>
+  <g stroke="#2f7a45" stroke-width="1" opacity=".7"><path d="M32 74H88M26 84H94M38 64H82"/></g>
+  <path d="M34 62Q60 38 86 62Q60 84 34 62Z" fill="#fffef2" stroke="#5a3a00" stroke-width="2.4"/>
+  <circle cx="60" cy="62" r="10" fill="url(#i)" stroke="#0a3a14" stroke-width="1.2"/>
+  <circle cx="60" cy="62" r="4.4" fill="#000"/>
+  <circle cx="57" cy="59" r="2" fill="#fff"/>
+</svg>
