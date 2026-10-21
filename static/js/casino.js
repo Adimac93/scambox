@@ -156,7 +156,7 @@ function drawRoulette() {
           ${stake && csSpecialChance(stake * bet.pays) ? `<span class="rl-joker" title="Karta specjalna z kasyna wypada przy wygranej — szansa rośnie z wygraną">🃏 Przy wygranej szansa na kartę specjalną: <b>${csPct(csSpecialChance(stake * bet.pays))}</b></span>` : ""}
         </div>
         <button class="big-btn rl-spin" id="rlSpin"${CS.sel.size && !CS.spinning ? "" : " disabled"}>🎡 ZAKRĘĆ${stake ? ` · stawka ${fmt(stake)}` : ""}</button>
-        <div class="muted small">Wygrana: twoje karty zostają, a dostajesz karty o wartości stawki × wypłata (losowe karty ze skrzynek w sklepie; końcówka w groszach). Przegrana: postawione karty przepadają.</div>
+        <div class="muted small">Wygrana: twoje karty zostają, a dostajesz karty o wartości stawki × wypłata (losowe karty ze skrzynek w sklepie — przy większych wygranych w droższych wariantach: Złota, Diamentowa…; końcówka w groszach). Przegrana: postawione karty przepadają.</div>
       </div>
       <div class="panel cs-pick">${csPickerHTML(CS.sel, CS.q, S.cfg.roulette.maxCards, "rl")}</div>
     </div>
@@ -338,7 +338,7 @@ function bjSideHTML() {
         ${joker ? `<span class="rl-joker" title="Karta specjalna z kasyna wypada przy wygranej — szansa rośnie z wygraną">🃏 Przy wygranej szansa na kartę specjalną: <b>${csPct(joker)}</b></span>` : ""}
       </div>
       <div class="muted small">Zbierz bliżej 21 niż krupier, nie przekraczając 21. Krupier dobiera do 16 i staje na 17. Wygrana: twoje karty zostają,
-        a dostajesz karty o wartości wygranej (losowe karty ze skrzynek w sklepie; końcówka w groszach). Przegrana: postawione karty przepadają.
+        a dostajesz karty o wartości wygranej (losowe karty ze skrzynek w sklepie — przy większych wygranych w droższych wariantach: Złota, Diamentowa…; końcówka w groszach). Przegrana: postawione karty przepadają.
         Na dwóch pierwszych kartach możesz <b>podwoić</b> — dokładasz karty warte najwyżej tyle, co stawka, i dostajesz jeszcze jedną kartę.</div>
     </div>
     <div class="panel cs-pick">${csPickerHTML(B.sel, B.q, C.maxCards, "bj")}</div>`;

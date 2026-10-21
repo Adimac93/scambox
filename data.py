@@ -508,8 +508,15 @@ MARKET = {
 
 # ============================================================ KASYNO
 # Ruletka europejska (0-36). Wygrana: karty wracają + wygrana w kartach o tej samej wartości (losowe karty
-# ze skrzynek w sklepie, zwykły wariant, bez tajnych); końcówka mniejsza niż najtańsza karta - w pieniądzach.
+# ze skrzynek w sklepie, bez tajnych, także w wariantach z CASINO_VARIANTS); końcówka mniejsza niż najtańsza karta - w pieniądzach.
 ROULETTE = {"maxCards": 20, "maxPayoutCards": 100}
+# warianty, w których kasyno (ruletka, blackjack) wypłaca wygrane: zwykła + warianty, które wypadają z każdej skrzynki
+# (bez wyjątkowych - Flagowa, Królewska, halloweenowe, Rzulty - i bez specjalnych). Wybieramy losowo spośród kart
+# z górnej półki tego, co się jeszcze mieści (co najmniej CASINO_TOP × najdroższa pasująca), więc duże wygrane
+# to droższe warianty, a małe - zwykłe karty.
+CASINO_VARIANTS = [v for v in VARIANT_ORDER
+                   if v == "normal" or (VARIANTS[v]["chance"] > 0 and not VARIANTS[v].get("exclusive"))]
+CASINO_TOP = 0.75
 ROULETTE_WHEEL = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14,
                   31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26]   # kolejność pól na kole
 ROULETTE_RED = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]
@@ -544,6 +551,12 @@ JACKPOT = {"maxCards": 20, "expireHours": 24}
 # ============================================================ LISTA ZMIAN (pokazywana raz po aktualizacji)
 # Najnowsza na górze. "v" musi rosnąć z każdą nową wersją - gracz zobaczy wpisy nowsze niż ostatnio obejrzany.
 PATCH_NOTES = [
+    {"v": 12, "date": "2026-10-21", "title": "Wygrane w kasynie w wariantach",
+     "items": [
+         "✨ Wygrane w <b>ruletce</b> i <b>blackjacku</b> mogą teraz przyjść w <b>wariantach</b> — Złota, Holo, Szmaragdowa, "
+         "Diamentowa, Galaktyczna, Negatyw… Im większa wygrana, tym droższe warianty (wartość wygranej się nie zmienia).",
+         "🃏 Przypominamy: przy każdej wygranej w blackjacku — tak jak w ruletce — możesz dostać kartę specjalną <b>Jokerową</b>.",
+     ]},
     {"v": 11, "date": "2026-10-21", "title": "Blackjack, seria logowań, nowe kolory i wymiany bez pieniędzy",
      "items": [
          "🃏 Nowa gra w 🎰 Kasynie: <b>Blackjack</b>! Postaw karty (jak w ruletce) i zagraj z krupierem — "

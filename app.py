@@ -27,7 +27,7 @@ from data import (ABILITY_KINDS, ARENA, ARENA_EFFECT_TARGETS, ARENA_EFFECTS, ARE
                   STARTING_BALANCE, TYPES, UPGRADE_EDGE, UPGRADE_MAX, UPGRADE_MAX_ITEMS, VARIANT_ORDER,
                   VARIANTS, CRATE_VARIANTS, PATCH_NOTES, MARKET, ROULETTE, ROULETTE_BETS, ROULETTE_RED, ROULETTE_WHEEL,
                   JACKPOT, card_value, card_variants, combine_variant, SPECIAL_VARIANTS, SPECIAL_SOURCES, SPECIAL_CRATE,
-                  CASINO_SPECIAL, BLACKJACK)
+                  CASINO_SPECIAL, CASINO_VARIANTS, CASINO_TOP, BLACKJACK)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEST_MODE = "--test" in sys.argv  # osobny zapis do testów: python app.py --test
@@ -2382,17 +2382,19 @@ def fmt_money(amount):
 # ---------------------------------------------------------------- kasyno: ruletka
 
 def house_cards(value):
-    """Wygrana w kartach o łącznej wartości value: losowe karty ze skrzynek w sklepie (zwykły wariant, bez tajnych),
-    zawsze najdroższa, która się mieści. Zwraca (karty, reszta w pieniądzach)."""
-    pool = sorted(((card_value(p), p) for p in catalog.PEOPLE.values() if p.get("forge") and p["rarity"] != "secret"),
-                  key=lambda x: -x[0])
+    """Wygrana w kartach o łącznej wartości value: losowe karty ze skrzynek w sklepie (bez tajnych) w wariantach
+    z CASINO_VARIANTS - za każdym razem jedna z najdroższych, które się mieszczą (CASINO_TOP).
+    Zwraca ([(karta, wariant)], reszta w pieniądzach)."""
+    pool = sorted(((card_value(p, v), p, v) for p in catalog.PEOPLE.values() if p.get("forge") and p["rarity"] != "secret"
+                   for v in CASINO_VARIANTS), key=lambda x: -x[0])
     out, left = [], value
     while len(out) < ROULETTE["maxPayoutCards"]:
         fit = [x for x in pool if x[0] <= left]
         if not fit:
             break
-        out.append(rng.choice([p for v, p in fit if v == fit[0][0]]))
-        left -= fit[0][0]
+        price, p, v = rng.choice([x for x in fit if x[0] >= fit[0][0] * CASINO_TOP])
+        out.append((p, v))
+        left -= price
     return out, left
 
 
@@ -2437,7 +2439,7 @@ def casino_roulette():
     out = {"number": number, "win": number in numbers, "bet": bet, "stake": stake}
     if out["win"]:   # karty zostają u gracza + wygrana w kartach
         cards, money = house_cards(stake * pays)
-        out["items"] = [insert_item(p["id"], "normal", "casino") for p in cards]
+        out["items"] = [insert_item(p["id"], v, "casino") for p, v in cards]
         out["money"] = money
         out["payout"] = stake * pays
         add_state("balance", money)
@@ -2530,7 +2532,7 @@ def bj_end(G, player, dealer, deck):
     if result in ("win", "blackjack"):   # + wygrana w kartach, jak w ruletce
         payout = int(stake * BLACKJACK["blackjackPays"]) if result == "blackjack" else stake
         cards, money = house_cards(payout)
-        out["items"] = [insert_item(p["id"], "normal", "casino") for p in cards]
+        out["items"] = [insert_item(p["id"], v, "casino") for p, v in cards]
         out["money"], out["payout"] = money, payout
         add_state("balance", money)
         note_drops(out["items"], "blackjack")
