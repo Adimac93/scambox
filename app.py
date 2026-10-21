@@ -3683,6 +3683,7 @@ def admin_delete_user(user_id):
                 "DELETE FROM showcase WHERE user_id = ?", "DELETE FROM feed WHERE author_id = ? OR to_user_id = ?",
                 "DELETE FROM user_chests WHERE user_id = ?", "DELETE FROM crate_access WHERE user_id = ?",
                 "DELETE FROM arena_daily WHERE user_id = ?", "DELETE FROM card_link_claims WHERE user_id = ?",
+                "DELETE FROM admin_message_seen WHERE user_id = ?",
                 "DELETE FROM trade_lines WHERE trade_id IN (SELECT id FROM trades WHERE from_id = ? OR to_id = ?)",
                 "DELETE FROM trades WHERE from_id = ? OR to_id = ?",
                 "DELETE FROM friendships WHERE requester_id = ? OR addressee_id = ?", "DELETE FROM users WHERE id = ?"):

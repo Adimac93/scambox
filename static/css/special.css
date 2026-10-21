@@ -1,0 +1,77 @@
+/* ============================================================ KARTY SPECJALNE
+   Rzadkość Specjalna (między Legendarną a ULTRA) - tylko z kasyna albo z linku od admina, zawsze w jednym wariancie:
+   Jokerowa (wygląd "Talia Kasynowa" w joker-talia.css) albo Dżinsowa. Makiety: /mockups (admini).
+   Ozdoby: jokerDeco() / jeansDeco() w app.js, czapka błazna: symbol #jk-hat w index.html. */
+:root { --c-special: #19e6ff; }
+
+.card.r-special {
+  --rc: var(--c-special);
+  --frame: linear-gradient(135deg, #19e6ff, #7b2cff 50%, #ff2bd6);
+  --inner: linear-gradient(170deg, #f2fdff, #ece2ff);
+  box-shadow: 0 6px 18px #000a, 0 0 22px #19e6ff88, 0 0 46px #ff2bd655;
+}
+.mini.r-special { box-shadow: inset 0 0 0 2px var(--c-special), inset 0 -30px 30px -20px #ff2bd6; }
+.epic.special { --c1: #19e6ff; --c2: #ff2bd6; --amp: 3px; }
+.epic.special .epic-bg { background: radial-gradient(circle, #1b0a2e, #000 70%); }
+.special-note { font-size: 13px; line-height: 1.45; padding: 8px 12px; border-radius: 10px; border: 1px solid #19e6ff66;
+  background: linear-gradient(90deg, #19e6ff1a, #ff2bd61a); }
+
+/* ------------------------------------------------------------ JOKEROWA - wygląd karty: static/css/joker-talia.css (Talia Kasynowa);
+   tutaj tylko plakietki, kafelki i kropki wariantu */
+.var-tag.vt-joker, .ph.vt-joker { background: linear-gradient(90deg, #111, #2a2a2a); color: #fff; border: 1px solid #e0142e;
+  box-shadow: 0 0 .7em #19e6ff99; text-shadow: none; }
+.pick.v-joker { box-shadow: inset 0 0 0 2px #e0142e, inset 0 0 0 4px #111, 0 0 10px #19e6ff88, inset 0 -26px 26px -18px var(--rc); }
+.vdot.vt-joker { background: conic-gradient(#e0142e 0 25%, #111 0 50%, #e0142e 0 75%, #111 0); box-shadow: 0 0 0 1px #fff8; }
+.odd.odd-v.vt-joker { border-left-color: #e0142e; }
+.vchip.vt-joker.active { background: linear-gradient(90deg, #111, #e0142e); color: #fff; }
+.avv-joker img { box-shadow: 0 0 0 2px #e0142e, 0 0 0 4px #111, 0 0 12px #19e6ff !important; }
+.av-vname.vt-joker { color: #ff5a6e; }
+
+/* ------------------------------------------------------------ DŻINSOWA - dżins, pomarańczowe przeszycia, miedziane nity */
+.card.v-jeans {
+  --denim-1: #4a72a8; --denim-2: #2f5287; --denim-3: #24426f; --stitch: #e8a33d; --rivet: #b8743a;
+  --denim: repeating-linear-gradient(45deg, #ffffff14 0 1px, transparent 1px 3px),
+           repeating-linear-gradient(-45deg, #0000002a 0 1px, transparent 1px 4px),
+           radial-gradient(ellipse at 30% 18%, #ffffff22, transparent 60%),
+           linear-gradient(160deg, var(--denim-1), var(--denim-2) 50%, var(--denim-3));
+  --frame: var(--denim);
+  box-shadow: 0 6px 18px #000a, 0 0 0 1px #0006, 0 0 20px #19e6ff55;
+}
+.card.v-jeans .card-inner { background: var(--denim); color: #f4f1e8; box-shadow: inset 0 0 0 .14em #0003, inset 0 0 1.2em #0005; }
+.card.v-jeans :is(.card-sub, .card-stats, .card-stats b, .card-foot, .atk-name, .atk-dmg, .card-hp, .atk-cost) { color: #f4f1e8; }
+.card.v-jeans .card-name { color: #fff; text-shadow: 0 .08em 0 #0007; }
+.card.v-jeans .card-value { color: #ffd27a; }
+.card.v-jeans .card-sub { background: linear-gradient(90deg, transparent, #8a5a2b, transparent); color: #fbe7c8; }
+.card.v-jeans .card-attack { border-color: #ffffff26; border-style: dashed; }
+.card.v-jeans .card-type { background: #1d3557; box-shadow: 0 0 0 .1em var(--stitch); }
+.card.v-jeans .card-photo { border-image: none; border: .25em solid #1d3557; outline: .1em dashed var(--stitch); outline-offset: -.36em; }
+.dz-deco { position: absolute; inset: 0; z-index: 5; pointer-events: none; border-radius: inherit; }
+.dz-deco > * { position: absolute; }
+.dz-stitch { inset: 1.7%; border: .8cqw dashed var(--stitch); border-radius: 3.5%/2.5%; opacity: .95; }
+.dz-rivet { width: 4.6cqw; aspect-ratio: 1; border-radius: 50%; box-shadow: 0 .3cqw .6cqw #0008, inset 0 0 0 .5cqw #0003;
+  background: radial-gradient(circle at 35% 30%, #fff1d6, var(--rivet) 45%, #4a2a10 90%); }
+.dz-rivet.tl { top: 1.4%; left: 2%; } .dz-rivet.tr { top: 1.4%; right: 2%; } .dz-rivet.bl { bottom: 1.4%; left: 2%; } .dz-rivet.br { bottom: 1.4%; right: 2%; }
+.var-tag.vt-jeans, .ph.vt-jeans { background: #2f5287; color: #fff; border: 1px dashed #e8a33d; text-shadow: 0 1px 1px #0008; box-shadow: 0 0 .6em #0006; }
+.pick.v-jeans { box-shadow: inset 0 0 0 2px #2f5287, inset 0 0 0 3px #e8a33d, 0 0 8px #19e6ff66, inset 0 -26px 26px -18px var(--rc); }
+.vdot.vt-jeans { background: repeating-linear-gradient(45deg, #4a72a8 0 2px, #2f5287 2px 4px); box-shadow: 0 0 0 1px #e8a33d; }
+.odd.odd-v.vt-jeans { border-left-color: #4a72a8; }
+.vchip.vt-jeans.active { background: #2f5287; color: #fff; outline-color: #e8a33d; }
+.avv-jeans img { box-shadow: 0 0 0 2px #e8a33d, 0 0 0 4px #2f5287, 0 0 10px #4a72a8 !important; }
+.av-vname.vt-jeans { color: #8fb3e6; }
+
+/* ------------------------------------------------------------ MAKIETY (/mockups) */
+.mock-head h2 { margin: 0 0 6px; font-family: Bungee, Rubik, sans-serif; font-weight: 400; }
+.mock-head p { max-width: 900px; }
+.mock-sec { margin-top: 16px; }
+.mock-sec h3 { margin: 0 0 14px; }
+.mock-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 30px 22px; padding: 22px 6px 6px; }
+.mock { margin: 0; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.mock-card { width: 100%; max-width: 250px; }
+.mock-card .card { width: 100%; --cw: 100%; }
+.mock figcaption { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 2px; }
+
+/* ------------------------------------------------------------ kasyno, ekwipunek */
+.rl-joker { color: #19e6ff; }
+.rl-special { padding: 6px 12px; border-radius: 10px; background: linear-gradient(90deg, #19e6ff22, #ff2bd622); border: 1px solid #19e6ff66; }
+.inv-search { flex: 1 1 220px; min-width: 0; max-width: 340px; background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 10px; padding: 8px 12px; font: inherit; }
