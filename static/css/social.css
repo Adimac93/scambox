@@ -45,7 +45,8 @@
 .damount { font-size: 12px; font-weight: 900; color: var(--good); line-height: 1.2; }
 .dday.claimed { background: #12301f; border-color: #1f5a3a; }
 .dday.claimed .dicon { color: var(--good); }
-.dday.missed { opacity: .35; }
+.daily-streak { text-align: center; font-size: 14px; color: #ffb347; }   /* seria dni logowania z rzędu */
+.daily-streak b { color: #ffd54a; }
 .dday.today { border: 2px solid var(--accent); box-shadow: 0 0 18px #ffcf3f66; }
 .dday.today:not(.claimed) { animation: dayPulse 1.2s ease-in-out infinite; }
 @keyframes dayPulse { 50% { transform: translateY(-4px); box-shadow: 0 0 26px #ffcf3faa; } }

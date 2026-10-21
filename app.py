@@ -22,7 +22,7 @@ import database
 import export_catalog
 import images
 from data import (ABILITY_KINDS, ARENA, ARENA_EFFECT_TARGETS, ARENA_EFFECTS, ARENA_TARGETS, ARENA_VISUALS,
-                  MAX_ABILITY_EFFECTS, MAX_EXTRA_ABILITIES, CONTRACT_SIZE, CONTRACT_VARIANT_BONUS, CRATE_PRICE, JACKPOT_WEEKDAY, MAX_DEPOSIT,
+                  MAX_ABILITY_EFFECTS, MAX_EXTRA_ABILITIES, CONTRACT_SIZE, CONTRACT_VARIANT_BONUS, CRATE_PRICE, DAILY_STREAK, MAX_DEPOSIT,
                   MAX_OPEN, MONEY_CHESTS, RARITIES, RARITY_ORDER, SECRET_ODDS, SHOWCASE_SIZE,
                   STARTING_BALANCE, TYPES, UPGRADE_EDGE, UPGRADE_MAX, UPGRADE_MAX_ITEMS, VARIANT_ORDER,
                   VARIANTS, CRATE_VARIANTS, PATCH_NOTES, MARKET, ROULETTE, ROULETTE_BETS, ROULETTE_RED, ROULETTE_WHEEL,
@@ -884,7 +884,7 @@ def config():
         "upgradeMaxItems": UPGRADE_MAX_ITEMS,
         "maxDeposit": MAX_DEPOSIT,
         "moneyChests": MONEY_CHESTS,
-        "jackpotWeekday": JACKPOT_WEEKDAY,
+        "dailyStreak": DAILY_STREAK,
         "secretOdds": SECRET_ODDS,
         "showcaseSize": SHOWCASE_SIZE,
         "market": MARKET,
@@ -1222,22 +1222,27 @@ def upgrade():
 
 # ---------------------------------------------------------------- codzienna nagroda
 
-def daily_kind(day):
-    return "mega" if day.weekday() == JACKPOT_WEEKDAY else "daily"
+def daily_streak(user_id, today):
+    """Seria logowań: ile dni z rzędu (do wczoraj) gracz odebrał codzienną skrzynkę i czy odebrał ją dziś."""
+    claimed = {r["day"] for r in db().execute("SELECT day FROM daily_claims WHERE user_id = ? AND day < ?",
+                                              (user_id, (today + datetime.timedelta(days=1)).isoformat()))}
+    before, d = 0, today - datetime.timedelta(days=1)
+    while d.isoformat() in claimed:
+        before, d = before + 1, d - datetime.timedelta(days=1)
+    return before, today.isoformat() in claimed
 
 
 def daily_info(user_id):
+    """Dzisiejsza skrzynka w serii DAILY_STREAK dni: dzień serii 1..7 (7. = MEGA), które dni serii są już odebrane."""
     today = datetime.date.today()
-    monday = today - datetime.timedelta(days=today.weekday())
-    claimed = {r["day"] for r in db().execute(
-        "SELECT day FROM daily_claims WHERE user_id = ? AND day >= ?", (user_id, monday.isoformat()))}
-    week = []
-    for i in range(7):
-        d = monday + datetime.timedelta(days=i)
-        week.append({"date": d.isoformat(), "weekday": d.weekday(), "kind": daily_kind(d),
-                     "claimed": d.isoformat() in claimed, "today": d == today, "past": d < today})
-    return {"today": today.isoformat(), "claimable": today.isoformat() not in claimed, "week": week,
-            "todayKind": daily_kind(today), "daysToJackpot": (JACKPOT_WEEKDAY - today.weekday()) % 7}
+    before, done = daily_streak(user_id, today)
+    # dzień serii, który przypada dziś (po MEGA seria liczy się od nowa: 7 odebranych dni -> dziś znów 1. dzień)
+    pos = before % DAILY_STREAK + 1
+    kind = "mega" if pos == DAILY_STREAK else "daily"
+    days = [{"day": i, "kind": "mega" if i == DAILY_STREAK else "daily", "claimed": i < pos or (i == pos and done),
+             "today": i == pos} for i in range(1, DAILY_STREAK + 1)]
+    return {"today": today.isoformat(), "claimable": not done, "days": days, "todayKind": kind, "streakDay": pos,
+            "streak": before + done, "daysToJackpot": DAILY_STREAK - pos}
 
 
 @app.get("/api/daily")
@@ -1251,7 +1256,7 @@ def daily():
 def daily_claim():
     lock_me()
     today = datetime.date.today()
-    kind = daily_kind(today)
+    kind = daily_info(uid())["todayKind"]   # 7. dzień serii logowań = MEGA skrzynka
     cur = db().execute("INSERT INTO daily_claims (user_id, day, amount) VALUES (?, ?, 0) ON CONFLICT DO NOTHING",
                        (uid(), today.isoformat()))
     if not cur.rowcount:

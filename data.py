@@ -123,14 +123,16 @@ MAX_DEPOSIT = 1_000_000
 
 # Skrzynki z pieniędzmi (codzienna nagroda za logowanie).
 # Wylosowana kwota = min + (max - min) * los^curve  ->  im większe curve, tym rzadsze wysokie kwoty.
-# (wersja 7: wszystkie kwoty ×5 - codzienna daje co najmniej 5000 gr)
+# (wersja 10: codzienna 5-20 tys. gr, MEGA 10-67 tys. gr)
 MONEY_CHESTS = {
-    "daily": {"name": "Codzienna skrzynka", "emoji": "🎁", "min": 5_000, "max": 100_000, "curve": 2.2,
+    "daily": {"name": "Codzienna skrzynka", "emoji": "🎁", "min": 5_000, "max": 20_000, "curve": 2.2,
               "color1": "#3ddc84", "color2": "#0f5a32"},
-    "mega":  {"name": "MEGA skrzynka", "emoji": "💎", "min": 25_000, "max": 250_000, "curve": 2.0,
+    "mega":  {"name": "MEGA skrzynka", "emoji": "💎", "min": 10_000, "max": 67_000, "curve": 2.0,
               "color1": "#ffd54a", "color2": "#8a5b00"},
 }
-JACKPOT_WEEKDAY = 6       # w ten dzień tygodnia zamiast zwykłej jest MEGA skrzynka (0 = pon ... 6 = niedziela)
+# seria logowań: kto odbiera codzienną skrzynkę dzień w dzień, w DAILY_STREAK-tym dniu serii dostaje MEGA skrzynkę
+# (potem seria liczy się od nowa); pominięty dzień zaczyna serię od 1. dnia
+DAILY_STREAK = 7
 SHOWCASE_SIZE = 6         # ile kart mieści gablota na profilu
 
 # kolejność = od najpospolitszej do najrzadszej
@@ -536,6 +538,14 @@ JACKPOT = {"maxCards": 20, "expireHours": 24}
 # ============================================================ LISTA ZMIAN (pokazywana raz po aktualizacji)
 # Najnowsza na górze. "v" musi rosnąć z każdą nową wersją - gracz zobaczy wpisy nowsze niż ostatnio obejrzany.
 PATCH_NOTES = [
+    {"v": 10, "date": "2026-10-21", "title": "Seria logowań i lista skrzynek",
+     "items": [
+         "🔥 <b>MEGA skrzynka</b> 💎 nie zależy już od dnia tygodnia — dostajesz ją po <b>7 dniach logowania z rzędu</b> "
+         "(odbierz codzienną skrzynkę dzień w dzień). Pominięty dzień zaczyna serię od nowa.",
+         "🎁 <b>Codzienna skrzynka</b> daje teraz od <b>5 000 gr</b> do <b>20 000 gr</b>, a <b>MEGA skrzynka</b> "
+         "od <b>10 000 gr</b> do <b>67 000 gr</b>.",
+         "📋 Pod karuzelą w sklepie jest <b>lista wszystkich skrzynek</b> — kliknij skrzynkę, a karuzela od razu do niej przejedzie.",
+     ]},
     {"v": 9, "date": "2026-10-22", "title": "Ametyst i porządek z duplikatami",
      "items": [
          "💜 Nowy wariant <b>Ametystowa</b> — fioletowy kamień szlachetny we wszystkich skrzynkach, "

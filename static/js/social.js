@@ -1,7 +1,6 @@
 "use strict";
 // Konta i funkcje społecznościowe: nagroda dzienna, znajomi, aktywność, ranking, profile, gablota.
 
-const DAY_NAMES = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd"];
 const AVATARS = ["😎", "🤠", "🥷", "🧙", "🦸", "🧛", "🤖", "👽", "👻", "🎃", "🐸", "🐼", "🦊", "🐯", "🦁", "🐺",
                  "🐉", "🦄", "🐙", "🦈", "🦅", "🐝", "🍕", "🌶️", "🍀", "🔥", "⚡", "💎", "👑", "🎩", "🎮", "🎲",
                  "🏆", "⚽", "🏀", "🎸", "🚀", "🛸", "🌈", "💀"];
@@ -169,23 +168,25 @@ function renderDaily(d, dlg, justClaimed = null) {
   box.innerHTML = `
     <div class="daily-head">🎁 <span>Codzienna skrzynka</span></div>
     <p class="muted">Każdego dnia odbierz <b>${D.emoji} ${D.name}</b> z kasą: <b class="gold-txt">${kRange(D)}</b>.
-      W każdą <b class="gold-txt">niedzielę</b> — <b class="gold-txt">${M.emoji} ${M.name}</b>: <b class="gold-txt">${kRange(M)}</b>!</p>
-    <div class="daily-week">${d.week.map(w => {
+      Odbieraj ją <b class="gold-txt">${S.cfg.dailyStreak} dni z rzędu</b>, a w ${S.cfg.dailyStreak}. dniu dostaniesz
+      <b class="gold-txt">${M.emoji} ${M.name}</b>: <b class="gold-txt">${kRange(M)}</b>! Pominięty dzień zaczyna serię od nowa.</p>
+    <div class="daily-week">${d.days.map(w => {
       const m = S.cfg.moneyChests[w.kind];
-      return `<div class="dday${w.kind === "mega" ? " jackpot" : ""}${w.claimed ? " claimed" : ""}${w.today ? " today" : ""}${w.past && !w.claimed ? " missed" : ""}">
-        <div class="dname">${w.kind === "mega" ? "⭐ " : ""}${DAY_NAMES[w.weekday]}</div>
-        <div class="dicon">${w.claimed ? "✔" : w.past ? "—" : m.emoji}</div>
+      return `<div class="dday${w.kind === "mega" ? " jackpot" : ""}${w.claimed ? " claimed" : ""}${w.today ? " today" : ""}">
+        <div class="dname">${w.kind === "mega" ? "⭐ " : ""}Dzień ${w.day}</div>
+        <div class="dicon">${w.claimed ? "✔" : m.emoji}</div>
         <div class="damount">${w.kind === "mega" ? "MEGA<br>" : ""}${kRange(m)}</div>
       </div>`;
     }).join("")}</div>
+    ${d.streak > 1 ? `<div class="daily-streak">🔥 Seria: <b>${d.streak} ${plural(d.streak, "dzień", "dni", "dni")}</b> z rzędu</div>` : ""}
     ${justClaimed ? `
       <div class="claimed-panel">
         ${moneyChestArt(justClaimed, "bounce")}
         <div><b>${S.cfg.moneyChests[justClaimed].name}</b> trafiła do ekwipunku!<br><span class="muted small">Możesz ją otworzyć teraz albo później w zakładce 🎒 Ekwipunek.</span></div>
       </div>` : `
       <div class="daily-info">${d.claimable
-        ? (todayKind === "mega" ? "💎 <b class='gold-txt'>Dziś MEGA skrzynka!</b>" : `Do MEGA skrzynki: <b>${d.daysToJackpot} ${plural(d.daysToJackpot, "dzień", "dni", "dni")}</b>`)
-        : `Dzisiejsza skrzynka odebrana ✔ · ${d.daysToJackpot === 0 ? "kolejna MEGA za tydzień" : `MEGA za <b>${d.daysToJackpot} ${plural(d.daysToJackpot, "dzień", "dni", "dni")}</b>`}`}</div>`}
+        ? (todayKind === "mega" ? "💎 <b class='gold-txt'>Dziś MEGA skrzynka!</b>" : `Do MEGA skrzynki: <b>${d.daysToJackpot} ${plural(d.daysToJackpot, "dzień", "dni", "dni")}</b> logowania z rzędu`)
+        : `Dzisiejsza skrzynka odebrana ✔ · ${d.daysToJackpot === 0 ? `wróć jutro — zaczniesz nową serię do MEGA` : `MEGA za <b>${d.daysToJackpot} ${plural(d.daysToJackpot, "dzień", "dni", "dni")}</b> — wróć jutro, żeby nie przerwać serii`}`}</div>`}
     <div class="daily-actions">
       ${d.claimable ? `<button class="big-btn${todayKind === "mega" ? " jackpot-btn" : ""}" id="claimBtn">ODBIERZ ${todayKind === "mega" ? "MEGA SKRZYNKĘ 💎" : "SKRZYNKĘ 🎁"}</button>` : ""}
       ${!d.claimable && owned ? `<button class="big-btn${todayKind === "mega" ? " jackpot-btn" : ""}" id="openNowBtn" data-kind="${todayKind}">OTWÓRZ TERAZ${owned > 1 ? ` (${owned})` : ""}</button>` : ""}
