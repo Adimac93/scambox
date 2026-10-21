@@ -791,6 +791,18 @@ function renderCrates() {
   $("#shopCarousel").classList.toggle("single", visible.length < 2);
   $("#shopDots").innerHTML = visible.length > 1 ? visible.map(c =>
     `<button class="car-dot${c.id === S.crate ? " active" : ""}" data-crate="${c.id}" title="${esc(c.name)}" style="--c1:${c.color1}"></button>`).join("") : "";
+  // lista wszystkich skrzynek pod karuzelą (rozwijana) - kliknięcie przenosi karuzelę do tej skrzynki
+  $("#shopAll").hidden = visible.length < 2;
+  $("#shopAllToggle").innerHTML = `📋 Wszystkie skrzynki (${visible.length}) ${S.shopAllOpen ? "▴" : "▾"}`;
+  $("#shopAllList").hidden = !S.shopAllOpen;
+  $("#shopAllList").innerHTML = visible.map(c => {
+    const owned = S.chests[c.id] || 0;
+    return `<button class="sal-item${c.id === S.crate ? " active" : ""}${!c.canBuy ? " locked" : ""}" data-crate="${c.id}" style="--c1:${c.color1}; --c2:${c.color2}" type="button">
+      <span class="sal-emoji">${esc(c.emoji)}</span>
+      <span class="sal-main"><b>${esc(c.name)}</b><small class="muted">${c.people.length} kart${owned ? ` · 📦 ×${owned}` : ""}${!c.canBuy ? " · 🔒" : ""}</small></span>
+      <span class="sal-price">${fmt(c.price)}</span>
+    </button>`;
+  }).join("");
 
   const crate = crateOf(S.crate);
   $("#buyPanel").hidden = !crate;
@@ -1632,6 +1644,14 @@ function bind() {
   car.addEventListener("pointerenter", () => { S.shopHover = true; });
   car.addEventListener("pointerleave", () => { S.shopHover = false; swipeX = null; });
   $("#buyPanel").addEventListener("pointerdown", shopTouched);   // gracz coś ustawia przy zakupie - karuzela stoi
+  $("#shopAllToggle").addEventListener("click", () => { S.shopAllOpen = !S.shopAllOpen; shopTouched(); Sound.click(); renderCrates(); });
+  $("#shopAllList").addEventListener("click", e => {
+    const c = e.target.closest("[data-crate]"); if (!c) return;
+    shopTouched(); Sound.click();
+    S.crate = c.dataset.crate; S.shopAllOpen = false;   // wybrana z listy - lista się zwija, karuzela jedzie do tej skrzynki
+    renderCrates();
+    $("#shopCarousel").scrollIntoView({ behavior: "smooth", block: "center" });
+  });
   setInterval(shopAutoRotate, SHOP_ROTATE_MS);
   $("#countChips").addEventListener("click", e => {
     const c = e.target.closest(".chip"); if (!c) return;

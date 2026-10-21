@@ -47,7 +47,7 @@ To stop sharing: `tailscale serve --https=443 off`.
 - ⚙️ Admin panel at /admin: add, edit and hide crates and cards (photos from Wikipedia, a URL or an uploaded file)
 - Epic full-screen reveal for Legendary and ULTRA drops
 - 🔍 Card viewer: click a card (in the Inventory use 🔍 or right-click) to enlarge, tilt and flip it
-- 🎁 Daily chest with money: 1 000–20 000 $, on Sunday a 💎 MEGA chest: 5 000–50 000 $ (lands in your inventory)
+- 🎁 Daily chest with money: 5 000–20 000 gr; claim it 7 days in a row and the 7th is a 💎 MEGA chest: 10 000–67 000 gr (lands in your inventory)
 - 👥 Friends: invitations, activity feed (shown cards + legendary drops), "📣 Pokaż znajomym" button on a card
 - 👤 Profiles: showcase of 6 cards and the binder of every player; 🏆 ranking (collection value, cards, crates)
 - 🎭 Player icon: an emoji or the photo of any card you own — in any variant you own (gold, diamond…), no uploads
