@@ -123,9 +123,9 @@ MAX_DEPOSIT = 1_000_000
 
 # Skrzynki z pieniędzmi (codzienna nagroda za logowanie).
 # Wylosowana kwota = min + (max - min) * los^curve  ->  im większe curve, tym rzadsze wysokie kwoty.
-# (wersja 7: wszystkie kwoty ×5 - codzienna daje co najmniej 5000 gr)
+# (wersja 7: wszystkie kwoty ×5 - codzienna daje co najmniej 5000 gr; wersja 10: codzienna najwyżej 15 000 gr)
 MONEY_CHESTS = {
-    "daily": {"name": "Codzienna skrzynka", "emoji": "🎁", "min": 5_000, "max": 100_000, "curve": 2.2,
+    "daily": {"name": "Codzienna skrzynka", "emoji": "🎁", "min": 5_000, "max": 15_000, "curve": 2.2,
               "color1": "#3ddc84", "color2": "#0f5a32"},
     "mega":  {"name": "MEGA skrzynka", "emoji": "💎", "min": 25_000, "max": 250_000, "curve": 2.0,
               "color1": "#ffd54a", "color2": "#8a5b00"},
@@ -536,6 +536,10 @@ JACKPOT = {"maxCards": 20, "expireHours": 24}
 # ============================================================ LISTA ZMIAN (pokazywana raz po aktualizacji)
 # Najnowsza na górze. "v" musi rosnąć z każdą nową wersją - gracz zobaczy wpisy nowsze niż ostatnio obejrzany.
 PATCH_NOTES = [
+    {"v": 10, "date": "2026-10-21", "title": "Codzienna skrzynka",
+     "items": [
+         "🎁 <b>Codzienna skrzynka</b> daje teraz od <b>5 000 gr</b> do <b>15 000 gr</b>. MEGA skrzynka 💎 w niedzielę bez zmian.",
+     ]},
     {"v": 9, "date": "2026-10-22", "title": "Ametyst i porządek z duplikatami",
      "items": [
          "💜 Nowy wariant <b>Ametystowa</b> — fioletowy kamień szlachetny we wszystkich skrzynkach, "
