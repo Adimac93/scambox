@@ -75,6 +75,8 @@ VARIANTS = {
                 "desc": "Karta jak banknot: papier z giloszowanymi rozetami, portret wygrawerowany zielonym tuszem w owalu, pieczęcie i numer seryjny."},
     "mosaic":  {"name": "Mozaikowa",    "chance": 0.006, "mult": 9.5, "off": True,
                 "desc": "Portret z klocków z nopkami w kolorach klocków - czerwone, niebieskie, żółte - na zielonej płycie, w żółtej ramce."},
+    "noir":    {"name": "Noir",         "chance": 0.006, "mult": 8.0, "off": True,
+                "desc": "Klatka starego czarno-białego filmu: perforacja taśmy, rysy i kurz, migotanie, deszcz w tle i napis jak z napisów do filmu."},
     "glass":   {"name": "Witrażowa",    "chance": 0.004, "mult": 12.0, "off": True,
                 "desc": "Lampa Tiffany: zdjęcie i całe tło z setek kawałków kolorowego szkła w chłodnych barwach, rozdzielonych ołowianymi liniami."},
     "marble":  {"name": "Marmurowa",    "chance": 0.005, "mult": 11.5, "off": True,

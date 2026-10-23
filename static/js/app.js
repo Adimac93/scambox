@@ -9,7 +9,7 @@ const fmt = n => Math.round(n).toLocaleString("pl-PL") + " gr";   // waluta gry:
 
 const COUNT_CHIPS = [1, 2, 3, 5, 10, 15, 20];
 const INV_PAGE = 120;
-const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", bronze: "BRONZE", silver: "SILVER", holo: "HOLO", pearl: "🦪 PEARL", gold: "GOLDEN", vintage: "📷 1887", marble: "🏛️ MARBLE", slime: "🟢 SLIME", matte: "MATTE", racing: "🏁 RETRO", bismuth: "🌈 BISMUTH", digital: "💻 DIGITAL", cyber: "🌃 CYBER", fade: "🎨 FADE", wanted: "🤠 WANTED", artdeco: "ART DÉCO", cheese: "🧀 CHEESE", aero: "🫧 AERO", greek: "🏺 GREEK", african: "🌍 AFRICA", honey: "🍯 HONEY", street: "🎨 STREET", chinese: "🏮 CHINA", moro: "🪖 MORO", beer: "🍺 BEER", neon: "💡 NEON", emo: "🖤 EMO", electric: "⚡ VOLT", synthwave: "📼 SYNTH", motor: "🏎️ MOTO", toxic: "☢️ TOXIC", pixel: "👾 PIXEL", popart: "💥 POP!", glass: "⛪ VITRAIL", thermal: "🌡️ THERMAL", blueprint: "📐 BLUEPRINT", glitch: "▓ GL1TCH", dollar: "💵 $50", mosaic: "🧱 MOSAIC", flag: "FLAG", halloween: "🎃 HALLOWEEN", lantern: "🏮 LAMPION", devil: "😈 DEVIL", joker: "🃏 JOKER", jeans: "👖 DŻINS", clear: "🫧 CLEAR", sketch: "✒️ SKETCH", emerald: "💚 EMERALD", amethyst: "💜 AMETHYST", ruby: "❤️ RUBY", mlg: "🎯 MLG", royal: "👑 ROYAL", diamond: "💎 DIAMOND", galaxy: "🌌 GALAXY", negative: "◐ NEGATIVE", rzulty: "💛 RZULTY" };
+const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", bronze: "BRONZE", silver: "SILVER", holo: "HOLO", pearl: "🦪 PEARL", gold: "GOLDEN", vintage: "📷 1887", marble: "🏛️ MARBLE", slime: "🟢 SLIME", matte: "MATTE", racing: "🏁 RETRO", bismuth: "🌈 BISMUTH", digital: "💻 DIGITAL", cyber: "🌃 CYBER", fade: "🎨 FADE", wanted: "🤠 WANTED", artdeco: "ART DÉCO", cheese: "🧀 CHEESE", aero: "🫧 AERO", greek: "🏺 GREEK", african: "🌍 AFRICA", honey: "🍯 HONEY", street: "🎨 STREET", chinese: "🏮 CHINA", moro: "🪖 MORO", beer: "🍺 BEER", neon: "💡 NEON", emo: "🖤 EMO", electric: "⚡ VOLT", synthwave: "📼 SYNTH", motor: "🏎️ MOTO", toxic: "☢️ TOXIC", pixel: "👾 PIXEL", popart: "💥 POP!", glass: "⛪ VITRAIL", thermal: "🌡️ THERMAL", blueprint: "📐 BLUEPRINT", glitch: "▓ GL1TCH", dollar: "💵 $50", mosaic: "🧱 MOSAIC", noir: "🕵️ NOIR", flag: "FLAG", halloween: "🎃 HALLOWEEN", lantern: "🏮 LAMPION", devil: "😈 DEVIL", joker: "🃏 JOKER", jeans: "👖 DŻINS", clear: "🫧 CLEAR", sketch: "✒️ SKETCH", emerald: "💚 EMERALD", amethyst: "💜 AMETHYST", ruby: "❤️ RUBY", mlg: "🎯 MLG", royal: "👑 ROYAL", diamond: "💎 DIAMOND", galaxy: "🌌 GALAXY", negative: "◐ NEGATIVE", rzulty: "💛 RZULTY" };
 const GEMS = ["emerald", "amethyst", "ruby", "diamond"];  // warianty z kamieniami szlachetnymi - wspólny wygląd, inne kolory
 
 const S = {
@@ -830,7 +830,11 @@ function mtGauge() {
   return `<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M${arc(-15)} A18.5 18.5 0 0 1 ${arc(45)}" stroke="#ff2b2b55" stroke-width="2.5" fill="none"/>
     ${ticks}<g class="mt-needle"><path d="M20 8.3 L20 1.6" stroke="#ff4a1f" stroke-width="1.1" stroke-linecap="round"/></g></svg>`;
 }
+// Noir: pionowe rysy na taśmie filmowej, co chwilę w innym miejscu
+const nrScratches = n => Array.from({ length: n }, () =>
+  `<i class="nr-scratch" style="left:${vxN(6, 94)}%;animation-delay:-${vxN(0, 3, 2)}s;animation-duration:${vxN(1.4, 3.2, 2)}s"></i>`).join("");
 const VX_BG = {
+  noir: () => '<i class="nr-rain soft"></i>',
   beer: () => `<i class="br-body"></i>${brBubbles()}`,
   electric: () => '<i class="el-clouds"></i><i class="el-rain"></i>',
   // Synthwave: na dole tła zachodzi słońce w paski (spod paneli z napisami)
@@ -876,6 +880,8 @@ const VX_DECO = {
   electric: () => `<div class="vx-deco vx-clip"><i class="el-flash"></i>${vxSvg(elBoltSvg(elBolt(rand(8, 20), -2, rand(14, 30), 60, 3), "s1") +
     elBoltSvg(elBolt(rand(44, 56), -2, rand(36, 52), 50, 2), "s2"))}</div>`,
   synthwave: () => '<div class="vx-deco vx-clip"><i class="sw-track"></i><i class="sw-lines"></i></div>',
+  // Noir: klatka starego filmu - perforacja, rysy, kurz, winieta, ziarno i lekkie migotanie
+  noir: () => `<div class="vx-deco vx-clip nr-flick"><i class="nr-perf l"></i><i class="nr-perf r"></i>${nrScratches(3)}<i class="nr-dust"></i><i class="nr-vignette"></i><i class="nr-grain"></i></div>`,
   emo: () => '<div class="vx-deco"><i class="em-wire"></i><i class="em-heart"></i></div>',
   motor: () => `<div class="vx-deco"><i class="mt-gauge">${mtGauge()}</i><i class="mt-shift"></i></div>`,
   // Frutiger Aero: szklany połysk na górnej połowie karty, rybki pływające po niebie i bańki
@@ -908,6 +914,7 @@ function variantTop(variant) {
 function variantSub(variant, pid) {
   const parts = variantParts(variant);
   if (parts.includes("vintage")) return VINTAGE_STAMP;
+  if (parts.includes("noir")) return "— Ta sprawa śmierdziała od początku.";
   // Dolarowa: nominał i numer seryjny z numeru i wartości karty; Glitch: kod błędu
   if (parts.includes("dollar")) return `FIFTY · <b>C ${String(person(pid).number || 1).padStart(4, "0")} ${String(cardValue(pid, variant)).slice(0, 4).padStart(4, "0")} D</b>`;
   if (parts.includes("glitch")) { const p = person(pid); return `${S.cfg.types[p.type].name} · ${esc(crateOf(p.crate).short)} <b>▓ERR 0x2137</b>`; }
@@ -1834,7 +1841,7 @@ function showResults(afterEpic = false) {
       pixel: ["#3a5bd0", "#ffffff", "#7dff5a", "#ffe13b"], glass: ["#2f7fc0", "#3fa0a0", "#6a5aa8", "#e8a33a", "#ffffff"],
       neon: ["#ff3df0", "#3de0ff", "#ffe63c", "#ffffff"], thermal: ["#2a0a6a", "#d8303a", "#f07a1a", "#ffd23f", "#fffbe8"],
       blueprint: ["#1f3a7a", "#e8f4ff", "#4a8ad8"], glitch: ["#ff2b5a", "#00e5ff", "#ffffff", "#7a2bff"], dollar: ["#2a6a3a", "#eef3e2", "#1f4a2a", "#b8d8a0"], mosaic: ["#c91a09", "#f2cd37", "#0055bf", "#237841"],
-      popart: ["#ffe100", "#e8202f", "#ff4fa0", "#2fd0ff", "#7cff4a"],
+      popart: ["#ffe100", "#e8202f", "#ff4fa0", "#2fd0ff", "#7cff4a"], noir: ["#e8e8e8", "#2a2a2a", "#ffffff"],
       slime: ["#7dff3a", "#c6ff6c", "#3fbf1a"], matte: ["#2a2a2a", "#5c5c5c", "#111"], racing: ["#c8202f", "#f2e6cf", "#161210"],
       bismuth: ["#ff4fb5", "#ffd23f", "#3fe0ff", "#7a5cff"], digital: ["#3dff6e", "#0f6a26", "#eaffea"], cyber: ["#ff2bd6", "#00e5ff", "#fcee0a"],
       fade: ["#f9e45b", "#f7a23b", "#f05ba5", "#a86bf0", "#5aa8f5"], wanted: ["#f2e2b8", "#b8955a", "#2a1608"], artdeco: ["#d4af37", "#fff3c4", "#0a0908"],

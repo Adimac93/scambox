@@ -2,8 +2,6 @@
    Karty z klasami vm vm-<wariant> vm-<wariant>-<nr> (variant-mockups.js, vrProposalCard w variants.js). Jeszcze nie w grze -
    wybrany wygląd przejdzie do cards2.css jako prawdziwy wariant. Faktury z filtrów SVG (--tx-* w cards2.css i --vm-* tutaj). */
 :root {
-  --vm-zellige: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' width='20' height='20'><rect width='20' height='20' fill='%230f2a5a'/><g transform='translate(10 10)'><rect x='-5' y='-5' width='10' height='10' fill='%231fa0a8'/><rect x='-5' y='-5' width='10' height='10' fill='%231fa0a8' transform='rotate(45)'/><rect x='-2.6' y='-2.6' width='5.2' height='5.2' fill='%23f2e6cf' transform='rotate(45)'/></g><g fill='%23d4a12a'><path d='M0 -3 L3 0 L0 3 L-3 0 Z'/><path d='M20 -3 L23 0 L20 3 L17 0 Z'/><path d='M0 17 L3 20 L0 23 L-3 20 Z'/><path d='M20 17 L23 20 L20 23 L17 20 Z'/></g><g fill='none' stroke='%23f2e6cf' stroke-width='.4'><rect x='5' y='5' width='10' height='10'/><rect x='5' y='5' width='10' height='10' transform='rotate(45 10 10)'/></g></svg>");
-  --vm-arcorner: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'><g fill='none' stroke='%23e8c25a' stroke-width='1.2' stroke-linecap='round'><path d='M2 28 V8 C2 4 4 2 8 2 H28'/><path d='M6 28 V12 C6 8 8 6 12 6 H28' stroke-width='.6'/><path d='M8 2 C8 8 14 8 14 4 C14 1.6 11 1.6 11 3.6 M2 8 C8 8 8 14 4 14 C1.6 14 1.6 11 3.6 11'/></g><circle cx='9' cy='9' r='1.6' fill='%23e8c25a'/></svg>");
 }
 
 /* ------------------------------------------------------------ wspólne */
@@ -18,71 +16,13 @@ img.vm-photo { width: 100%; height: 100%; object-fit: cover; object-position: 50
 .vm-bg > i, .vm-deco > i, .vm-photo > i, .vm-photo > b, .vm-bg > b, .vm-bg > span, .vm-deco > span, .vm-photo > span { position: absolute; display: block; font-style: normal; }
 .vm svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .var-tag.vm-tag { text-shadow: none; }
-.vm :is(.nr-clip, .hy-clip) { overflow: hidden; border-radius: 4.5%/3.2%; }
+.vm .hy-clip { overflow: hidden; border-radius: 4.5%/3.2%; }
 @keyframes vmPulse { 50% { opacity: .55; } }
 @keyframes vmBlink { 50% { opacity: .15; } }
 @keyframes vmSpin { to { transform: rotate(360deg); } }
 /* panele z tekstem - kolor tła ustawia każda makieta przez --panel */
-.card.vm:is(.vm-hollywood, .vm-arabic) :is(.card-sub, .card-attack, .card-stats) { background: var(--panel); border: none; border-radius: .3em; }
-.card.vm:is(.vm-hollywood, .vm-arabic) .card-attack { padding-inline: .35em; margin-top: 1.5%; }
-
-/* ============================================================ NOIR (nowa wersja na bazie 1. i 2.) */
-.card.vm-noir { --frame: linear-gradient(135deg, #2a2a2a, #0a0a0a 50%, #1e1e1e); box-shadow: 0 6px 18px #000c; }
-.card.vm-noir .card-inner { color: #e8e8e8; }
-.card.vm-noir :is(.card-name, .card-sub, .card-stats, :where(.card-stats b), .card-foot, .atk-dmg, .atk-name, .card-hp, .card-value) { color: #e8e8e8; }
-.card.vm-noir :is(.card-name, .atk-name, .card-sub) { font-family: "Special Elite", "Courier New", monospace; font-weight: 400; }
-.card.vm-noir .card-name { text-shadow: 0 0 .3em #000, 0 0 .6em #000; }
-.card.vm-noir .card-photo { border-image: none; border-color: #e8e8e8; }
-.card.vm-noir .card-photo > img { filter: grayscale(1) contrast(1.4) brightness(.92); }
-.card.vm-noir .card-sub { font-style: italic; background: #0008; border-radius: .3em; font-size: .5em; }
-.card.vm-noir :is(.card-attack, .card-stats) { background: #000a; border: none; border-radius: .3em; }
-.card.vm-noir .card-attack { padding-inline: .35em; margin-top: 1.5%; }
-.card.vm-noir :is(.card-type, .atk-cost, :where(.card-stats b), .gem) { filter: grayscale(1); }
-.vm-noir .vm-tag { background: #0a0a0a; color: #e8e8e8; border: 1px solid #e8e8e8; font-family: "Special Elite", monospace; }
-.nr-grain { inset: 0; background: var(--tx-grain) 0 0 / 120px; opacity: .3; mix-blend-mode: overlay; animation: vpGrain .5s steps(3) infinite; }
-/* deszcz: ukośne smugi przesuwane w dół o jedną długość wzoru */
-.nr-rain { left: 0; right: 0; top: -12cqw; bottom: 0; background: repeating-linear-gradient(100deg, transparent 0 2cqw, #d8e4f040 2cqw 2.12cqw) 0 0 / 100% 12cqw; will-change: transform; animation: nrRain .4s linear infinite; }
-.nr-rain.soft { opacity: .55; }
-@keyframes nrRain { to { transform: translateY(12cqw); } }
-/* cienie żaluzji: miękkie pasy, powoli przesuwane; ta sama warstwa w tle i na zdjęciu - nigdy nad napisami */
-.nr-blinds { inset: -25%; background: repeating-linear-gradient(-28deg, #000000a0 0 2.2cqw, #00000055 3.2cqw, transparent 3.9cqw 6cqw, #000000a0 7cqw);
-  mix-blend-mode: multiply; will-change: transform; animation: nrBlinds 16s ease-in-out infinite alternate; }
-.nr-blinds.ph { inset: -40%; opacity: .45; }
-@keyframes nrBlinds { to { transform: translate(5cqw, 3cqw); } }
-.nr-smoke { width: 50%; aspect-ratio: .6; border-radius: 50%; background: radial-gradient(closest-side, #ffffff30, transparent); filter: blur(3px); will-change: transform, opacity; animation: nrSmoke 9s ease-in-out infinite; }
-.nr-smoke.a { left: -10%; bottom: 10%; } .nr-smoke.b { right: -15%; bottom: 25%; animation-delay: -4s; }
-@keyframes nrSmoke { 0% { transform: translateY(0) scale(.6) rotate(0); opacity: 0; } 30% { opacity: .9; } 100% { transform: translateY(-60cqw) scale(1.4) rotate(30deg); opacity: 0; } }
-/* 1. żaluzje i deszcz */
-.nr-room { background: radial-gradient(90% 60% at 70% 25%, #6a6a6a, #2a2a2a 45%, #0e0e0e 80%); }
-/* 2. neon za oknem: czerwone światło z prawej, mruga nierówno */
-.nr-night { background: linear-gradient(180deg, #1a1c22, #2a2c34 50%, #0c0d10); }
-.nr-neon { inset: 0; background: radial-gradient(90% 70% at 105% 30%, #ff2a3acc, #ff2a3a33 45%, transparent 70%); mix-blend-mode: screen; animation: nrNeon 5s steps(1) infinite; }
-.nr-neon.ph { background: linear-gradient(270deg, #ff2a3a99, #ff2a3a22 45%, transparent 70%); }
-@keyframes nrNeon { 0%, 100% { opacity: 1; } 30% { opacity: .15; } 32% { opacity: 1; } 35% { opacity: .2; } 37% { opacity: 1; } 70% { opacity: .1; } 78% { opacity: 1; } }
-.card.vm-noir-2 .card-photo { box-shadow: .25em 0 .8em #ff2a3a55; }
-/* 3. pod latarnią: stożek światła, deszcz tylko w świetle, mgła i kręgi na kałuży */
-.nr-street { background: linear-gradient(180deg, #08090c, #121418 60%, #1a1c20); }
-.nr-cone { inset: 0; background: radial-gradient(70% 85% at 18% -4%, #fff6d466, #fff6d41a 50%, transparent 72%); }
-.nr-cone::before { content: ""; position: absolute; left: 12%; top: -2%; width: 14%; height: 3.4%; border-radius: 0 0 50% 50%; background: #fffbe8; box-shadow: 0 0 3cqw #fff6d4, 0 0 8cqw #fff6d488; }
-.nr-rain.lit { -webkit-mask: radial-gradient(70% 85% at 18% -4%, #000 35%, transparent 72%); mask: radial-gradient(70% 85% at 18% -4%, #000 35%, transparent 72%); background-image: repeating-linear-gradient(100deg, transparent 0 1.6cqw, #fff8e070 1.6cqw 1.75cqw); }
-.nr-fog { left: -60cqw; right: 0; bottom: 6%; height: 26%; background: radial-gradient(40% 50% at 50% 60%, #ffffff26, transparent 70%) 0 0 / 60cqw 100% repeat-x; filter: blur(2px); will-change: transform; animation: nrFog 20s linear infinite; }
-@keyframes nrFog { to { transform: translateX(60cqw); } }
-.nr-puddle { left: 0; right: 0; bottom: 0; height: 16%; background: linear-gradient(180deg, transparent, #c8d8f018 40%, #fff6d41a); }
-.nr-ripple { width: 9%; aspect-ratio: 2.6; border-radius: 50%; border: .25cqw solid #ffffff66; will-change: transform, opacity; animation: nrRipple ease-out infinite; }
-@keyframes nrRipple { from { transform: scale(.1); opacity: 1; } to { transform: scale(1.4); opacity: 0; } }
-.nr-side { background: linear-gradient(100deg, #fff6d422 0, transparent 35%, #000a 100%); }
-/* 4. kadr z filmu: perforacja po bokach, rysy, kurz, winieta, lekkie migotanie */
-.nr-perf { top: 0; bottom: 0; width: 2.6%; background: repeating-linear-gradient(180deg, transparent 0 1.2cqw, #d8d8d8d0 1.2cqw 3.6cqw, transparent 3.6cqw 5cqw); }
-.nr-perf.l { left: .6%; } .nr-perf.r { right: .6%; }
-.nr-scratch { top: 0; bottom: 0; width: .25cqw; background: linear-gradient(transparent, #fff8 20%, #fff5 70%, transparent); opacity: 0; animation: nrScratch steps(1) infinite; }
-@keyframes nrScratch { 0% { opacity: .8; transform: translateX(0); } 20% { opacity: 0; } 50% { opacity: .6; transform: translateX(6cqw); } 60% { opacity: 0; } }
-.nr-dust { inset: 0; background: radial-gradient(circle at 30% 40%, #fffa 0 .3cqw, transparent .5cqw), radial-gradient(circle at 70% 20%, #fff8 0 .2cqw, transparent .4cqw), radial-gradient(circle at 55% 80%, #fff9 0 .35cqw, transparent .55cqw);
-  animation: nrDust .9s steps(1) infinite; }
-@keyframes nrDust { 33% { transform: translate(-20cqw, 15cqw); } 66% { transform: translate(14cqw, -30cqw); } }
-.nr-vignette { inset: 0; background: radial-gradient(90% 75% at 50% 45%, transparent 55%, #000c); }
-.nr-flick::before { content: ""; position: absolute; inset: 0; background: #fff; opacity: 0; animation: nrFlick .25s steps(2) infinite; }
-@keyframes nrFlick { 50% { opacity: .05; } }
-.card.vm-noir-4 .card-sub { font-family: Rubik, sans-serif; font-style: normal; font-weight: 700; background: none; color: #fff; text-shadow: 0 0 2px #000, 0 0 2px #000, 0 0 4px #000; }
+.card.vm.vm-hollywood :is(.card-sub, .card-attack, .card-stats) { background: var(--panel); border: none; border-radius: .3em; }
+.card.vm.vm-hollywood .card-attack { padding-inline: .35em; margin-top: 1.5%; }
 
 /* ============================================================ HOLLYWOOD '69 (nowa, nazwa robocza) - Los Angeles 1969 */
 .card.vm-hollywood .card-name { font-family: Shrikhand, Yellowtail, cursive; font-weight: 400; color: #ffe6b0; letter-spacing: .01em; text-shadow: .06em .06em 0 #c8402a, .12em .12em 0 #4a1408; }
@@ -147,46 +87,3 @@ img.vm-photo { width: 100%; height: 100%; object-fit: cover; object-position: 50
 .card.vm-hollywood-4 .card-sub { font-family: Bungee, sans-serif; font-style: normal; letter-spacing: .06em; }
 .hy-flicker { background: #fff; opacity: 0; mix-blend-mode: overlay; animation: hyFlick .3s steps(3) infinite; }
 @keyframes hyFlick { 33% { opacity: .08; } 66% { opacity: .03; } }
-
-/* ============================================================ ARABSKA (poprawiona na bazie 1. i 3.) - zdjęcie w ostrołuku */
-.card.vm-arabic { --panel: #0a1a3acc; --frame: linear-gradient(135deg, #8a5a14, #f6e3a1 30%, #c8962a 60%, #fff3c4); box-shadow: 0 6px 18px #000a, 0 0 18px #d4a12a55; }
-.card.vm-arabic .card-name { font-family: Cinzel, Georgia, serif; font-weight: 900; letter-spacing: .05em; text-shadow: 0 0 .3em #000a; }
-.card.vm-arabic .card-inner { color: #f6e3c0; }
-.card.vm-arabic :is(.card-name, .card-sub, .card-stats, :where(.card-stats b), .card-foot, .atk-dmg, .atk-name, .card-hp) { color: #f6e3c0; }
-.card.vm-arabic :is(.card-head, .card-foot) { background: var(--panel); border-radius: .3em; padding: 0 .25em; }
-.vm-arabic .vm-tag { background: #0f2a5a; color: #f6e3a1; border: 1px solid #d4a12a; font-family: Cinzel, serif; letter-spacing: .08em; }
-.card.vm-arabic .card-photo { border: none; background: none; box-shadow: none;
-  -webkit-mask: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'><path d='M0 100 V40 C0 19 29 10 50 0 C71 10 100 19 100 40 V100 Z'/></svg>") 0 0 / 100% 100%;
-  mask: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'><path d='M0 100 V40 C0 19 29 10 50 0 C71 10 100 19 100 40 V100 Z'/></svg>") 0 0 / 100% 100%; }
-/* rama ostrołuku: gruba złota linia, w środku ciemna z rzędem złotych kropek */
-.ar-gate path { fill: none; stroke-linejoin: round; }
-.ar-gate .o { stroke: #e8c25a; stroke-width: 2.2; filter: drop-shadow(0 .4px .6px #000c); }
-.ar-gate .i { stroke: #6a4410; stroke-width: .9; }
-.ar-gate .d { stroke: #ffe9a0; stroke-width: .6; stroke-dasharray: 0 1.5; stroke-linecap: round; }
-.ar-gate.thin .o { stroke-width: 1; }
-.ar-spandrel { top: 12.5%; width: 22%; aspect-ratio: 1; background: var(--vm-arcorner) center / contain no-repeat; filter: drop-shadow(0 0 .4cqw #000); }
-.ar-spandrel.l { left: 8.3%; } .ar-spandrel.r { right: 8.3%; transform: scaleX(-1); }
-.ar-zellige { background: var(--vm-zellige) 0 0 / 11cqw 11cqw; }
-.ar-zellige::before { content: ""; position: absolute; inset: 0; background: radial-gradient(90% 60% at 50% 40%, transparent 40%, #0a1a3a99); }
-.ar-zellige.night { filter: brightness(.6) saturate(1.2); }
-.ar-zellige.warm { filter: sepia(.55) hue-rotate(-12deg) saturate(1.4) brightness(.85); }
-/* 2. mozaika nocą: obracająca się gwiazda za zdjęciem, latarnie */
-.ar-medal { left: 50%; top: 38%; width: 118%; aspect-ratio: 1; translate: -50% -50%; will-change: transform; animation: vmSpin 60s linear infinite; }
-.ar-star rect { fill: none; stroke: #e8c25a; stroke-width: 1.2; }
-.ar-star.i rect { stroke-width: .6; stroke: #ffe9a0; }
-.ar-medal svg { filter: drop-shadow(0 0 1cqw #e8c25a88); }
-.ar-twinkle { width: .7cqw; aspect-ratio: 1; border-radius: 50%; background: #fff6d0; animation: vmPulse 2.6s ease-in-out infinite; }
-.ar-lan { width: 7%; aspect-ratio: 14 / 34; filter: drop-shadow(0 0 2cqw #ffb02a); transform-origin: 50% 0; animation: cnSway 4s ease-in-out infinite alternate; }
-.ar-lan.a { left: 11%; top: 12.6%; } .ar-lan.b { right: 11%; top: 12.6%; animation-delay: -1.6s; }
-/* 3. i 4. scena na dole zdjęcia: wydmy, palmy, karawana */
-.ar-scene { left: 0; right: 0; bottom: 0; height: 32%; top: auto; }
-.ar-scene .ar-caravan { left: 0; bottom: 42%; width: 60%; height: 20%; will-change: transform; animation: arWalk 30s linear infinite; }
-.ar-caravan i { position: absolute; bottom: 0; width: 22%; height: 100%; }
-.ar-caravan svg { fill: #3a1a08; }
-.ar-caravan.dark svg { fill: #05030f; }
-@keyframes arWalk { from { transform: translateX(-70%); } to { transform: translateX(170%); } }
-.ar-warm { background: linear-gradient(180deg, #ffb04a33, #ff7a2a22); mix-blend-mode: soft-light; }
-.ar-night { background: linear-gradient(180deg, #3a4a9a, #1a1440); mix-blend-mode: multiply; opacity: .4; }
-.card.vm-arabic-3 { --panel: #3a1a08cc; }
-.ar-starry { background: linear-gradient(180deg, #050820, #101a4a 60%, #1a1440); }
-.ar-moon { right: 11%; top: 13.5%; width: 9%; aspect-ratio: 1; border-radius: 50%; box-shadow: inset -1.6cqw .6cqw 0 0 #f6d27a; filter: drop-shadow(0 0 1cqw #f6d27a88); rotate: -20deg; }
