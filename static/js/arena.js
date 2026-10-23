@@ -418,6 +418,13 @@ async function arKoFx(units) {
 const AR_ENTER_COLORS = {
   normal: ["#ffffff", "#c9d6ff"], bw: ["#000", "#fff", "#888"], reverse: RAINBOW, silver: ["#e6ebf2", "#b8c2d0", "#fff"],
   bronze: ["#cd7f32", "#f0b27a", "#fff"], pearl: ["#fff", "#ffd1e4", "#d3fff1", "#d3e2ff"], vintage: ["#efe4cb", "#b8913d", "#6b4c22"],
+  slime: ["#7dff3a", "#c6ff6c", "#3fbf1a"], matte: ["#2a2a2a", "#5c5c5c", "#fff"], racing: ["#c8202f", "#f2e6cf", "#161210"], bismuth: ["#ff4fb5", "#ffd23f", "#3fe0ff", "#7a5cff"],
+  digital: ["#3dff6e", "#0f6a26", "#eaffea"], cyber: ["#ff2bd6", "#00e5ff", "#fcee0a"], fade: ["#f9e45b", "#f05ba5", "#5aa8f5"], wanted: ["#f2e2b8", "#b8955a", "#2a1608"],
+  artdeco: ["#d4af37", "#fff3c4", "#0a0908"], cheese: ["#ffd34a", "#ffe680", "#b88512"],
+  aero: ["#4cc2ff", "#ffffff", "#7ef03a"], greek: ["#d9773a", "#140c08", "#f09a5a"], african: ["#f2b705", "#0a7d3b", "#c8102e"], honey: ["#ffd75e", "#f2a20f", "#b86a08"],
+  street: ["#ff2bd6", "#00e5ff", "#ffe13b"], chinese: ["#d81e1e", "#e2b13c", "#fff2b0"],
+  moro: ["#4a4f2e", "#6a5a3a", "#a89a6a"], beer: ["#f7bf3a", "#fffdf6", "#cf7a0c"], neon: ["#ff4fd8", "#4fd8ff", "#ffd6f6"], emo: ["#111", "#8a0a1a", "#ff4fb0"],
+  electric: ["#9fdcff", "#fff", "#4fb8ff"], synthwave: ["#ff2bd6", "#00e5ff", "#ffe14a"], motor: ["#e8202f", "#f2f2f2", "#1b1b1b"],
   marble: ["#fff", "#d9d4c8", "#d4af37"], toxic: ["#5dff1f", "#b6ff3a", "#ffd400"], holo: RAINBOW, gold: GOLDS, clear: ["#ffffff", "#e0f7ff", "#bfefff"], emerald: ["#00c853", "#6dffb0", "#fff"],
   ruby: ["#ff1744", "#ff8a9c", "#fff"], amethyst: ["#9b3dff", "#c99bff", "#fff"], diamond: ["#e8fbff", "#9ff6ff", "#c9b8ff", "#fff"], negative: ["#000", "#fff", "#00e5ff"],
   royal: ["#ffd75e", "#fff3c4", "#e0115f", "#1e5bff", "#12b85c", "#9b30ff"], flag: ["#ffffff", "#ff3b3b", "#3b6bff", "#ffd54a"],

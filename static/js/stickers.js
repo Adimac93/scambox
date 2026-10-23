@@ -82,7 +82,7 @@ async function renderStickers() {
     $("#stickersBody").innerHTML = `<div class="mock-head"><h2>🎨 Naklejki wariantów</h2><p class="muted">Wczytywanie…</p></div>`;
     try { await stkLoad(STK.variant); } catch (e) { toast(e.message, true); return; }
   }
-  const lib = S.cfg.stickerLibrary, cardMode = stkCardMode(), p = person(STK.pid);
+  const lib = S.cfg.stickerLibrary, cardMode = stkCardMode(), p = person(STK.pid), under = stkUnder();
   const custom = Object.keys(STK.cards).filter(id => person(id)).sort((a, b) => person(a).name.localeCompare(person(b).name, "pl"));
   $("#stickersBody").innerHTML = `
     <div class="mock-head">
@@ -99,6 +99,8 @@ async function renderStickers() {
           <label>Karta <select class="sort-sel" data-stk="card">${cards.map(c =>
             `<option value="${c.id}"${c.id === STK.pid ? " selected" : ""}>${STK.cards[c.id] ? "✎ " : ""}${esc(c.name)}${c.rarity === "secret" ? " ★" : ""}</option>`).join("")}</select></label>
           <button class="btn" type="button" data-stk="viewer" title="Podgląd jak w grze (z niezapisanymi naklejkami)">🔍 Jak w grze</button>
+          ${under ? `<label class="chk" title="Zdjęcie i napisy na chwilę półprzezroczyste - widać naklejki, które są pod nimi">
+            <input type="checkbox" data-stk="peek"${STK.peek ? " checked" : ""}> 👁 Prześwietl zdjęcie i napisy</label>` : ""}
         </div>
         <div class="seg stk-mode">
           <button type="button" class="${cardMode ? "" : "active"}" data-mode="base">🌐 Standard — wszystkie karty</button>
@@ -107,7 +109,8 @@ async function renderStickers() {
         ${custom.length ? `<div class="stk-custom muted small">Karty z własnymi naklejkami: ${custom.map(id =>
           `<button type="button" class="stk-chip${cardMode && id === STK.pid ? " active" : ""}" data-goto="${id}">✎ ${esc(person(id).name)}</button>`).join("")}</div>` : ""}
         ${!cardMode && STK.cards[STK.pid] ? `<p class="stk-note small">Ta karta ma własne naklejki — tu widzisz i zmieniasz sam standard.</p>` : ""}
-        <div class="stk-stage${cardMode ? " card-mode" : ""}" id="stkStage">${cardHTML(STK.pid, STK.variant)}</div>
+        ${under ? `<p class="stk-note small">Naklejki tego wariantu leżą na tle karty - pod zdjęciem i napisami.</p>` : ""}
+        <div class="stk-stage${cardMode ? " card-mode" : ""}${under ? " under-mode" : ""}${under && STK.peek ? " peek" : ""}" id="stkStage">${cardHTML(STK.pid, STK.variant)}</div>
         <p class="muted small stk-help">Przeciągnij naklejkę myszą · kółko myszy nad naklejką = rozmiar · Shift + kółko = obrót ·
           strzałki = przesuń (Shift - szybciej) · Delete = usuń${cardMode ? " (standardową - ukryj na tej karcie)" : ""}</p>
         ${cardMode ? "" : `<h3 class="stk-h">Na innych kartach</h3><div class="stk-others" id="stkOthers"></div>`}
@@ -138,11 +141,18 @@ async function renderStickers() {
 }
 
 // przerysowanie samych naklejek (bez całej karty - losowe ozdoby MLG zostają na miejscu)
+// naklejki "under" (pod zdjęciem) - w tle karty zaraz po tle wariantu, jak underStickersHTML w app.js
+function stkUnder() { return S.cfg.variants[STK.variant]?.stickers === "under"; }
 function stkDrawStickers() {
   const card = $("#stkStage .card");
   if (!card) return;
-  card.querySelector(".v-stickers")?.remove();
-  card.insertAdjacentHTML("beforeend", `<div class="v-stickers">${stkVisible().map(stickerHTML).join("")}</div>`);
+  card.querySelectorAll(".v-stickers").forEach(el => el.remove());
+  const html = `<div class="v-stickers${stkUnder() ? " under" : ""}">${stkVisible().map(stickerHTML).join("")}</div>`;
+  if (!stkUnder()) card.insertAdjacentHTML("beforeend", html);
+  else {
+    const inner = card.querySelector(".card-inner, .sc"), bg = [...inner.children].filter(el => el.matches(".vx-bg, .mlg-bg, .galaxy-bg, .dv-bg, .sc-art")).pop();
+    if (bg) bg.insertAdjacentHTML("afterend", html); else inner.insertAdjacentHTML("afterbegin", html);
+  }
   card.querySelectorAll(".v-sticker").forEach(el => el.classList.toggle("sel", el.dataset.sid === STK.sel));
 }
 
@@ -307,6 +317,7 @@ function stkBind() {
       return renderStickers();
     }
     if (t.dataset.stk === "upload") { if (t.files[0]) stkUpload(t.files[0]); t.value = ""; return; }
+    if (t.dataset.stk === "peek") { STK.peek = t.checked; $("#stkStage").classList.toggle("peek", t.checked); return; }
     if (t.dataset.prop === "flip") { stkMutate(STK.sel, x => { x.flip = t.checked; }); stkChanged(); }
     if (t.dataset.prop === "anim") { stkMutate(STK.sel, x => { x.anim = t.value; }); stkDrawStickers(); stkChanged(); }
   };

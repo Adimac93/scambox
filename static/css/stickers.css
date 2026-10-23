@@ -23,6 +23,10 @@
 .stk-stage { display: flex; justify-content: center; padding: 60px 16px 40px; touch-action: none; }
 .stk-stage .card { width: min(360px, 100%); --cw: min(360px, 100%); }
 .stk-stage .v-sticker { pointer-events: auto; cursor: grab; }
+/* naklejki pod zdjęciem: zdjęcie i napisy nie łapią kliknięć (da się chwycić naklejkę spod nich), a "prześwietlenie"
+   robi je półprzezroczystymi */
+.stk-stage.under-mode :is(.card-inner, .sc) > :not(.v-stickers), .stk-stage.under-mode .card > :not(.card-inner, .sc) { pointer-events: none; }
+.stk-stage.peek :is(.card-inner, .sc) > :not(.v-stickers, .vx-bg, .mlg-bg, .galaxy-bg, .dv-bg) { opacity: .3; }
 .stk-stage .v-sticker:active { cursor: grabbing; }
 .stk-stage .v-sticker.sel { outline: 2px dashed #fff; outline-offset: 3px; box-shadow: 0 0 0 4px #0008; }
 .stk-help { text-align: center; margin: 0 0 18px; }
