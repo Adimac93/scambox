@@ -1063,7 +1063,7 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 .vx-bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; border-radius: inherit; }
 .vx-bg > i, .vx-photo { position: absolute; display: block; pointer-events: none; }
 .vx-photo { inset: 0; z-index: 1; }
-.card:is(.v-pearl, .v-toxic) .card-inner > :where(:not(.vx-bg, .galaxy-bg, .dv-bg, .mlg-bg)) { position: relative; z-index: 1; }
+.card:is(.v-pearl, .v-toxic, .v-glass, .v-dollar) .card-inner > :where(:not(.vx-bg, .galaxy-bg, .dv-bg, .mlg-bg)) { position: relative; z-index: 1; }
 .r-secret .vx-bg { z-index: 1; mix-blend-mode: screen; opacity: .55; }
 
 /* tagi, kropki, zawartość skrzynki */
@@ -1164,6 +1164,229 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 .r-secret.v-toxic :is(.sc-name, .sc-hp) { color: #b6ff3a !important; text-shadow: 0 0 .4em #5dff1f; }
 .pick.v-toxic img { filter: grayscale(1) contrast(1.3) sepia(1) hue-rotate(45deg) saturate(4) brightness(.9); }
 .pick.v-toxic { box-shadow: inset 0 0 0 2px #5dff1f, 0 0 10px #5dff1f66, inset 0 -26px 26px -18px var(--rc); }
+
+/* Pikselowa - 16-bitowa gra RPG: zdjęcie z dużych pikseli (pxPhoto w app.js), pikselowa czcionka, niebieskie okienka
+   z białą ramką, pasek HP nad nazwą (pxStatus), migająca strzałka przy ataku i schodkowe rogi karty */
+@keyframes pxBlink { 50% { opacity: 0; } }
+.var-tag.vt-pixel { font-family: "Press Start 2P", monospace; font-weight: 400; font-size: 2.4cqw; letter-spacing: 0; border-radius: 0; background: #13226b; color: #ffe13b;
+  text-shadow: none; box-shadow: 0 -.6cqw 0 0 #fff, 0 .6cqw 0 0 #fff, -.6cqw 0 0 0 #fff, .6cqw 0 0 0 #fff; }
+.ph.vt-pixel { background: #13226b; color: #ffe13b; text-shadow: none; border-radius: 0; }
+.vdot.vt-pixel { background: #3a5bd0; border-radius: 0; box-shadow: 0 0 0 1px #fff; }
+.odd.odd-v.vt-pixel { border-left-color: #3a5bd0; }
+.card.v-pixel { --frame: linear-gradient(180deg, #5a5a6a, #2a2a36); --spin: initial; border-radius: 0;
+  clip-path: polygon(0 2.2%, 3% 2.2%, 3% 0, 97% 0, 97% 2.2%, 100% 2.2%, 100% 97.8%, 97% 97.8%, 97% 100%, 3% 100%, 3% 97.8%, 0 97.8%); }
+.card.v-pixel .card-inner { border-radius: 0; background: #0b0b1a; color: #fff; font-family: "Press Start 2P", monospace; font-size: 4.6cqw; }
+.card.v-pixel :is(.card-head, .card-sub, .card-attack, .card-stats, .card-foot, .px-status) {
+  background: linear-gradient(180deg, #3a5bd0, #13226b); border: .9cqw solid #fff; box-shadow: 0 0 0 .5cqw #000, inset 0 0 0 .5cqw #000; border-radius: 1cqw; }
+.card.v-pixel :is(.card-name, .card-hp, .card-sub, .card-stats, :where(.card-stats b), .card-foot, .atk-dmg, .atk-name, .card-value) { color: #fff; text-shadow: .3cqw .3cqw 0 #000; }
+.card.v-pixel .card-name { font-size: .72em; font-weight: 400; line-height: 1.4; }
+.card.v-pixel .card-hp { font-size: .62em; font-weight: 400; }
+.card.v-pixel .atk-name { font-size: .5em; font-weight: 400; line-height: 1.4; }
+.card.v-pixel .atk-name::before { content: "▶ "; animation: pxBlink 1s steps(1) infinite; }
+.card.v-pixel .atk-dmg { font-size: .74em; font-weight: 400; }
+.card.v-pixel .card-head { padding: .3em .4em; }
+.card.v-pixel .card-sub { margin: 2% 0 0; padding: .5em; font-style: normal; font-size: .4em; font-weight: 400; }
+.card.v-pixel .card-attack { padding: .45em .4em; margin-top: 2%; }
+.card.v-pixel .card-sub + .card-attack { margin-top: auto; }
+.card.v-pixel :is(.card-stats, .card-foot) { padding: .3em .2em; margin-top: 2%; }
+.card.v-pixel .card-stats { font-size: .32em; }
+.card.v-pixel .card-stats b, .card.v-pixel .card-value { font-weight: 400; }
+.card.v-pixel .card-foot { font-size: .34em; font-weight: 400; }
+.card.v-pixel .gem { border-radius: 0; }
+.card.v-pixel .card-photo { border-image: none; border: 1.2cqw solid #fff; box-shadow: 0 0 0 .5cqw #000; background: #000; margin-top: 2%; }
+.card.v-pixel .card-photo > img, .r-secret.v-pixel .sc-art img { image-rendering: pixelated; }
+.px-status { display: flex; align-items: center; gap: .5em; padding: .3em .4em; margin-bottom: 2%; font-size: .45em; color: #ffe13b; }
+.px-bar { flex: 1; height: 1em; background: #000; border: .5cqw solid #fff; }
+.px-bar i { display: block; height: 100%; background: linear-gradient(180deg, #7dff5a, #1f9a1f); }
+.r-secret.v-pixel .sc-border { background: #fff; animation: none; }
+.r-secret.v-pixel .sc-panel { background: linear-gradient(180deg, #3a5bd0e0, #13226be0); border: .9cqw solid #fff; border-radius: 1cqw; }
+.r-secret.v-pixel :is(.sc-name, .sc-hp) { font-family: "Press Start 2P", monospace; font-size: .62em; }
+.pick.v-pixel img { filter: url(#pxTile); }
+.pick.v-pixel { box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 4px #13226b, inset 0 -26px 26px -18px var(--rc); }
+
+/* Pop-art - jak sitodruk Warhola: zdjęcie cztery razy w kratce 2 x 2 w jaskrawych kolorach (variantPhoto), żółte tło
+   w czerwone kropki, gruba czarna ramka, białe okienka z czarną obwódką i komiksowa czcionka */
+.var-tag.vt-popart { background: #ffe100; color: #e8202f; border: .4cqw solid #000; font-family: Bangers, Impact, sans-serif; font-weight: 400; font-size: 4cqw;
+  letter-spacing: .06em; transform: rotate(-6deg); box-shadow: .6cqw .6cqw 0 #000; text-shadow: none; }
+.ph.vt-popart { background: #ffe100; color: #e8202f; text-shadow: none; }
+.vdot.vt-popart { background: conic-gradient(#ff4fa0 0 25%, #ffe13b 0 50%, #7cff4a 0 75%, #2fd0ff 0); }
+.odd.odd-v.vt-popart { border-left-color: #ff4fa0; }
+.card.v-popart { --frame: #000; --spin: initial; box-shadow: .5cqw .7cqw 0 #000, 0 6px 18px #000a; }
+.card.v-popart .card-inner { background: radial-gradient(circle, #e8202f 0 30%, transparent 34%) 0 0 / 3cqw 3cqw, #ffe100; color: #000; }
+.card.v-popart .card-name { font-family: Bangers, Impact, sans-serif; font-weight: 400; letter-spacing: .04em; font-size: 1.2em; }
+.card.v-popart .atk-name { font-family: Bangers, Impact, sans-serif; font-weight: 400; letter-spacing: .03em; font-size: .8em; }
+.card.v-popart :is(.card-head, .card-sub, .card-attack, .card-stats, .card-foot) { background: #fff; border: .5cqw solid #000; }
+.card.v-popart :is(.card-sub, .card-stats, .card-foot) { color: #000; }
+.card.v-popart .card-head { padding: .05em .3em; }
+.card.v-popart .card-sub { margin: 2% 0 0; }
+.card.v-popart .card-attack { padding-inline: .3em; margin-top: 1.5%; }
+.card.v-popart .card-sub + .card-attack { margin-top: auto; }
+.card.v-popart :is(.card-stats, .card-foot) { padding: .2em; margin-top: 1.5%; }
+.card.v-popart .card-photo { border-image: none; border: .3em solid #000; background: #fff; }
+.vx-photo.pa-quad { inset: auto; width: 50%; height: 50%; overflow: hidden; background: var(--c); isolation: isolate; }
+.pa-quad img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; filter: grayscale(1) contrast(2.4) brightness(1.15); mix-blend-mode: multiply; display: block; }
+.pa-quad.q1 { left: 0; top: 0; } .pa-quad.q2 { left: 50%; top: 0; } .pa-quad.q3 { left: 0; top: 50%; } .pa-quad.q4 { left: 50%; top: 50%; }
+.r-secret.v-popart .sc-border { background: #000; animation: none; }
+.pick.v-popart { background: #ff4fa0; box-shadow: inset 0 0 0 2px #000, inset 0 0 0 4px #ffe100; }
+.pick.v-popart img { filter: grayscale(1) contrast(2.2) brightness(1.15); mix-blend-mode: multiply; }
+
+/* Witrażowa - lampa Tiffany "ważka": zdjęcie z kawałków szkła (glassPhoto w app.js), tło z trójkątów szkła w chłodnych barwach
+   (glassShards), patynowana ramka i jasne okienka na napisy */
+.var-tag.vt-glass { background: #1a1410; color: #8ae0e0; border: 1px solid #3fa0a0; font-family: Cinzel, serif; letter-spacing: .1em; text-shadow: none; }
+.ph.vt-glass { background: #1a1410; color: #8ae0e0; text-shadow: none; }
+.vdot.vt-glass { background: conic-gradient(#2f7fc0 0 25%, #3fa0a0 0 50%, #6a5aa8 0 75%, #e8a33a 0); box-shadow: 0 0 0 1px #2a1d12; }
+.odd.odd-v.vt-glass { border-left-color: #3fa0a0; }
+.card.v-glass { --frame: linear-gradient(135deg, #2a4a5a, #6a9aa0 30%, #3f6b5a 60%, #4a3a6a); --spin: initial; }
+.card.v-glass .card-inner { color: #2a1d12; }
+.vx-bg > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.gl-cool { inset: 0; background: radial-gradient(120% 80% at 50% 30%, #d8f4ff33, transparent 70%); }
+.card.v-glass .card-name { font-family: Cinzel, Georgia, serif; font-weight: 900; color: #1f3f5a; }
+.card.v-glass :is(.card-sub, .card-stats, :where(.card-stats b), .card-foot, .atk-dmg, .atk-name) { color: #2a1d12; }
+.card.v-glass :is(.card-head, .card-sub, .card-attack, .card-stats, .card-foot) { background: #eaf4f2e0; border-radius: .3em; }
+.card.v-glass .card-head { padding: .1em .3em; }
+.card.v-glass .card-sub { margin-inline: 0; }
+.card.v-glass .card-attack { padding-inline: .3em; margin-top: 1.5%; border-color: #2a1d1222; }
+.card.v-glass .card-sub + .card-attack { margin-top: auto; }
+.card.v-glass :is(.card-stats, .card-foot) { padding: .2em; margin-top: 1.5%; }
+.card.v-glass .card-photo { border-image: none; border: .25em solid #4a3018; background: #2a2218; }
+.gl-shine { background: linear-gradient(115deg, transparent 35%, #ffffff55 47%, transparent 58%) 0 0 / 250% 100%; animation: photoGlint 5s ease-in-out infinite; mix-blend-mode: overlay; }
+.r-secret.v-glass .sc-border { background: conic-gradient(from var(--ang, 0deg), #2f7fc0, #3fa0a0, #4f8a5a, #6a5aa8, #e8a33a, #2f7fc0); }
+.pick.v-glass img { filter: saturate(1.6) contrast(1.1); }
+.pick.v-glass { box-shadow: inset 0 0 0 2px #2a1d12, inset 0 0 0 4px #3fa0a0, inset 0 -26px 26px -18px var(--rc); }
+
+/* Neonowa - kontury twarzy jako świecące rurki (fxPhoto w app.js) w różu / błękicie / żółci na ciemnej karcie; zdjęcie i nazwa
+   co chwilę brzęczą i przygasają (tylko opacity - tanie) */
+@keyframes neBuzz { 0%, 100% { opacity: 1; } 8% { opacity: .25; } 9% { opacity: 1; } 11% { opacity: .4; } 12% { opacity: 1; } 56% { opacity: .6; } 57% { opacity: 1; } }
+.var-tag.vt-neon { background: #0a080e; color: #fff; border: 1px solid #ff3df0; box-shadow: 0 0 .5em #ff3df0, inset 0 0 .4em #3de0ff; text-shadow: 0 0 .4em #ff3df0; }
+.ph.vt-neon { background: #0a080e; color: #ff7af4; text-shadow: 0 0 .3em #ff3df0; }
+.vdot.vt-neon { background: #ff3df0; box-shadow: 0 0 6px #ff3df0, 0 0 3px #3de0ff; }
+.odd.odd-v.vt-neon { border-left-color: #ff3df0; }
+.card.v-neon { --frame: linear-gradient(160deg, #2a2a30, #0c0c10 50%, #222228); --spin: initial; box-shadow: 0 6px 18px #000c, 0 0 20px #ff3df055, 0 0 30px #3de0ff33; }
+.card.v-neon .card-inner { background: #0a080e; color: #fff; }
+.card.v-neon .card-name { color: #fff; text-shadow: 0 0 .15em #fff, 0 0 .4em #ff3df0, 0 0 .9em #3de0ff; animation: neBuzz 2.6s steps(1) infinite; }
+.card.v-neon :is(.card-sub, .card-stats, :where(.card-stats b), .card-foot, .atk-dmg, .atk-name, .card-hp) { color: #f0e8ff; }
+.card.v-neon .card-sub { background: none; }
+.card.v-neon .card-attack { border-color: #ff3df055; }
+.card.v-neon .card-photo { border-image: none; border: .14em solid #333; background: #08060c; }
+.card.v-neon .card-photo > img, .r-secret.v-neon .sc-art img { filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 4px #ff3df0aa) drop-shadow(0 0 4px #3de0ffaa); animation: neBuzz 2.6s steps(1) infinite; }
+.r-secret.v-neon .sc { background: #08060c; }
+.r-secret.v-neon .sc-border { background: conic-gradient(from var(--ang, 0deg), #ff3df0, #3de0ff, #ffe63c, #ff3df0); }
+.pick.v-neon img { filter: grayscale(1) contrast(1.6) brightness(.7) sepia(1) hue-rotate(260deg) saturate(5); }
+.pick.v-neon { box-shadow: inset 0 0 0 2px #ff3df0, 0 0 10px #ff3df088, inset 0 -26px 26px -18px var(--rc); }
+
+/* Termowizyjna - obraz z kamery termowizyjnej (fxPhoto) i ciepłe plamy przesuwające się po tle karty (variantBG) */
+.var-tag.vt-thermal { background: linear-gradient(90deg, #2a0a6a, #d8303a, #ffd23f); color: #fff; text-shadow: 0 1px 1px #000; }
+.ph.vt-thermal { background: linear-gradient(90deg, #2a0a6a, #d8303a, #ffd23f); color: #fff; }
+.vdot.vt-thermal { background: radial-gradient(circle, #ffd23f, #d8303a 50%, #2a0a6a); }
+.odd.odd-v.vt-thermal { border-left-color: #f07a1a; }
+.card.v-thermal { --frame: linear-gradient(160deg, #3a3a40, #16161a 50%, #2c2c32); --spin: initial; box-shadow: 0 6px 18px #000c, 0 0 18px #f07a1a55; }
+.card.v-thermal .card-inner { background: #05021a; color: #ffe9a8; font-family: "Share Tech Mono", Consolas, monospace; }
+.card.v-thermal .card-inner > :where(:not(.vx-bg, .galaxy-bg, .dv-bg, .mlg-bg)) { position: relative; z-index: 1; }
+.card.v-thermal :is(.card-name, .card-hp, .card-sub, .card-stats, :where(.card-stats b), .card-foot, .atk-dmg, .atk-name, .card-value) { color: #ffe9a8; text-shadow: 0 1px 2px #000; }
+.card.v-thermal .card-name { font-family: "Share Tech Mono", Consolas, monospace; letter-spacing: .03em; }
+.card.v-thermal .card-sub { background: none; font-style: normal; }
+.card.v-thermal :is(.card-sub, .card-attack, .card-stats) { background: #05021acc; border-radius: .3em; border-color: #ffffff22; }
+.card.v-thermal .card-attack { padding-inline: .35em; }
+.card.v-thermal .card-photo { border-image: none; border: .14em solid #444; background: #05021a; }
+.ht-blob { width: 70%; aspect-ratio: 1; border-radius: 50%; filter: blur(4px); opacity: .7; will-change: transform; animation: htDrift 12s ease-in-out infinite alternate;
+  background: radial-gradient(circle, #ffd23f, #f07a1a 25%, #d8303a 45%, #8a1a8a 65%, transparent 75%); }
+.ht-blob.h1 { left: -20%; top: 50%; } .ht-blob.h2 { right: -25%; top: 0; animation-duration: 15s; } .ht-blob.h3 { left: 20%; bottom: -30%; animation-duration: 10s; }
+@keyframes htDrift { to { transform: translate(15%, -10%) scale(1.2); } }
+.r-secret.v-thermal .sc { background: #05021a; }
+.r-secret.v-thermal .sc-border { background: conic-gradient(from var(--ang, 0deg), #2a0a6a, #d8303a, #ffd23f, #fffbe8, #f07a1a, #2a0a6a); }
+.pick.v-thermal img { filter: grayscale(1) contrast(1.4) sepia(1) hue-rotate(-35deg) saturate(6) brightness(.95); }
+.pick.v-thermal { box-shadow: inset 0 0 0 2px #f07a1a, inset 0 -26px 26px -18px var(--rc); }
+
+/* Blueprint - plan inżynierski: niebieski papier z siatką, kontur twarzy białą kreską (fxPhoto: linesCanvas), linie wymiarowe
+   (.bp-dims) i tabelka rysunkowa (.bpr-title w variantLayers) */
+.var-tag.vt-blueprint { background: #1f3a7a; color: #e8f4ff; border: 1px solid #e8f4ff; font-family: "Share Tech Mono", monospace; border-radius: 0; text-shadow: none; }
+.ph.vt-blueprint { background: #1f3a7a; color: #e8f4ff; text-shadow: none; border-radius: 0; }
+.vdot.vt-blueprint { background: #1f3a7a; box-shadow: 0 0 0 1px #e8f4ff; }
+.odd.odd-v.vt-blueprint { border-left-color: #4a8ad8; }
+.card.v-blueprint { --frame: linear-gradient(160deg, #6a8ab8, #1f3a7a 50%, #4a6aa8); --spin: initial; }
+.card.v-blueprint .card-inner { color: #e8f4ff; font-family: "Share Tech Mono", Consolas, monospace;
+  background: linear-gradient(#e8f4ff22 1px, transparent 1px) 0 0 / 5cqw 5cqw, linear-gradient(90deg, #e8f4ff22 1px, transparent 1px) 0 0 / 5cqw 5cqw,
+    linear-gradient(#e8f4ff10 1px, transparent 1px) 0 0 / 1cqw 1cqw, linear-gradient(90deg, #e8f4ff10 1px, transparent 1px) 0 0 / 1cqw 1cqw, radial-gradient(120% 90% at 50% 30%, #2a5aa8, #163a7a 70%); }
+.card.v-blueprint :is(.card-name, .card-hp, .card-sub, .card-stats, :where(.card-stats b), .card-foot, .atk-dmg, .atk-name, .card-value) { color: #e8f4ff; }
+.card.v-blueprint .card-name { font-family: "Share Tech Mono", Consolas, monospace; text-transform: uppercase; letter-spacing: .06em; }
+.card.v-blueprint .card-sub { background: none; font-style: normal; border-top: 1px dashed #e8f4ff88; border-bottom: 1px dashed #e8f4ff88; }
+.card.v-blueprint .card-attack { border-color: #e8f4ff44; }
+.card.v-blueprint :is(.atk-cost, :where(.card-stats b), .card-type, .gem) { filter: grayscale(1) brightness(2.4); }
+.card.v-blueprint .card-type { background: transparent; box-shadow: 0 0 0 .1em #e8f4ff; }
+.card.v-blueprint .card-foot { padding-right: 34%; }
+.card.v-blueprint .card-photo { border-image: none; border: .1em solid #e8f4ff; background: transparent; box-shadow: none; }
+.bp-dims { color: #e8f4ff; font: 400 2.4cqw/1 "Share Tech Mono", monospace; }
+.bp-dims::before { content: ""; position: absolute; left: 4%; right: 4%; bottom: 4%; border-bottom: 1px solid currentColor; }
+.bp-dims::after { content: ""; position: absolute; right: 4%; top: 4%; bottom: 4%; border-right: 1px solid currentColor; }
+.bp-dims b { position: absolute; background: #1f4a90; padding: 0 .3em; font-weight: 400; }
+.bp-dims .w { left: 40%; bottom: 1.5%; } .bp-dims .h { right: -1%; top: 46%; transform: rotate(-90deg); }
+.bpr-title { position: absolute; right: 6%; bottom: 3.5%; z-index: 4; font: 400 1.9cqw/1.3 "Share Tech Mono", monospace; color: #e8f4ff; border: 1px solid #e8f4ff; padding: .3em .5em; background: #163a7acc; pointer-events: none; }
+.r-secret.v-blueprint .sc { background: #163a7a; }
+.r-secret.v-blueprint .sc-border { background: conic-gradient(from var(--ang, 0deg), #1f3a7a, #e8f4ff, #4a8ad8, #1f3a7a); }
+.pick.v-blueprint img { filter: grayscale(1) contrast(1.4) brightness(.9) sepia(1) hue-rotate(190deg) saturate(4); }
+.pick.v-blueprint { box-shadow: inset 0 0 0 2px #e8f4ff, inset 0 -26px 26px -18px var(--rc); }
+
+/* Glitch - zepsuty plik (fxPhoto: glitchPhoto): zdjęcie z blokami pikseli w złych kolorach, a trzy inne wersje uszkodzeń (.gt-fr)
+   błyskają nad nim w różnych momentach, więc obraz ciągle się psuje na nowo; nazwa i plakietka drżą */
+@keyframes glJit { 0%, 100% { transform: none; } 30% { transform: translateX(-3%); } 31% { transform: translateX(2%); } 32% { transform: none; } 74% { transform: translateX(4%) skewX(-8deg); } 75% { transform: none; } }
+@keyframes glFrame { 0%, 100% { opacity: 0; } 6% { opacity: 1; } 13% { opacity: 0; } 41% { opacity: 1; } 45% { opacity: 0; } 72% { opacity: 1; } 79% { opacity: 0; } }
+@keyframes glSway { 0%, 100% { transform: none; } 20% { transform: translateX(-1.5%); } 40% { transform: translateX(1%); } 41% { transform: none; } 64% { transform: translateX(2%) scaleY(1.01); } 66% { transform: none; } }
+.var-tag.vt-glitch { background: #0c0c14; color: #fff; border: 1px solid #fff; font-family: "Share Tech Mono", monospace; text-shadow: -.08em 0 #ff2b5a, .08em 0 #00e5ff; animation: glJit 2.3s steps(1) infinite; }
+.ph.vt-glitch { background: #0c0c14; color: #fff; text-shadow: -1px 0 #ff2b5a, 1px 0 #00e5ff; }
+.vdot.vt-glitch { background: linear-gradient(90deg, #ff2b5a 50%, #00e5ff 50%); }
+.odd.odd-v.vt-glitch { border-left-color: #00e5ff; }
+.card.v-glitch { --frame: linear-gradient(160deg, #ff2b5a, #101018 30%, #101018 70%, #00e5ff); --spin: initial; box-shadow: 0 6px 18px #000c, -2px 0 10px #00e5ff88, 2px 0 10px #ff2b5a88; }
+.card.v-glitch .card-inner { background: repeating-linear-gradient(0deg, #ffffff06 0 1px, transparent 1px 3px), #0c0c14; color: #e9f6ff; }
+.card.v-glitch :is(.card-name, .card-hp, .card-sub, .card-stats, :where(.card-stats b), .card-foot, .atk-dmg, .atk-name, .card-value) { color: #e9f6ff; }
+.card.v-glitch .card-name { font-family: "Share Tech Mono", Consolas, monospace; text-shadow: -.07em 0 #ff2b5a, .07em 0 #00e5ff; animation: glJit 3s steps(1) infinite; }
+.card.v-glitch .card-name::after { content: " ▓▒░"; color: #ff2b5a; }
+.card.v-glitch .card-sub { background: none; }
+.card.v-glitch .card-sub b { color: #ff2b5a; font-family: "Share Tech Mono", monospace; }
+.card.v-glitch .card-attack { border-color: #ffffff22; }
+.card.v-glitch .card-photo { border-image: none; border: .14em solid #e9f6ff; background: #000; }
+.card.v-glitch .card-photo > img:not(.gt-fr), .r-secret.v-glitch .sc-art > img:not(.gt-fr) { animation: glSway 3.6s steps(1) infinite; }
+.gt-fr { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; opacity: 0; animation: glFrame 3.2s steps(1) infinite; will-change: opacity; pointer-events: none; }
+.gt-err { position: absolute; left: 4%; bottom: 5%; z-index: 3; font: 400 2.6cqw/1 "Share Tech Mono", monospace; color: #fff; background: #c8102e; padding: .3em .5em; box-shadow: .4cqw .4cqw 0 #000; animation: pxBlink 1.4s steps(1) infinite; pointer-events: none; }
+.r-secret.v-glitch .sc { background: #0c0c14; }
+.r-secret.v-glitch .sc-border { background: conic-gradient(from var(--ang, 0deg), #ff2b5a, #101018, #00e5ff, #101018, #ff2b5a); }
+.pick.v-glitch img { filter: contrast(1.2) saturate(1.6) hue-rotate(20deg); }
+.pick.v-glitch { box-shadow: inset 2px 0 #ff2b5a, inset -2px 0 #00e5ff, inset 0 -26px 26px -18px var(--rc); }
+
+/* Dolarowa - karta jak banknot: papier z giloszowanymi rozetami (dollarBG), portret wygrawerowany zielonym tuszem w owalu
+   (fxPhoto: engraveCanvas), pieczęcie, nominały, nagłówek (pxStatus) i numer seryjny (variantSub) */
+.var-tag.vt-dollar { background: #1f4a2a; color: #e8f0d8; border: 1px solid #c8d8b0; font-family: "IM Fell English", Georgia, serif; font-weight: 400; letter-spacing: .08em; text-shadow: none; }
+.ph.vt-dollar { background: #1f4a2a; color: #e8f0d8; text-shadow: none; }
+.vdot.vt-dollar { background: #2a6a3a; box-shadow: 0 0 0 1px #c8d8b0; }
+.odd.odd-v.vt-dollar { border-left-color: #2a6a3a; }
+.card.v-dollar { --frame: linear-gradient(135deg, #2a5a3a, #8ab88a 30%, #1f4a2a 60%, #6a9a6a); --spin: initial; }
+.card.v-dollar .card-inner { background: var(--tx-paper), linear-gradient(170deg, #eef3e2, #d9e4c8); color: #1f4a2a; }
+.card.v-dollar .card-name { font-family: "IM Fell English", Georgia, serif; font-weight: 400; font-size: 1.1em; letter-spacing: .02em; }
+.card.v-dollar :is(.card-name, .card-sub, .card-stats, :where(.card-stats b), .card-foot, .atk-dmg, .atk-name, .card-hp) { color: #1f4a2a; }
+.card.v-dollar .card-sub { background: none; font: 400 .5em/1.3 "IM Fell English", Georgia, serif; letter-spacing: .1em; border-top: .1em solid currentColor; border-bottom: .1em solid currentColor; }
+.card.v-dollar .card-sub b { color: #2a6a3a; font-family: "Share Tech Mono", monospace; letter-spacing: .05em; }
+.card.v-dollar .card-attack { border-color: #1f4a2a33; }
+.card.v-dollar .card-photo { border-image: none; border: .15em solid #1f4a2a; box-shadow: 0 0 0 .2em #eef3e2, 0 0 0 .28em #1f4a2a88;
+  background: radial-gradient(ellipse 34% 46% at 50% 47%, #f6f8ee 0 97%, transparent 98%); }
+.card.v-dollar .card-photo > img { -webkit-mask: radial-gradient(ellipse 34% 46% at 50% 47%, #000 97%, transparent 98%); mask: radial-gradient(ellipse 34% 46% at 50% 47%, #000 97%, transparent 98%); }
+.mn-head { font: 400 .5em/1 "IM Fell English", Georgia, serif; letter-spacing: .14em; color: #1f4a2a; text-align: center; margin: -1% 0 2%; border-bottom: .1em solid #1f4a2a; padding-bottom: .3em; }
+.mn-guil { position: absolute; inset: 0; opacity: .5; background: repeating-radial-gradient(circle at 0 0, transparent 0 1.6cqw, #1f4a2a33 1.6cqw 1.8cqw), repeating-radial-gradient(circle at 100% 100%, transparent 0 1.6cqw, #1f4a2a33 1.6cqw 1.8cqw); }
+.mn-ros { position: absolute; width: 34%; aspect-ratio: 1; opacity: .9; }
+.mn-ros svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.mn-ros.a { left: -8%; top: -5%; } .mn-ros.b { right: -8%; bottom: 8%; }
+.mn-ros.big { left: 0; right: 0; top: 4%; width: 100%; opacity: .7; }
+.mn-oval { background: radial-gradient(ellipse 34% 46% at 50% 47%, transparent 96%, #1f4a2a 96.5% 98%, transparent 98.5% 99.5%, #1f4a2a 100%, transparent 101%); }
+.mn-num { position: absolute; z-index: 2; font: 400 2.2em/1 "IM Fell English", Georgia, serif; color: #1f4a2a; text-shadow: 0 0 .2em #eef3e2; }
+.mn-num.tl { left: 4%; top: 2%; } .mn-num.tr { right: 4%; top: 2%; }
+.mn-seal { position: absolute; left: 5%; bottom: 6%; width: 18%; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; z-index: 2;
+  font: 400 1.4em/1 "IM Fell English", serif; font-style: normal; color: #eef3e2; background: radial-gradient(circle, #2a6a3a 0 55%, #eef3e2 56% 60%, #2a6a3a 61%); box-shadow: 0 0 0 .15em #2a6a3a; }
+.mn-seal.black { left: auto; right: 5%; background: radial-gradient(circle, #1a1a1a 0 55%, #eef3e2 56% 60%, #1a1a1a 61%); box-shadow: 0 0 0 .15em #1a1a1a; }
+.r-secret.v-dollar .sc { background: var(--tx-paper), #e4ecd4; }
+.r-secret.v-dollar .sc-art::after { display: none; }
+.r-secret.v-dollar .sc-panel { background: #eef3e2e0; border-color: #1f4a2a; }
+.r-secret.v-dollar :is(.sc-name, .sc-hp, .sc-attack b, .sc-foot, .sc-atk, .sc-sub, .sc-val) { color: #1f4a2a !important; text-shadow: none; }
+.r-secret.v-dollar .sc-border { background: #1f4a2a; animation: none; }
+.pick.v-dollar img { filter: grayscale(1) contrast(1.3) sepia(1) hue-rotate(70deg) saturate(2) brightness(.8); }
+.pick.v-dollar { box-shadow: inset 0 0 0 2px #1f4a2a, inset 0 0 0 4px #eef3e2, inset 0 -26px 26px -18px var(--rc); }
 
 /* ============================================================ WYDAJNOŚĆ
    Tajne i flagowe karty mają własne tło (czarne / flaga) - bez animowanej ramki w ::before (style.css). */

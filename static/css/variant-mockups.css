@@ -636,173 +636,103 @@ img.vm-photo { width: 100%; height: 100%; object-fit: cover; object-position: 50
 .cn-seal { right: 6%; top: 50%; width: 17%; aspect-ratio: 1; display: grid; place-items: center; background: #c8141c; color: #fbe9d0; border-radius: .6cqw;
   font: 400 11cqw/1 "Ma Shan Zheng", "KaiTi", serif; font-style: normal; transform: rotate(-6deg); box-shadow: inset 0 0 0 .6cqw #fbe9d0, inset 0 0 0 1cqw #c8141c, 0 .4cqw .8cqw #0006; }
 
-/* ============================================================ PIKSELOWA (zdjęcie: canvas z vmPixelArt) */
+/* zdjęcie przerysowane w canvasie (vmCanvas) */
 canvas.vm-photo { width: 100%; height: 100%; display: block; }
-.card.vm-pixel canvas.vm-photo { image-rendering: pixelated; }
-.card.vm-pixel { border-radius: 0; clip-path: polygon(0 2.2%, 3% 2.2%, 3% 0, 97% 0, 97% 2.2%, 100% 2.2%, 100% 97.8%, 97% 97.8%, 97% 100%, 3% 100%, 3% 97.8%, 0 97.8%); }
-.card.vm-pixel .card-inner { border-radius: 0; font-family: "Press Start 2P", monospace; font-size: 4.6cqw; }
-.card.vm-pixel .card-name { font-size: .72em; font-weight: 400; line-height: 1.4; }
-.card.vm-pixel .card-hp { font-size: .62em; font-weight: 400; }
-.card.vm-pixel .card-hp small { font-size: .8em; }
-.card.vm-pixel .atk-name { font-size: .5em; font-weight: 400; line-height: 1.4; }
-.card.vm-pixel .atk-dmg { font-size: .74em; font-weight: 400; }
-.card.vm-pixel .card-sub { font-style: normal; font-size: .4em; font-weight: 400; }
-.card.vm-pixel .card-stats { font-size: .32em; }
-.card.vm-pixel .card-stats b { font-weight: 400; }
-.card.vm-pixel .card-foot { font-size: .34em; font-weight: 400; }
-.card.vm-pixel .card-value { font-weight: 400; }
-.card.vm-pixel .card-photo { border-image: none; border: 1.2cqw solid #000; box-shadow: none; background: #000; }
-.card.vm-pixel .gem { transform: none; border-radius: 0; }
-.vm-pixel .vm-tag { font-family: "Press Start 2P", monospace; font-weight: 400; font-size: 2.4cqw; border-radius: 0; background: #000; color: #ffec27;
-  box-shadow: 0 -.6cqw 0 0 #fff1e8, 0 .6cqw 0 0 #fff1e8, -.6cqw 0 0 0 #fff1e8, .6cqw 0 0 0 #fff1e8; }
-/* 1. 8-bit (paleta 16 kolorów) */
-.card.vm-pixel-1 { --frame: repeating-conic-gradient(#7e2553 0 25%, #a8326f 0 50%) 0 0 / 2.4cqw 2.4cqw; }
-.card.vm-pixel-1 .card-inner { background: #1d2b53; color: #fff1e8; }
-.card.vm-pixel-1 :is(.card-sub, .card-stats, :where(.card-stats b), .card-foot, .atk-dmg, .atk-name) { color: #fff1e8; }
-.card.vm-pixel-1 .card-name { color: #ffec27; }
-.card.vm-pixel-1 .card-hp { color: #ff004d; }
-.card.vm-pixel-1 .card-value { color: #00e436; }
-.card.vm-pixel-1 .card-sub { background: none; }
-.card.vm-pixel-1 .card-attack { background: #000; border: none; padding: .5em .4em; margin: 2% 1% 0; box-shadow: 0 -.9cqw 0 0 #fff1e8, 0 .9cqw 0 0 #fff1e8, -.9cqw 0 0 0 #fff1e8, .9cqw 0 0 0 #fff1e8; }
-.card.vm-pixel-1 .card-attack:first-of-type { margin-top: auto; }
-.px-star { width: 1.2cqw; height: 1.2cqw; background: #fff1e8; animation: vmBlink 1.6s steps(1) infinite; }
-/* 2. kieszonkowa konsola (4 zielenie) */
-.card.vm-pixel-2 { padding: 7% 7% 13%; clip-path: none; border-radius: 4%/3% 4%/3% 14%/10% 4%/3%; --frame: linear-gradient(170deg, #d6d4cc, #b8b6ae); box-shadow: 0 6px 18px #000a; }
-.card.vm-pixel-2 .card-inner { background: #9bbc0f; color: #0f380f; box-shadow: 0 0 0 1.4cqw #4a4e58, 0 0 0 1.8cqw #3a3d45; }
-.card.vm-pixel-2 :is(.card-name, .card-hp, .card-sub, .card-stats, :where(.card-stats b), .card-foot, .atk-dmg, .atk-name, .card-value) { color: #0f380f; }
-.card.vm-pixel-2 :is(.atk-cost, :where(.card-stats b), .card-type, .gem) { filter: grayscale(1) sepia(1) hue-rotate(40deg) saturate(2) brightness(.5); }
-.card.vm-pixel-2 .card-type { background: #8bac0f; }
-.card.vm-pixel-2 .card-photo { border-color: #0f380f; background: #0f380f; }
-.card.vm-pixel-2 .card-sub { background: #306230; color: #9bbc0f; margin-inline: 0; }
-.card.vm-pixel-2 .card-attack { border-color: #306230; }
-.px-led { left: 3%; top: 30%; width: 2.4%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ff8a8a, #e01818 60%, #8a0a0a); box-shadow: 0 0 1.2cqw #ff3030; }
-.px-gb-label { position: absolute; left: 8%; bottom: 3.2%; font: italic 400 3.4cqw/1 "Press Start 2P", monospace; color: #2b2b8f; letter-spacing: .05em; }
-.vm-pixel-2 .vm-tag { background: #0f380f; color: #9bbc0f; box-shadow: 0 -.6cqw 0 0 #8bac0f, 0 .6cqw 0 0 #8bac0f, -.6cqw 0 0 0 #8bac0f, .6cqw 0 0 0 #8bac0f; }
-/* 3. 16-bit RPG: niebieskie okienka */
-.card.vm-pixel-3 { --frame: linear-gradient(180deg, #5a5a6a, #2a2a36); }
-.card.vm-pixel-3 .card-inner { background: #0b0b1a; color: #fff; }
-.card.vm-pixel-3 :is(.card-head, .card-sub, .card-attack, .card-stats, .card-foot, .px-status) {
-  background: linear-gradient(180deg, #3a5bd0, #13226b); border: .9cqw solid #fff; box-shadow: 0 0 0 .5cqw #000, inset 0 0 0 .5cqw #000; border-radius: 1cqw; }
-.card.vm-pixel-3 :is(.card-name, .card-hp, .card-sub, .card-stats, :where(.card-stats b), .card-foot, .atk-dmg, .atk-name, .card-value) { color: #fff; text-shadow: .3cqw .3cqw 0 #000; }
-.card.vm-pixel-3 .card-head { padding: .3em .4em; }
-.card.vm-pixel-3 .card-sub { margin: 2% 0 0; padding: .5em; }
-.card.vm-pixel-3 .card-attack { padding: .45em .4em; margin-top: 2%; }
-.card.vm-pixel-3 .card-attack:first-of-type { margin-top: auto; }
-.card.vm-pixel-3 .card-attack .atk-name::before { content: "▶ "; animation: vmBlink 1s steps(1) infinite; }
-.card.vm-pixel-3 .card-stats, .card.vm-pixel-3 .card-foot { padding: .3em .2em; margin-top: 2%; }
-.card.vm-pixel-3 .card-photo { border-color: #fff; box-shadow: 0 0 0 .5cqw #000; margin-top: 2%; }
-.px-status { display: flex; align-items: center; gap: .5em; padding: .3em .4em; margin-bottom: 2%; font-size: .45em; color: #ffe13b; }
-.px-bar { flex: 1; height: 1em; background: #000; border: .5cqw solid #fff; }
-.px-bar i { display: block; height: 100%; width: 82%; background: linear-gradient(180deg, #7dff5a, #1f9a1f); }
-/* 4. platformówka */
-.card.vm-pixel-4 { --frame: #000; }
-.card.vm-pixel-4 .card-inner { background: #5c94fc; color: #fff; }
-.card.vm-pixel-4 :is(.card-name, .card-hp, .card-sub, .card-stats, :where(.card-stats b), .card-foot, .atk-dmg, .atk-name, .card-value) { color: #fff; text-shadow: .4cqw .4cqw 0 #000; }
-.card.vm-pixel-4 .card-sub { background: none; }
-.card.vm-pixel-4 .card-attack { border-color: #ffffff66; }
-.px-score { display: flex; justify-content: space-between; font-size: .36em; line-height: 1.5; color: #fff; text-shadow: .4cqw .4cqw 0 #000; margin-bottom: 2%; }
-.px-cloud { width: 1.6cqw; height: 1.6cqw; background: transparent; color: #fff;
-  box-shadow: 1.6cqw 0, 3.2cqw 0, 4.8cqw 0, 0 1.6cqw, 1.6cqw 1.6cqw, 3.2cqw 1.6cqw, 4.8cqw 1.6cqw, 6.4cqw 1.6cqw, -1.6cqw 3.2cqw, 0 3.2cqw, 1.6cqw 3.2cqw, 3.2cqw 3.2cqw, 4.8cqw 3.2cqw, 6.4cqw 3.2cqw, 8cqw 3.2cqw; }
-.px-cloud.c1 { left: 6%; top: 3%; } .px-cloud.c2 { left: 70%; top: 66%; }
-.px-bricks { left: 0; right: 0; bottom: 0; height: 11%;
-  background: linear-gradient(#000 0 .5cqw, transparent 0) 0 0 / 100% 3.2cqw, linear-gradient(90deg, #000 0 .5cqw, transparent 0) 0 0 / 6.4cqw 6.4cqw,
-    linear-gradient(90deg, #000 0 .5cqw, transparent 0) 3.2cqw 3.2cqw / 6.4cqw 6.4cqw, #c84c0c; }
-.px-qblock { right: 3%; top: 15%; width: 12%; aspect-ratio: 1; display: grid; place-items: center; font: 400 5.5cqw/1 "Press Start 2P", monospace; color: #fff;
-  background: #f8a800; box-shadow: inset -.7cqw -.7cqw 0 #c84c0c, inset .7cqw .7cqw 0 #ffe08a, 0 0 0 .5cqw #000; text-shadow: .5cqw .5cqw 0 #c84c0c; animation: pxBump 1.2s steps(1) infinite; }
-@keyframes pxBump { 50% { transform: translateY(-.8cqw); } }
-.px-coin { left: 5%; top: 50%; width: 5%; aspect-ratio: .7; background: #ffd23f; box-shadow: inset -.6cqw 0 0 #c88a00, 0 0 0 .5cqw #000; animation: pxSpin .8s steps(4) infinite; }
-@keyframes pxSpin { 50% { transform: scaleX(.3); } }
+.vm-photo > b { position: absolute; }
 
-/* ============================================================ WITRAŻOWA (zdjęcie: canvas z vmGlass) */
-.vm-glass .vm-tag { background: #1a1410; color: #f3d27a; border: 1px solid #c9a24a; font-family: Cinzel, serif; letter-spacing: .1em; }
-.card.vm-glass .card-name { font-family: Cinzel, Georgia, serif; font-weight: 900; }
-.card.vm-glass .card-photo { border-image: none; border: .25em solid #2a2218; background: #2a2218; }
-.gl-shine { background: linear-gradient(115deg, transparent 35%, #ffffff55 47%, transparent 58%) 0 0 / 250% 100%; animation: photoGlint 5s ease-in-out infinite; mix-blend-mode: overlay; }
-.gl-shine.warm { background: linear-gradient(180deg, #ffd27a33, #ff9a3a22), linear-gradient(115deg, transparent 35%, #ffffff55 47%, transparent 58%) 0 0 / 250% 100%; }
-.gl-stone { background: var(--tx-grain) 0 0 / 120px, linear-gradient(170deg, #4a4540, #2a2622 60%, #1f1c19); }
-.gl-glow { left: 5%; right: 5%; top: 6%; height: 60%; background: radial-gradient(closest-side, #ffcf6a55, transparent); animation: vmPulse 6s ease-in-out infinite; }
-.gl-glow.round { left: 0; right: 0; border-radius: 50%; }
-/* 1. gotyckie okno */
-.card.vm-glass-1, .card.vm-glass-2 { --frame: linear-gradient(160deg, #3a3a40, #16161a 50%, #2c2c32); }
-.card.vm-glass-1 .card-inner, .card.vm-glass-2 .card-inner { color: #e8dcc0; }
-.card.vm-glass :is(.card-sub, .card-stats, :where(.card-stats b), .card-foot, .atk-dmg, .atk-name, .card-hp) { color: inherit; }
-.card.vm-glass-1 .card-name, .card.vm-glass-2 .card-name { color: #f3d27a; }
-.card.vm-glass-1 .card-sub, .card.vm-glass-2 .card-sub { background: none; }
-.card.vm-glass-1 .card-attack, .card.vm-glass-2 .card-attack { border-color: #e8dcc022; }
-.card.vm-glass-1 .card-photo { border: none; background: none;
-  -webkit-mask: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'><path d='M0 100 V46 C0 19 22 4 50 0 C78 4 100 19 100 46 V100 Z'/></svg>") 0 0 / 100% 100%;
-  mask: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'><path d='M0 100 V46 C0 19 22 4 50 0 C78 4 100 19 100 46 V100 Z'/></svg>") 0 0 / 100% 100%; }
-/* 2. rozeta */
-.card.vm-glass-2 .card-photo { border-radius: 50%; aspect-ratio: 1; margin: 3% 11% 0; border: none; box-shadow: 0 0 0 .4em #4a4238, 0 0 0 .6em #2a251f, 0 0 0 .7em #6a5f50; }
-/* 3. Tiffany */
-.card.vm-glass-3 { --frame: linear-gradient(135deg, #6b4a2a, #a07a4a 30%, #3f6b5a 60%, #8a6a3a); }
-.gl-warm { inset: 0; background: radial-gradient(120% 80% at 50% 30%, #fff3c044, transparent 70%); }
-.card.vm-glass-3 .card-inner { color: #2a1d12; }
-.card.vm-glass-3 :is(.card-head, .card-sub, .card-attack, .card-stats, .card-foot) { background: #f6ead0dd; border-radius: .3em; }
-.card.vm-glass-3 .card-head { padding: .1em .3em; }
-.card.vm-glass-3 .card-attack { padding-inline: .3em; margin-top: 1.5%; }
-.card.vm-glass-3 .card-attack:first-of-type { margin-top: auto; }
-.card.vm-glass-3 .card-stats, .card.vm-glass-3 .card-foot { padding: .2em; margin-top: 1.5%; }
-.card.vm-glass-3 .card-name { color: #5a3a1a; }
-.card.vm-glass-3 .card-photo { border-color: #4a3018; }
-/* 4. światło w kościele */
-.card.vm-glass-4 { --frame: linear-gradient(160deg, #d8ccb4, #b0a48c 50%, #cfc3aa); }
-.gl-light { background: var(--tx-grain) 0 0 / 140px, linear-gradient(170deg, #f3ebdc, #e2d6c0); }
-.gl-beams { inset: -20%; background: repeating-linear-gradient(115deg, transparent 0 9%, #fff6d855 10% 14%, transparent 15% 22%); animation: vmPulse 7s ease-in-out infinite; }
-.gl-spot { width: 34%; aspect-ratio: 1.4; border-radius: 50%; background: radial-gradient(closest-side, var(--c), transparent); opacity: .45; mix-blend-mode: multiply; filter: blur(2px); animation: glDrift 10s ease-in-out infinite alternate; }
-@keyframes glDrift { to { transform: translate(20%, -8%) scale(1.15); } }
-.card.vm-glass-4 .card-inner { color: #3a2e20; }
-.card.vm-glass-4 .card-name { color: #2a1d12; }
-.card.vm-glass-4 .card-photo { border-color: #2a2218; box-shadow: 0 0 1em #ffcf6a88; }
+/* ============================================================ MOZAIKOWA (zdjęcie: canvas z vmMosaic) */
+.card.vm-mosaic .card-photo { border-image: none; background: #222; }
+.card.vm-mosaic .card-photo > img:not(.vm-photo) { opacity: 0; }
+.vm-mosaic .vm-tag { border-radius: .3em; }
+/* 1. klocki */
+.card.vm-mosaic-1 { --frame: linear-gradient(135deg, #f2cd37, #c91a09); }
+.mo-plate { background: radial-gradient(circle, #2d9a54 0 28%, #1d6a38 30% 38%, transparent 40%) 0 0 / 4.4cqw 4.4cqw, #237841; }
+.card.vm-mosaic-1 .card-inner { color: #fff; }
+.card.vm-mosaic-1 :is(.card-name, .card-hp, .card-sub, .card-stats, :where(.card-stats b), .card-foot, .atk-dmg, .atk-name, .card-value) { color: #fff; text-shadow: 0 .1em 0 #0006; font-weight: 900; }
+.card.vm-mosaic-1 :is(.card-head, .card-sub, .card-attack, .card-stats, .card-foot) { background: #0055bf; border-radius: .3em; border: none; }
+.card.vm-mosaic-1 .card-head { padding: .05em .3em; }
+.card.vm-mosaic-1 .card-sub { margin-inline: 0; }
+.card.vm-mosaic-1 .card-attack { padding-inline: .3em; margin-top: 1.5%; }
+.card.vm-mosaic-1 .card-sub + .card-attack { margin-top: auto; }
+.card.vm-mosaic-1 :is(.card-stats, .card-foot) { padding: .2em; margin-top: 1.5%; }
+.card.vm-mosaic-1 .card-photo { border: .25em solid #f2cd37; }
+.vm-mosaic-1 .vm-tag { background: #c91a09; color: #fff; }
+/* 2. koraliki */
+.card.vm-mosaic-2 { --frame: linear-gradient(135deg, #f7a8c6, #9ad8e8 50%, #f4d22a); }
+.mo-peg { background: radial-gradient(circle, #c4cad6 0 .7cqw, transparent .85cqw) 0 0 / 3.2cqw 3.2cqw, #f3f5f8; }
+.card.vm-mosaic-2 .card-inner { color: #2a3a5a; }
+.card.vm-mosaic-2 :is(.card-name, .card-sub, .card-stats, :where(.card-stats b), .card-foot, .atk-dmg, .atk-name) { color: #2a3a5a; }
+.card.vm-mosaic-2 :is(.card-sub, .card-attack, .card-stats) { background: #ffffffcc; border-radius: .5em; }
+.card.vm-mosaic-2 .card-attack { padding-inline: .35em; }
+.card.vm-mosaic-2 .card-photo { border: .2em solid #fff; box-shadow: 0 0 0 .15em #c4cad6; background: #f3efe6; }
+.vm-mosaic-2 .vm-tag { background: #f7a8c6; color: #fff; }
+/* 3. haft */
+.card.vm-mosaic-3 { --frame: repeating-linear-gradient(90deg, #8a5a2a 0 .3cqw, #a8743a .3cqw .8cqw); }
+.mo-aida { background: repeating-linear-gradient(0deg, #00000010 0 1px, transparent 1px 1.6cqw), repeating-linear-gradient(90deg, #00000010 0 1px, transparent 1px 1.6cqw), #f1e8d2; }
+.card.vm-mosaic-3 .card-inner { color: #6a2a1a; }
+.card.vm-mosaic-3 .card-name { font-family: Caveat, "Segoe Print", cursive; font-weight: 700; font-size: 1.35em; line-height: .9; color: #a8322a; }
+.card.vm-mosaic-3 .atk-name { font-family: Caveat, cursive; font-size: .9em; }
+.card.vm-mosaic-3 :is(.card-sub, .card-stats, :where(.card-stats b), .card-foot, .atk-dmg, .atk-name) { color: #6a2a1a; }
+.card.vm-mosaic-3 .card-sub { background: none; font-family: Caveat, cursive; font-style: normal; font-size: .7em; }
+.card.vm-mosaic-3 .card-attack { border-color: #6a2a1a33; }
+.card.vm-mosaic-3 .card-photo { border: .12em dashed #6a2a1a; box-shadow: 0 0 0 .2em #f1e8d2; }
+.vm-mosaic-3 .vm-tag { background: #f1e8d2; color: #a8322a; border: 1px dashed #a8322a; font-family: Caveat, cursive; font-size: 4cqw; font-weight: 700; }
+/* 4. kafelki */
+.card.vm-mosaic-4 { --frame: linear-gradient(135deg, #b5651d, #8a4a1a 50%, #c8782a); }
+.mo-grout { background: linear-gradient(#0003 1px, transparent 1px) 0 0 / 5cqw 5cqw, linear-gradient(90deg, #0003 1px, transparent 1px) 0 0 / 5cqw 5cqw, #d9cdb4; }
+.card.vm-mosaic-4 .card-inner { color: #3a2a1a; }
+.card.vm-mosaic-4 .card-name { font-family: Cinzel, Georgia, serif; font-weight: 900; }
+.card.vm-mosaic-4 :is(.card-sub, .card-stats, :where(.card-stats b), .card-foot, .atk-dmg, .atk-name) { color: #3a2a1a; }
+.card.vm-mosaic-4 :is(.card-sub, .card-attack, .card-stats) { background: #f4efe4e0; border-radius: .2em; }
+.card.vm-mosaic-4 .card-attack { padding-inline: .3em; }
+.card.vm-mosaic-4 .card-photo { border: .2em solid #6a655a; }
+.vm-mosaic-4 .vm-tag { background: #8a4a1a; color: #f4efe4; font-family: Cinzel, serif; }
 
-/* ============================================================ POP-ART */
-.card.vm-popart { --frame: #000; box-shadow: .5cqw .7cqw 0 #000, 0 6px 18px #000a; }
-.card.vm-popart .card-name { font-family: Bangers, Impact, sans-serif; font-weight: 400; letter-spacing: .04em; font-size: 1.2em; }
-.card.vm-popart .atk-name { font-family: Bangers, Impact, sans-serif; font-weight: 400; letter-spacing: .03em; font-size: .8em; }
-.card.vm-popart .card-photo { border-image: none; border: .3em solid #000; }
-.vm-popart .vm-tag { background: #ffe100; color: #e8202f; border: .4cqw solid #000; font-family: Bangers, Impact, sans-serif; font-weight: 400; font-size: 4cqw; letter-spacing: .06em; transform: rotate(-6deg); box-shadow: .6cqw .6cqw 0 #000; }
-.pa-halftone { background: radial-gradient(circle, #0007 0 32%, transparent 36%) 0 0 / 1.6cqw 1.6cqw; mix-blend-mode: multiply; }
-/* 1. kropki i dymek */
-.card.vm-popart-1 .card-inner { color: #000; }
-.pa-dots { background: radial-gradient(circle, #e8202f 0 30%, transparent 34%) 0 0 / 3cqw 3cqw, #ffe100; }
-.card.vm-popart-1 :is(.card-head, .card-sub, .card-attack, .card-stats, .card-foot) { background: #fff; border: .5cqw solid #000; }
-.card.vm-popart-1 .card-head { padding: .05em .3em; }
-.card.vm-popart-1 .card-sub { margin: 2% 0 0; }
-.card.vm-popart-1 .card-attack { padding-inline: .3em; margin-top: 1.5%; }
-.card.vm-popart-1 .card-attack:first-of-type { margin-top: auto; }
-.card.vm-popart-1 .card-stats, .card.vm-popart-1 .card-foot { padding: .2em; margin-top: 1.5%; }
-.card.vm-popart-1 .card-photo > img, .card.vm-popart-3 .card-photo > img { filter: contrast(1.5) saturate(1.8) brightness(1.05); }
-.pa-bubble { position: absolute; left: 8%; top: 13%; max-width: 48%; padding: .5em .7em; background: #fff; border: .6cqw solid #000; border-radius: 50%;
-  font: 400 4cqw/1.05 Bangers, Impact, sans-serif; letter-spacing: .03em; color: #000; text-align: center; box-shadow: .6cqw .6cqw 0 #000; }
-.pa-bubble::after { content: ""; position: absolute; left: 62%; bottom: -2.6cqw; width: 4cqw; height: 4cqw; background: #fff; border-right: .6cqw solid #000; border-bottom: .6cqw solid #000; transform: skewX(30deg) rotate(30deg); }
-/* 2. cztery portrety */
-.card.vm-popart-2 .card-inner { background: #111; color: #fff; }
-.card.vm-popart-2 :is(.card-name, .card-hp, .card-sub, .card-stats, :where(.card-stats b), .card-foot, .atk-dmg, .atk-name, .card-value) { color: #fff; }
-.card.vm-popart-2 .card-name { color: #ffe13b; }
-.card.vm-popart-2 .card-sub { background: none; }
-.card.vm-popart-2 .card-attack { border-color: #ffffff33; }
-.card.vm-popart-2 .card-photo { border-color: #fff; background: #fff; }
-.pa-quad { width: 50% !important; height: 50% !important; overflow: hidden; background: var(--c); isolation: isolate; }
-.pa-quad img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; filter: grayscale(1) contrast(2.4) brightness(1.15); mix-blend-mode: multiply; display: block; }
-.pa-quad.q1 { left: 0; top: 0; } .pa-quad.q2 { left: 50%; top: 0; } .pa-quad.q3 { left: 0; top: 50%; } .pa-quad.q4 { left: 50%; top: 50%; }
-.pa-quad::after { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 50% 40%, transparent 30%, #0000 31%), linear-gradient(135deg, #fff4 0 20%, transparent 21%); mix-blend-mode: soft-light; }
-/* 3. BAM! */
-.card.vm-popart-3 .card-inner { color: #000; }
-.pa-speed { background: repeating-conic-gradient(from 0deg at 50% 32%, #fff 0 4deg, #ffd0d0 4deg 7deg), #fff; }
-.card.vm-popart-3 .card-photo { transform: rotate(-2deg); box-shadow: .8cqw .8cqw 0 #000; }
-.card.vm-popart-3 :is(.card-sub, .card-attack, .card-stats, .card-foot) { background: #fff; }
-.card.vm-popart-3 .card-sub { border: .5cqw solid #000; margin-top: 4%; }
-.card.vm-popart-3 .card-name { color: #e8202f; -webkit-text-stroke: .03em #000; }
-.pa-burst { right: -9%; top: 8%; width: 44%; aspect-ratio: 1; animation: paPop 1.4s ease-in-out infinite; }
-@keyframes paPop { 50% { transform: scale(1.08) rotate(3deg); } }
-/* 4. przesunięty druk (cyjan, magenta, żółty) */
-.card.vm-popart-4 .card-inner { background: var(--tx-paper), #f1ece0; color: #1a1a1a; }
-.card.vm-popart-4 .card-name { color: #1a1a1a; text-shadow: -.06em 0 #00b7eb, .06em 0 #ff2bb5, 0 .06em #ffe10088; }
-.card.vm-popart-4 .card-photo { border-color: #1a1a1a; background: #f1ece0; }
-.card.vm-popart-4 .card-photo > img { opacity: 0; }
-.card.vm-popart-4 .card-sub { background: none; }
-.pa-paper { background: var(--tx-paper), #f1ece0; }
-.pa-ink { mix-blend-mode: multiply; isolation: isolate; overflow: hidden; }
-.pa-ink img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; filter: grayscale(1) contrast(1.6) brightness(1.08); display: block; }
-.pa-ink b { position: absolute; inset: 0; background: var(--c); mix-blend-mode: screen; }
-.pa-raster { background: radial-gradient(circle, transparent 0 40%, #f1ece066 46%) 0 0 / 1.4cqw 1.4cqw; }
+/* ============================================================ UKIYO-E (zdjęcie: canvas z vmUkiyo) */
+.card.vm-ukiyo .card-photo { border-image: none; border: .15em solid #1a1410; background: #f3e6c8; }
+.card.vm-ukiyo .card-photo > img:not(.vm-photo) { opacity: 0; }
+.card.vm-ukiyo .card-name { font-family: "IM Fell English", Georgia, serif; font-weight: 400; font-size: 1.15em; }
+.card.vm-ukiyo .card-inner { color: #1a1410; }
+.card.vm-ukiyo :is(.card-sub, .card-stats, :where(.card-stats b), .card-foot, .atk-dmg, .atk-name, .card-name) { color: #1a1410; }
+.card.vm-ukiyo .card-sub { background: none; border-top: .1em solid #1a141055; border-bottom: .1em solid #1a141055; }
+.card.vm-ukiyo .card-attack { border-color: #1a141033; }
+.vm-ukiyo .vm-tag { background: #c2452d; color: #f3e6c8; font-family: "IM Fell English", serif; font-weight: 400; border-radius: 0; }
+.uk-washi { background: var(--tx-paper), var(--tx-grain) 0 0 / 160px, #f3e6c8; }
+.uk-seal { position: absolute; right: 5%; top: 50%; width: 11%; aspect-ratio: 1; display: grid; place-items: center; background: #c2452d; color: #f3e6c8; border-radius: .5cqw;
+  font: 400 6cqw/1 "Ma Shan Zheng", serif; font-style: normal; transform: rotate(4deg); box-shadow: inset 0 0 0 .5cqw #c2452d, inset 0 0 0 .8cqw #f3e6c855; z-index: 3; }
+.uk-seal.r { top: 52%; }
+/* 1. fala */
+.card.vm-ukiyo-1 { --frame: linear-gradient(135deg, #1f3a6a, #86aec8 50%, #12233f); }
+.uk-waves { background: repeating-radial-gradient(circle at 50% 100%, #f1e6c8 0 1cqw, #2f5f8a 1.1cqw 1.8cqw, #86aec8 1.9cqw 2.6cqw) 0 0 / 10cqw 5cqw, #2f5f8a; }
+.card.vm-ukiyo-1 :is(.card-head, .card-sub, .card-attack, .card-stats, .card-foot) { background: #f3e6c8e8; border-radius: .2em; }
+.card.vm-ukiyo-1 .card-head { padding: .05em .3em; }
+.card.vm-ukiyo-1 .card-sub { margin-inline: 0; border: none; }
+.card.vm-ukiyo-1 .card-attack { padding-inline: .3em; margin-top: 1.5%; }
+.card.vm-ukiyo-1 .card-sub + .card-attack { margin-top: auto; }
+.card.vm-ukiyo-1 :is(.card-stats, .card-foot) { padding: .2em; margin-top: 1.5%; }
+/* 2. wiśnia */
+.card.vm-ukiyo-2 { --frame: linear-gradient(135deg, #e8b8c4, #8a5a4a 50%, #d98aa0); }
+.uk-branch { overflow: hidden; border-radius: 4.5%/3.2%; }
+/* 3. słońce */
+.card.vm-ukiyo-3 { --frame: linear-gradient(135deg, #f2a65a, #d8452e 50%, #4a1f3a); }
+.uk-sun { background: linear-gradient(180deg, #fbe4b8, #f2a65a 60%, #d8452e); }
+.uk-disc { left: 50%; top: 30%; width: 70%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: #d8452e; box-shadow: 0 0 0 1.2cqw #d8452e55; }
+.uk-fuji { position: absolute; inset: 0; width: 100%; height: 100%; }
+.card.vm-ukiyo-3 :is(.card-head, .card-sub, .card-attack, .card-stats, .card-foot) { background: #fbe4b8ee; border-radius: .2em; }
+.card.vm-ukiyo-3 .card-head { padding: .05em .3em; }
+.card.vm-ukiyo-3 .card-sub { margin-inline: 0; border: none; }
+.card.vm-ukiyo-3 .card-attack { padding-inline: .3em; margin-top: 1.5%; }
+.card.vm-ukiyo-3 .card-sub + .card-attack { margin-top: auto; }
+.card.vm-ukiyo-3 :is(.card-stats, .card-foot) { padding: .2em; margin-top: 1.5%; }
+/* 4. kabuki */
+.card.vm-ukiyo-4 { --frame: linear-gradient(135deg, #1a1410, #c2452d 50%, #1a1410); }
+.uk-kabuki { background: repeating-linear-gradient(100deg, #c2452d 0 4cqw, #1a1410 4cqw 4.6cqw, #f3e6c8 4.6cqw 7cqw, #1a1410 7cqw 7.6cqw); }
+.card.vm-ukiyo-4 :is(.card-head, .card-sub, .card-attack, .card-stats, .card-foot) { background: #f3e6c8; border: .3cqw solid #1a1410; }
+.card.vm-ukiyo-4 .card-head { padding: .05em .3em; }
+.card.vm-ukiyo-4 .card-sub { margin: 2% 0 0; }
+.card.vm-ukiyo-4 .card-attack { padding-inline: .3em; margin-top: 1.5%; }
+.card.vm-ukiyo-4 .card-sub + .card-attack { margin-top: auto; }
+.card.vm-ukiyo-4 :is(.card-stats, .card-foot) { padding: .2em; margin-top: 1.5%; }
+.uk-cart { position: absolute; left: 4%; top: 12%; width: 9%; padding: .5em 0; display: grid; justify-items: center; font: 400 4.4cqw/1.2 "Ma Shan Zheng", serif; writing-mode: vertical-rl; letter-spacing: .1em;
+  background: #f3e6c8; color: #c2452d; border: .4cqw solid #1a1410; z-index: 3; }
+.uk-branch svg { top: 12%; height: 34%; }

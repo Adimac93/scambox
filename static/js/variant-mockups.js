@@ -165,17 +165,10 @@ function vmCrack(x1, y1, x2, y2) {
 const vmHoles = (n, big = [6, 16]) => Array.from({ length: n }, () =>
   `<i class="ch-hole" style="left:${vmN(-4, 92)}%;top:${vmN(-3, 95)}%;width:${vmN(...big, 1)}%"></i>`).join("");
 
-// ---------------------------------------------------------------- zdjęcie przerysowane w canvasie (piksele, witraż)
-// <img class="vm-photo vm-src" data-fx="pixel|glass|rose" onload="vmCanvas(this)"> - po wczytaniu zdjęcie jest wykadrowane
+// ---------------------------------------------------------------- zdjęcie przerysowane w canvasie
+// <img class="vm-photo vm-src" data-fx="mosaic|ukiyo" onload="vmCanvas(this)"> - po wczytaniu zdjęcie jest wykadrowane
 // jak .card-photo (object-fit: cover, 50% 18%), przerysowane i podmienione na <canvas> z tymi samymi klasami
-const VM_PAL = {
-  pico: ["000000", "1d2b53", "7e2553", "008751", "ab5236", "5f574f", "c2c3c7", "fff1e8", "ff004d", "ffa300", "ffec27", "00e436", "29adff", "83769c", "ffccaa"],   // 16 kolorów starej konsoli bez różu (twarze wychodziły różowe)
-  gb: ["0f380f", "306230", "8bac0f", "9bbc0f"],
-};
-const vmRGB = h => [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4), 16)];
-const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 const vmSrc = (p, fx, data = "") => `<img class="vm-photo vm-src" src="${imgUrl(p.id)}" alt="" data-fx="${fx}" ${data} onload="vmCanvas(this)">`;
-
 function vmCrop(img, w, h) {
   const c = document.createElement("canvas");
   c.width = w; c.height = h;
@@ -187,119 +180,82 @@ function vmCrop(img, w, h) {
   return [c, ctx];
 }
 function vmCanvas(img) {
-  if (img.dataset.done) return;
+  if (img.dataset.done || !img.isConnected) return;   // kopia karty poza stroną (vrProposalCard) - nie liczymy na darmo
   img.dataset.done = "1";
-  const box = img.parentElement, ratio = box && box.offsetHeight ? box.offsetWidth / box.offsetHeight : 1 / .96;
-  const c = img.dataset.fx === "pixel" ? vmPixelArt(img, +img.dataset.w, img.dataset.pal, ratio, img.dataset.dither)
-    : vmGlass(img, ratio, img.dataset.fx, +img.dataset.n || 12);
+  const box = img.parentElement, ratio = box && box.offsetHeight ? box.offsetWidth / box.offsetHeight : 1 / .96, fx = img.dataset.fx;
+  const c = fx === "mosaic" ? vmMosaic(img, ratio, img.dataset.mode, +img.dataset.n || 40) : vmUkiyo(img, ratio, img.dataset.pal);
   c.className = img.className.replace("vm-src", "vm-canvas");
   img.replaceWith(c);
 }
-// pixel-art: zdjęcie zmniejszone do w pikseli szerokości i przemalowane na paletę (pico - 16 kolorów, gb - 4 zielenie
-// z ditheringiem) albo z liczbą poziomów na kanał (np. "5"); wyświetlane powiększone (image-rendering: pixelated)
-function vmPixelArt(img, w, pal, ratio, dither) {
-  const h = Math.round(w / ratio), [c, ctx] = vmCrop(img, w, h), d = ctx.getImageData(0, 0, w, h), px = d.data;
-  const P = VM_PAL[pal] ? VM_PAL[pal].map(vmRGB) : null;
-  for (let i = 0; i < px.length; i += 4) {
-    const x = (i / 4) % w, y = Math.floor(i / 4 / w), t = BAYER4[(y % 4) * 4 + x % 4] / 16 - .5;
-    let r = px[i], g = px[i + 1], b = px[i + 2];
-    if (pal === "gb") {
-      [r, g, b] = P[Math.max(0, Math.min(3, Math.floor((.3 * r + .59 * g + .11 * b + t * 70) / 64)))];
-    } else if (P) {
-      if (dither) { r += t * 36; g += t * 36; b += t * 36; }
-      let best = 0, bd = 1e9;
-      for (let k = 0; k < P.length; k++) {
-        const dr = r - P[k][0], dg = g - P[k][1], db = b - P[k][2], dd = 2 * dr * dr + 4 * dg * dg + 3 * db * db;
-        if (dd < bd) { bd = dd; best = k; }
-      }
-      [r, g, b] = P[best];
+const vmHex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+// mozaika: zdjęcie zmniejszone do n kolumn, każdy kafelek przemalowany na najbliższy kolor palety i narysowany jako klocek z nopkiem
+// (brick), koralik Hama z dziurką (bead), krzyżyk haftu na płótnie aida (stitch) albo szklany kafelek z fugą (tile)
+const MOS_PAL = {
+  brick: ["#c91a09", "#0055bf", "#f2cd37", "#237841", "#ffffff", "#05131d", "#fe8a18", "#a0a5a9", "#6c6e68", "#582a12", "#d09168", "#e4cd9e", "#e4adc8", "#9bd7d6", "#bbe90b"],
+  bead: ["#ffffff", "#f6e7a8", "#f7a8c6", "#e8322f", "#f08a1c", "#f4d22a", "#3fae49", "#2f7fd0", "#7a4aa8", "#1a1a1a", "#8a5a3a", "#f0b890", "#9ad8e8", "#b8b8b8"],
+  stitch: ["#fffaf0", "#e8d8b8", "#d8a878", "#a85a3a", "#6a2a1a", "#2a1a1a", "#c8282e", "#e88a9a", "#2f5faa", "#7ab0d8", "#3a7a4a", "#e8c83a", "#8a8a90", "#4a4a50"],
+  tile: ["#f4efe4", "#d9cdb4", "#b5a07a", "#8a6a4a", "#5a3a2a", "#2a2a2a", "#9a2a2a", "#2f5f8a", "#6a9ab0", "#4a7a5a", "#c8a83a", "#7a7a7a"],
+};
+function vmMosaic(img, ratio, mode, cols) {
+  const cell = mode === "stitch" ? 8 : 10, rows = Math.round(cols / ratio), [, sctx] = vmCrop(img, cols, rows), d = sctx.getImageData(0, 0, cols, rows).data;
+  const c = document.createElement("canvas"); c.width = cols * cell; c.height = rows * cell;
+  const g = c.getContext("2d"), pal = MOS_PAL[mode].map(vmHex), shade = (col, f) => `rgb(${col.map(v => Math.round(Math.min(255, v * f))).join(",")})`;
+  g.fillStyle = { brick: "#222", bead: "#f3efe6", stitch: "#f4ecd8", tile: "#6a655a" }[mode]; g.fillRect(0, 0, c.width, c.height);
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+    const i = (y * cols + x) * 4, r = (d[i] - 128) * 1.12 + 128, gg = (d[i + 1] - 128) * 1.12 + 128, b = (d[i + 2] - 128) * 1.12 + 128;
+    let best = 0, bd = 1e9;
+    pal.forEach((p, k) => { const dd = 2 * (r - p[0]) ** 2 + 4 * (gg - p[1]) ** 2 + 3 * (b - p[2]) ** 2; if (dd < bd) { bd = dd; best = k; } });
+    const col = pal[best], px = x * cell, py = y * cell, cx = px + cell / 2, cy = py + cell / 2;
+    if (mode === "brick") {
+      g.fillStyle = shade(col, .7); g.fillRect(px, py, cell, cell);
+      g.fillStyle = shade(col, 1); g.beginPath(); g.arc(cx, cy, cell * .38, 0, 7); g.fill();
+      g.strokeStyle = "rgba(255,255,255,.55)"; g.lineWidth = 1.2; g.beginPath(); g.arc(cx, cy, cell * .3, 3.4, 4.8); g.stroke();
+      g.strokeStyle = "rgba(0,0,0,.35)"; g.beginPath(); g.arc(cx, cy, cell * .3, .3, 1.7); g.stroke();
+    } else if (mode === "bead") {
+      g.fillStyle = shade(col, 1); g.beginPath(); g.arc(cx, cy, cell * .47, 0, 7); g.fill();
+      g.fillStyle = "#e6e0d2"; g.beginPath(); g.arc(cx, cy, cell * .17, 0, 7); g.fill();
+      g.strokeStyle = "rgba(255,255,255,.5)"; g.lineWidth = 1; g.beginPath(); g.arc(cx, cy, cell * .36, 3.5, 4.9); g.stroke();
+    } else if (mode === "stitch") {
+      if (best === 0) continue;
+      g.lineCap = "round"; g.lineWidth = cell * .3; g.strokeStyle = shade(col, .85);
+      g.beginPath(); g.moveTo(px + 1.5, py + 1.5); g.lineTo(px + cell - 1.5, py + cell - 1.5); g.stroke();
+      g.strokeStyle = shade(col, 1.1); g.beginPath(); g.moveTo(px + cell - 1.5, py + 1.5); g.lineTo(px + 1.5, py + cell - 1.5); g.stroke();
+      g.strokeStyle = "rgba(255,255,255,.3)"; g.lineWidth = 1; g.beginPath(); g.moveTo(px + cell - 2, py + 2); g.lineTo(px + 2, py + cell - 2); g.stroke();
     } else {
-      const lv = +pal || 5, q = v => Math.round(Math.max(0, Math.min(255, v + t * 12)) / 255 * (lv - 1)) * 255 / (lv - 1);
-      r = q(r); g = q(g); b = q(b);
+      g.fillStyle = shade(col, 1); g.fillRect(px + 1, py + 1, cell - 2, cell - 2);
+      g.fillStyle = "rgba(255,255,255,.28)"; g.fillRect(px + 1, py + 1, cell - 2, 2); g.fillRect(px + 1, py + 1, 2, cell - 2);
+      g.fillStyle = "rgba(0,0,0,.22)"; g.fillRect(px + 1, py + cell - 3, cell - 2, 2); g.fillRect(px + cell - 3, py + 1, 2, cell - 2);
     }
-    px[i] = r; px[i + 1] = g; px[i + 2] = b;
   }
-  ctx.putImageData(d, 0, 0);
   return c;
 }
-// witraż: zdjęcie podzielone na kawałki szkła (komórki Woronoja z losowych punktów albo pierścienie i promienie rozety),
-// każdy w uśrednionym, nasyconym kolorze zdjęcia, jaśniejszy w środku, rozdzielone ciemnymi liniami ołowiu
-function vmGlass(img, ratio, fx, cols) {
-  const W = 240, H = Math.round(W / ratio), [c, ctx] = vmCrop(img, W, H), d = ctx.getImageData(0, 0, W, H), s = d.data;
-  const cell = new Int32Array(W * H), dist = new Float32Array(W * H);
-  if (fx === "rose") {
-    const cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2, rings = [.12, .25, .38, .52, .67, .83, 9], sect = [1, 8, 12, 18, 24, 30, 40];
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      const r = Math.hypot(x - cx, y - cy) / R, a = (Math.atan2(y - cy, x - cx) / Math.PI / 2 + 1) % 1;
-      const k = rings.findIndex(v => r < v), n = sect[k], sa = (a * n + (k % 2) * .5) % n;
-      cell[y * W + x] = k * 64 + Math.floor(sa);
-      dist[y * W + x] = Math.abs((sa % 1) - .5) * 2 * .6 + Math.abs(((r - (rings[k - 1] || 0)) / ((rings[k] > 2 ? 1.4 : rings[k]) - (rings[k - 1] || 0))) - .5) * .8;
-    }
-  } else {
-    const seeds = [], rows = Math.round(cols / ratio);
-    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++)
-      seeds.push([(i + .5 + rand(-.42, .42)) * W / cols, (j + .5 + rand(-.42, .42)) * H / rows]);
-    const cw = W / cols;
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      let best = 0, bd = 1e12;
-      for (let k = 0; k < seeds.length; k++) { const dx = x - seeds[k][0], dy = y - seeds[k][1], dd = dx * dx + dy * dy; if (dd < bd) { bd = dd; best = k; } }
-      cell[y * W + x] = best;
-      dist[y * W + x] = Math.min(1, Math.sqrt(bd) / cw);
-    }
-  }
-  const sum = new Map();
-  for (let i = 0; i < W * H; i++) {
-    const a = sum.get(cell[i]) || [0, 0, 0, 0];
-    a[0] += s[i * 4]; a[1] += s[i * 4 + 1]; a[2] += s[i * 4 + 2]; a[3]++;
-    sum.set(cell[i], a);
-  }
-  const col = new Map();
-  for (const [k, a] of sum) {
-    let r = a[0] / a[3], g = a[1] / a[3], b = a[2] / a[3];
-    const gray = (r + g + b) / 3;
-    r = gray + (r - gray) * 1.9 + 8; g = gray + (g - gray) * 1.9 + 8; b = gray + (b - gray) * 1.9 + 8;
-    col.set(k, [r, g, b]);
-  }
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const i = y * W + x, k = cell[i];
-    let lead = false;
-    for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) {
-      const nx = x + dx, ny = y + dy;
-      if (nx >= 0 && ny >= 0 && nx < W && ny < H && cell[ny * W + nx] !== k) { lead = true; break; }
-    }
-    const [r, g, b] = col.get(k), f = (1.18 - dist[i] * .38) * (1 + rand(-.05, .05));
-    s[i * 4] = lead ? 34 : r * f; s[i * 4 + 1] = lead ? 28 : g * f; s[i * 4 + 2] = lead ? 22 : b * f;
+// drzeworyt ukiyo-e: zdjęcie wygładzone (96 px, powiększone), jasność podzielona na 4 płaskie kolory palety i czarne kontury
+// (linesCanvas z app.js) - jak odbitka z kilku klocków drzeworytu
+const UKI_PAL = {
+  classic: ["#f3e6c8", "#efc9a0", "#d9694a", "#27375f"], night: ["#d6e6ea", "#86aec8", "#2f5f8a", "#12233f"],
+  sunset: ["#fbe4b8", "#f2a65a", "#d8452e", "#4a1f3a"], mono: ["#f3ecdc", "#bdb6a8", "#6a655c", "#1a1814"],
+};
+function vmUkiyo(img, ratio, pal) {
+  const W = 288, H = Math.round(W / ratio), [small] = vmCrop(img, 96, Math.round(96 / ratio));
+  const c = document.createElement("canvas"); c.width = W; c.height = H;
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  ctx.imageSmoothingQuality = "high"; ctx.drawImage(small, 0, 0, W, H);
+  const d = ctx.getImageData(0, 0, W, H), s = d.data, P = (UKI_PAL[pal] || UKI_PAL.classic).map(vmHex);
+  for (let i = 0; i < s.length; i += 4) {
+    const l = (.3 * s[i] + .59 * s[i + 1] + .11 * s[i + 2]) / 255, k = l > .72 ? 0 : l > .5 ? 1 : l > .27 ? 2 : 3;
+    s[i] = P[k][0]; s[i + 1] = P[k][1]; s[i + 2] = P[k][2]; s[i + 3] = 255;
   }
   ctx.putImageData(d, 0, 0);
+  ctx.drawImage(linesCanvas(img, ratio, "#1a1410", .1, W), 0, 0, W, H);
   return c;
 }
-// kawałki szkła na tło (Tiffany): trójkąty z lekko przesuniętej siatki, kolory z palety, ołowiane linie
-function vmShards(cols, rows, pal, lead = "#2a1d12") {
-  const P = [];
-  for (let j = 0; j <= rows; j++) {
-    P.push([]);
-    for (let i = 0; i <= cols; i++) {
-      const ex = i === 0 || i === cols, ey = j === 0 || j === rows;
-      P[j].push([i / cols * 63 + (ex ? 0 : rand(-2.6, 2.6)), j / rows * 88 + (ey ? 0 : rand(-2.6, 2.6))]);
-    }
-  }
-  let out = "";
-  const tri = (a, b, c) => { out += `<path d="M${a.map(v => v.toFixed(1)).join(" ")}L${b.map(v => v.toFixed(1)).join(" ")}L${c.map(v => v.toFixed(1)).join(" ")}Z" fill="${vmPick(pal)}" opacity="${vmN(.75, 1, 2)}"/>`; };
-  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
-    const a = P[j][i], b = P[j][i + 1], c = P[j + 1][i + 1], d = P[j + 1][i];
-    if (Math.random() < .5) { tri(a, b, c); tri(a, c, d); } else { tri(a, b, d); tri(b, c, d); }
-  }
-  return `<g stroke="${lead}" stroke-width=".7" stroke-linejoin="round">${out}</g>`;
-}
-// wybuch komiksowy (gwiazda o losowych ramionach) z napisem
-function vmBurst(text, fill = "#ffe100", edge = "#e8202f") {
-  let d = "";
-  for (let k = 0; k < 28; k++) {
-    const a = k / 28 * Math.PI * 2, r = k % 2 ? rand(26, 32) : rand(42, 50);
-    d += (k ? "L" : "M") + (50 + Math.cos(a) * r).toFixed(1) + " " + (50 + Math.sin(a) * r * .8).toFixed(1);
-  }
-  return `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="${d}Z" fill="${edge}" transform="translate(2.5 3)"/><path d="${d}Z" fill="${fill}" stroke="#000" stroke-width="2"/>
-    <text x="50" y="59" text-anchor="middle" font-family="Bangers, Impact, sans-serif" font-size="26" fill="${edge}" stroke="#000" stroke-width="1.4" paint-order="stroke" transform="rotate(-8 50 50)">${text}</text></svg>`;
+// fala (seigaiha) i kwiaty wiśni (SVG w jednostkach karty 63 x 88)
+const vmBlossom = (x, y, s, rot) => `<g transform="translate(${x} ${y}) rotate(${rot}) scale(${s})">${[0, 72, 144, 216, 288].map(a =>
+  `<ellipse cx="0" cy="-3" rx="2" ry="3" fill="#f8d4de" stroke="#d98aa0" stroke-width=".25" transform="rotate(${a})"/>`).join("")}<circle r=".9" fill="#c8506a"/></g>`;
+function vmBranch() {
+  let out = `<path d="M-2 30 C10 24 18 14 34 8 C44 4 52 5 66 -2" fill="none" stroke="#3a2a1e" stroke-width="1.6" stroke-linecap="round"/><path d="M20 15 C22 22 26 26 30 30" fill="none" stroke="#3a2a1e" stroke-width="1" stroke-linecap="round"/>`;
+  for (let k = 0; k < 16; k++) out += vmBlossom(rand(8, 62), rand(0, 28), rand(.7, 1.2), rand(0, 72));
+  return out;
 }
 
 // ---------------------------------------------------------------- PROPOZYCJE
@@ -553,59 +509,35 @@ const VARIANT_PROPOSALS = [
     ],
   },
   {
-    key: "pixel", name: "Pikselowa", icon: "👾", tag: "👾 PIXEL",
-    about: "pixel art jak ze starych gier: zdjęcie z dużych pikseli na ograniczonej palecie, pikselowa czcionka i ramki",
+    key: "mosaic", name: "Mozaikowa", icon: "🧱", tag: "🧱 MOSAIC",
+    about: "moja propozycja: portret złożony z małych elementów - klocków z nopkami, koralików Hama, krzyżyków haftu albo szklanych kafelków",
     looks: [
-      { name: "8-bit", desc: "Zdjęcie z 34 pikseli szerokości w 16 kolorach starej konsoli, granatowe tło z migającymi gwiazdkami, pikselowe ramki okien.",
-        bg: () => `<div class="vm-bg">${Array.from({ length: 14 }, () => `<i class="px-star" style="left:${vmN(2, 96)}%;top:${vmN(2, 96)}%;animation-delay:-${vmN(0, 3, 1)}s"></i>`).join("")}</div>`,
-        photo: p => vmSrc(p, "pixel", 'data-w="34" data-pal="pico"') },
-      { name: "Kieszonkowa konsola", desc: "Cztery odcienie zieleni z ditheringiem jak na ekranie kieszonkowej konsoli, szara plastikowa obudowa z diodą.",
-        photo: p => vmSrc(p, "pixel", 'data-w="46" data-pal="gb"'), sub: () => "● DOT MATRIX ●",
-        deco: () => `<div class="vm-deco"><i class="px-led"></i><span class="px-gb-label">SCAMBOY</span></div>` },
-      { name: "16-bit RPG", desc: "Jak w grach RPG z lat 90.: niebieskie okienka z białą ramką, pasek HP, migająca strzałka przy ataku, zdjęcie w 16-bitowych kolorach.",
-        top: () => `<div class="px-status"><span>LV 99</span><span class="px-bar"><i></i></span></div>`,
-        photo: p => vmSrc(p, "pixel", 'data-w="58" data-pal="6"') },
-      { name: "Platformówka", desc: "Niebieskie niebo z pikselowymi chmurami, cegły na dole, skrzynka ze znakiem zapytania i licznik punktów u góry.",
-        top: p => `<div class="px-score"><span>SCORE<br>${String(cardValue(p.id)).padStart(6, "0")}</span><span>●×${String(p.number || 0).padStart(2, "0")}</span><span>WORLD<br>1-1</span></div>`,
-        bg: () => `<div class="vm-bg"><i class="px-cloud c1"></i><i class="px-cloud c2"></i><i class="px-bricks"></i></div>`,
-        photo: p => vmSrc(p, "pixel", 'data-w="42" data-pal="pico"'),
-        deco: () => `<div class="vm-deco"><i class="px-qblock">?</i><i class="px-coin"></i></div>` },
+      { name: "Klocki", desc: "Portret z klocków 1×1 w kolorach klocków (czerwone, niebieskie, żółte...), każdy z nopkiem, na zielonej płycie z rzędami nopków.",
+        bg: () => `<div class="vm-bg mo-plate"></div>`, photo: p => vmSrc(p, "mosaic", 'data-mode="brick" data-n="34"') },
+      { name: "Koraliki Hama", desc: "Prasowane koraliki na plastikowej płytce z kołeczkami: każdy koralik z dziurką i połyskiem, pastelowa ramka.",
+        bg: () => `<div class="vm-bg mo-peg"></div>`, photo: p => vmSrc(p, "mosaic", 'data-mode="bead" data-n="38"') },
+      { name: "Haft krzyżykowy", desc: "Portret wyszyty krzyżykami na płótnie aida w drewnianej ramce: niektóre pola zostały niewyszyte, a nazwa jest odręczna.",
+        bg: () => `<div class="vm-bg mo-aida"></div>`, photo: p => vmSrc(p, "mosaic", 'data-mode="stitch" data-n="44"') },
+      { name: "Mozaika z kafelków", desc: "Rzymska mozaika ze szklanych kafelków z szarą fugą: każdy kafelek z połyskiem, w ramce z terakoty.",
+        bg: () => `<div class="vm-bg mo-grout"></div>`, photo: p => vmSrc(p, "mosaic", 'data-mode="tile" data-n="30"') },
     ],
   },
   {
-    key: "glass", name: "Witrażowa", icon: "⛪", tag: "⛪ VITRAIL",
-    about: "moja propozycja: zdjęcie jak witraż - kawałki kolorowego szkła w kolorach zdjęcia, ołowiane linie, światło przechodzące przez szkło",
+    key: "ukiyo", name: "Ukiyo-e", icon: "🌊", tag: "🌊 UKIYO-E",
+    about: "moja propozycja: japoński drzeworyt - płaskie kolory z kilku klocków, czarne kontury, papier washi, pieczątki",
     looks: [
-      { name: "Gotyckie okno", desc: "Zdjęcie jako witraż w ostrołukowym oknie katedry, w ciemnym kamieniu; szkło świeci, a światło pada na kartę.",
-        bg: () => `<div class="vm-bg gl-stone"><i class="gl-glow"></i></div>`,
-        photo: p => `${vmSrc(p, "glass", 'data-n="13"')}<i class="vm-photo gl-shine"></i><i class="vm-photo">${vmSvg(`<path d="M1 100 V46 C1 20 22 5 50 1 C78 5 99 20 99 46 V100" fill="none" stroke="#2a2218" stroke-width="3"/>`, "0 0 100 100")}</i>` },
-      { name: "Rozeta", desc: "Okrągła rozeta: zdjęcie podzielone na pierścienie i promienie z kolorowego szkła, w kamiennej oprawie.",
-        bg: () => `<div class="vm-bg gl-stone"><i class="gl-glow round"></i></div>`, photo: p => `${vmSrc(p, "rose")}<i class="vm-photo gl-shine"></i>` },
-      { name: "Tiffany", desc: "Secesyjna lampa Tiffany: całe tło z bursztynowego, oliwkowego i turkusowego szkła, a zdjęcie też ze szkła, w ciepłym świetle.",
-        bg: () => `<div class="vm-bg">${vmSvg(vmShards(7, 10, ["#e8a33a", "#d9822b", "#9aa83a", "#5f8a4a", "#3f8a7a", "#c86a3a", "#f2c46a", "#7a5a8a"]))}<i class="gl-warm"></i></div>`,
-        photo: p => `${vmSrc(p, "glass", 'data-n="11"')}<i class="vm-photo gl-shine warm"></i>` },
-      { name: "Światło w kościele", desc: "Jasny kamień, na który przez witraż padają kolorowe plamy światła i ukośne promienie; zdjęcie jako szybka witrażu.",
-        bg: () => `<div class="vm-bg gl-light"><i class="gl-beams"></i>${["#ff3b5c", "#2f7bff", "#ffd23f", "#3fd07a", "#a84dff"].map((c, k) =>
-          `<i class="gl-spot" style="--c:${c};left:${vmN(-10, 75)}%;top:${vmN(55, 85)}%;animation-delay:-${k * 2}s"></i>`).join("")}</div>`,
-        photo: p => `${vmSrc(p, "glass", 'data-n="15"')}<i class="vm-photo gl-shine"></i>` },
-    ],
-  },
-  {
-    key: "popart", name: "Pop-art", icon: "💥", tag: "💥 POP!",
-    about: "moja propozycja: pop-art lat 60. - kropki jak w drukowanym komiksie, dymki, BAM!, kolorowe portrety jak u Warhola",
-    looks: [
-      { name: "Komiksowe kropki", desc: "Żółte tło w czerwone kropki, gruba czarna ramka, zdjęcie w mocnych kolorach z rastrem kropek i dymek z nazwą ataku.",
-        bg: () => `<div class="vm-bg pa-dots"></div>`, photo: () => `<i class="vm-photo pa-halftone"></i>`,
-        deco: p => `<div class="vm-deco"><span class="pa-bubble">${esc(p.attack)}!</span></div>` },
-      { name: "Cztery portrety", desc: "Jak sitodruk Warhola: zdjęcie cztery razy w kratce 2 × 2, każde w innych jaskrawych kolorach.",
-        photo: p => ["#ff4fa0", "#ffe13b", "#2fd0ff", "#7cff4a"].map((c, k) =>
-          `<i class="vm-photo pa-quad q${k + 1}" style="--c:${c}"><img src="${imgUrl(p.id)}" alt=""></i>`).join("") },
-      { name: "BAM!", desc: "Kadr z komiksu akcji: linie ruchu za zdjęciem, przechylona ramka i wielki wybuch z napisem BAM!",
-        bg: () => `<div class="vm-bg pa-speed"></div>`, photo: () => `<i class="vm-photo pa-halftone"></i>`,
-        deco: () => `<div class="vm-deco"><i class="pa-burst">${vmBurst("BAM!")}</i></div>` },
-      { name: "Przesunięty druk", desc: "Tani druk na gazetowym papierze: kolory cyjan, magenta i żółty rozjechały się, a całość jest z kropek rastra.",
-        photo: p => `<i class="vm-photo pa-paper"></i>${[["#00b7eb", -2.2, 0], ["#ff2bb5", 2, 0], ["#ffe100", 0, 2.2]].map(([c, dx, dy]) =>
-          `<i class="vm-photo pa-ink" style="--c:${c};translate:${dx}% ${dy}%"><img src="${imgUrl(p.id)}" alt=""><b></b></i>`).join("")}<i class="vm-photo pa-raster"></i>` },
+      { name: "Wielka fala", desc: "Niebieskie fale (seigaiha) i granatowo-błękitny portret jak odbitka Hokusaia, czerwona pieczątka artysty w rogu.",
+        bg: () => `<div class="vm-bg uk-waves"></div>`, photo: p => vmSrc(p, "ukiyo", 'data-pal="night"'),
+        deco: () => `<div class="vm-deco"><i class="uk-seal">画</i></div>` },
+      { name: "Kwiat wiśni", desc: "Kremowy papier i gałąź kwitnącej wiśni wchodząca w kartę, portret w ciepłych barwach klasycznego drzeworytu.",
+        bg: () => `<div class="vm-bg uk-washi"></div>`, photo: p => vmSrc(p, "ukiyo", 'data-pal="classic"'),
+        deco: () => `<div class="vm-deco uk-branch">${vmSvg(vmBranch())}</div><div class="vm-deco"><i class="uk-seal r">桜</i></div>` },
+      { name: "Czerwone słońce", desc: "Wielki czerwony dysk słońca za kartą, sylwetka góry Fudżi i różowo-pomarańczowy portret w stylu zachodu słońca.",
+        bg: () => `<div class="vm-bg uk-sun"><i class="uk-disc"></i>${vmSvg(`<path d="M-2 88 L18 62 L24 66 L34 54 L40 60 L46 56 L66 88 Z" fill="#3a1f3a"/><path d="M34 54 L40 60 L46 56 L44 54 L38 57 Z" fill="#fbe4b8"/>`, "0 0 63 88", "uk-fuji")}</div>`,
+        photo: p => vmSrc(p, "ukiyo", 'data-pal="sunset"') },
+      { name: "Plakat kabuki", desc: "Plakat teatru kabuki: czerwono-czarne pasy w tle, pionowy napis w kartuszu i mocno obrysowany portret na papierze.",
+        bg: () => `<div class="vm-bg uk-kabuki"></div>`, photo: p => vmSrc(p, "ukiyo", 'data-pal="classic"'),
+        deco: () => `<div class="vm-deco"><b class="uk-cart">歌舞伎</b></div>` },
     ],
   },
 ];

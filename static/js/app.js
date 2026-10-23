@@ -9,7 +9,7 @@ const fmt = n => Math.round(n).toLocaleString("pl-PL") + " gr";   // waluta gry:
 
 const COUNT_CHIPS = [1, 2, 3, 5, 10, 15, 20];
 const INV_PAGE = 120;
-const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", bronze: "BRONZE", silver: "SILVER", holo: "HOLO", pearl: "🦪 PEARL", gold: "GOLDEN", vintage: "📷 1887", marble: "🏛️ MARBLE", toxic: "☢️ TOXIC", flag: "FLAG", halloween: "🎃 HALLOWEEN", lantern: "🏮 LAMPION", devil: "😈 DEVIL", joker: "🃏 JOKER", jeans: "👖 DŻINS", clear: "🫧 CLEAR", sketch: "✒️ SKETCH", emerald: "💚 EMERALD", amethyst: "💜 AMETHYST", ruby: "❤️ RUBY", mlg: "🎯 MLG", royal: "👑 ROYAL", diamond: "💎 DIAMOND", galaxy: "🌌 GALAXY", negative: "◐ NEGATIVE", rzulty: "💛 RZULTY" };
+const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", bronze: "BRONZE", silver: "SILVER", holo: "HOLO", pearl: "🦪 PEARL", gold: "GOLDEN", vintage: "📷 1887", marble: "🏛️ MARBLE", toxic: "☢️ TOXIC", pixel: "👾 PIXEL", popart: "💥 POP!", glass: "⛪ VITRAIL", neon: "💡 NEON", thermal: "🌡️ THERMAL", blueprint: "📐 BLUEPRINT", glitch: "▓ GL1TCH", dollar: "💵 $50", flag: "FLAG", halloween: "🎃 HALLOWEEN", lantern: "🏮 LAMPION", devil: "😈 DEVIL", joker: "🃏 JOKER", jeans: "👖 DŻINS", clear: "🫧 CLEAR", sketch: "✒️ SKETCH", emerald: "💚 EMERALD", amethyst: "💜 AMETHYST", ruby: "❤️ RUBY", mlg: "🎯 MLG", royal: "👑 ROYAL", diamond: "💎 DIAMOND", galaxy: "🌌 GALAXY", negative: "◐ NEGATIVE", rzulty: "💛 RZULTY" };
 const GEMS = ["emerald", "amethyst", "ruby", "diamond"];  // warianty z kamieniami szlachetnymi - wspólny wygląd, inne kolory
 
 const S = {
@@ -251,6 +251,7 @@ function variantLayers(v, p = null) {
     if (x === "lantern") html += lanternDeco();
     if (x === "devil") html += devilDeco();
     if (x === "toxic") html += toxicDeco();
+    if (x === "blueprint" && p) html += `<div class="bpr-title">PROJ. ${esc(p.name.toUpperCase())}<br>SKALA 1:1 · ARK. ${p.number || 1}/${crateOf(p.crate)?.people.length || 96}</div>`;
     if (x === "holo") html += '<div class="holo-layer"></div>';
     if (x === "gold" || x === "silver" || x === "bronze") html += '<div class="gold-sheen"></div>';
     if (x === "clear") html += '<div class="clear-sheen"></div>';
@@ -332,21 +333,31 @@ function devilBG(variant) {
 }
 function devilDeco() { return `<div class="dv-out">${hwUse("dv-horn", "dv-horn l")}${hwUse("dv-horn", "dv-horn r")}</div>`; }
 
-// Perłowa, Vintage, Marmurowa, Toksyczna: tło w środku karty (pod napisami - .vx-bg) i nakładki na zdjęcie (.vx-photo,
-// na tajnej karcie w .sc-art). Perłowa: masa perłowa przesuwająca się po karcie i perłowy połysk zdjęcia; Vintage: ziarno,
-// rysy i winieta starej fotografii; Marmurowa: zdjęcie jak biały posąg; Toksyczna: jarzący się szlam i bąbelki.
+// Perłowa, Vintage, Marmurowa, Toksyczna, Pop-art: tło w środku karty (pod napisami - .vx-bg) i nakładki na zdjęcie
+// (.vx-photo, na tajnej karcie w .sc-art). Perłowa: masa perłowa przesuwająca się po karcie i perłowy połysk zdjęcia;
+// Vintage: ziarno, rysy i winieta starej fotografii; Marmurowa: zdjęcie jak biały posąg; Toksyczna: jarzący się szlam
+// i bąbelki; Pop-art: zdjęcie cztery razy w kratce 2 x 2, każde w innym jaskrawym kolorze (jak sitodruk Warhola).
 function variantBG(variant) {
   const parts = variantParts(variant);
   let html = "";
   if (parts.includes("pearl")) html += '<i class="pl-nacre"></i>';
+  if (parts.includes("glass")) html += `${glassShards()}<i class="gl-cool"></i>`;
+  if (parts.includes("thermal")) html += '<i class="ht-blob h1"></i><i class="ht-blob h2"></i><i class="ht-blob h3"></i>';
+  if (parts.includes("dollar")) html += dollarBG();
   if (parts.includes("toxic")) html += `<i class="tx-glow"></i>${Array.from({ length: 7 }, () =>
     `<i class="tx-bub" style="left:${rand(10, 85).toFixed(0)}%;--s:${rand(.5, 1.5).toFixed(2)};animation-delay:-${rand(0, 9).toFixed(1)}s;animation-duration:${rand(5, 10).toFixed(1)}s"></i>`).join("")}`;
   return html ? `<div class="vx-bg">${html}</div>` : "";
 }
-function variantPhoto(variant) {
+function variantPhoto(variant, p) {
   const parts = variantParts(variant);
   let html = "";
+  if (parts.includes("popart")) html += ["#ff4fa0", "#ffe13b", "#2fd0ff", "#7cff4a"].map((c, k) =>
+    `<i class="vx-photo pa-quad q${k + 1}" style="--c:${c}"><img src="${imgUrl(p.id, variant)}" alt="" loading="lazy" draggable="false"></i>`).join("");
   if (parts.includes("pearl")) html += '<i class="vx-photo pl-sheen"></i>';
+  if (parts.includes("glass")) html += '<i class="vx-photo gl-shine"></i>';
+  if (parts.includes("blueprint")) html += '<i class="vx-photo bp-dims"><b class="w">63 mm</b><b class="h">88 mm</b></i>';
+  if (parts.includes("dollar")) html += '<i class="vx-photo mn-oval"></i><b class="mn-num tl">50</b><b class="mn-num tr">50</b><i class="mn-seal">$</i><i class="mn-seal black">S</i>';
+  if (parts.includes("glitch")) html += '<span class="gt-err">⚠ file_corrupted.jpg</span>';
   if (parts.includes("vintage")) html += '<i class="vx-photo vp-grain"></i><i class="vx-photo vp-scratch"></i><i class="vx-photo vp-vignette"></i>';
   if (parts.includes("marble")) html += '<i class="vx-photo mr-statue"></i>';
   if (parts.includes("toxic")) html += '<i class="vx-photo tx-photo"></i>';
@@ -358,6 +369,291 @@ function toxicDeco() {
 }
 // Vintage: zamiast "typ · skrzynka" pieczątka atelier fotograficznego (podtytuł z panelu admina ma pierwszeństwo)
 const VINTAGE_STAMP = "Atelier ScamBox · Warszawa · 1887";
+// własna linia pod zdjęciem zamiast "typ · skrzynka" (Vintage - pieczątka, Dolarowa - nominał i numer seryjny, Glitch - błąd)
+function variantSub(p, variant) {
+  const parts = variantParts(variant);
+  if (parts.includes("vintage")) return VINTAGE_STAMP;
+  if (parts.includes("dollar")) return `FIFTY · <b>C ${String(p.number || 1).padStart(4, "0")} ${String(cardValue(p.id)).slice(0, 4).padStart(4, "0")} D</b>`;
+  if (parts.includes("glitch")) return `${S.cfg.types[p.type].name} · ${esc(crateOf(p.crate).short)} <b>▓ERR 0x2137</b>`;
+  return "";
+}
+
+// Pikselowa (16-bitowa gra RPG): zdjęcie przerysowane w canvasie - zmniejszone do 58 pikseli szerokości (wykadrowane jak
+// w ramce zdjęcia), 6 poziomów na kanał z lekkim ditheringiem - i pokazane powiększone (image-rendering: pixelated).
+// Wynik w pamięci (PX_CACHE), żeby ta sama karta w ekwipunku nie liczyła się kilka razy.
+const PX_CACHE = new Map();
+const PX_BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+// zdjęcie przerysowane w canvasie po wczytaniu: Pikselowa (pxPhoto) albo Witrażowa (glassPhoto)
+// (Neonowa, Termowizyjna: fxPhoto)
+const photoFx = variant => {
+  const parts = variantParts(variant);
+  return parts.includes("pixel") ? ' onload="pxPhoto(this)"' : parts.includes("glass") ? ' onload="glassPhoto(this)"'
+    : (fx => fx ? ` onload="fxPhoto(this,'${fx}')"` : "")([...Object.keys(FX_KINDS), "glitch"].find(k => parts.includes(k)));
+};
+// Neonowa: krawędzie zdjęcia (Sobel na rozmytej szarości) - najmocniejsze 13% jako rurki w różu / błękicie / żółci (wg koloru
+// zdjęcia w tym miejscu), reszta przezroczysta; Termowizyjna: "ciepło" = odcień skóry + trochę jasności, paleta jak w kamerze
+// (fiolet - czerwień - żółć - biel), liczone w 70 px i powiększane z wygładzeniem. Wynik w pamięci (FX_CACHE).
+const FX_CACHE = new Map();
+const HEAT_RAMP = [[0, [5, 2, 26]], [.18, [42, 10, 106]], [.36, [138, 26, 138]], [.52, [216, 48, 58]], [.68, [240, 122, 26]], [.84, [255, 210, 63]], [1, [255, 251, 232]]];
+function fxCrop(img, ratio, W) {
+  const H = Math.round(W / ratio), c = document.createElement("canvas"), nw = img.naturalWidth, nh = img.naturalHeight;
+  c.width = W; c.height = H;
+  let sx = 0, sy = 0, sw = nw, sh = nh;
+  if (nw / nh > ratio) { sw = nh * ratio; sx = (nw - sw) / 2; } else { sh = nw / ratio; sy = (nh - sh) * .18; }
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
+  return [c, ctx, W, H];
+}
+// Przerysowania zdjęcia po wczytaniu: (img, proporcje, szerokość ekranowa) -> canvas. Blueprint: kontur białą kreską; Dolarowa:
+// rycina (poziome faliste linie, grubsze w cieniach) zielonym tuszem, na ekranową rozdzielczość (bez mory); Glitch: patrz glitchPhoto
+const FX_KINDS = {
+  neon: img => neonCanvas(img, ...fxArgs(img)), thermal: img => heatCanvas(img, ...fxArgs(img)),
+  blueprint: img => linesCanvas(img, fxArgs(img)[0], "#e8f4ff"),
+  dollar: img => engraveCanvas(img, ...fxArgs(img), "#1f4a2a"),
+};
+const fxArgs = img => [img.closest(".sc-art") ? 63 / 88 : 1 / .96, Math.max(120, Math.round((img.parentElement?.offsetWidth || 150) * (window.devicePixelRatio || 1)))];
+function fxPhoto(img, kind) {
+  if (img.dataset.fx) return;
+  img.dataset.fx = "1";
+  const [ratio, dw] = fxArgs(img), key = `${kind}|${img.src}|${ratio}|${kind === "dollar" ? dw : 0}`;
+  if (kind === "glitch") return glitchPhoto(img, ratio, key);
+  if (FX_CACHE.has(key)) { img.src = FX_CACHE.get(key); return; }
+  try {
+    const url = FX_KINDS[kind](img).toDataURL();
+    FX_CACHE.set(key, url);
+    img.src = url;
+  } catch (e) { /* nie udało się przerysować - zostaje zwykłe zdjęcie */ }
+}
+// kontur: krawędzie zdjęcia (Sobel na rozmytej szarości) - najmocniejsza część "keep" w kolorze color, reszta przezroczysta
+function linesCanvas(img, ratio, color, keep = .13, W = 220) {
+  const [c, ctx, , H] = fxCrop(img, ratio, W), d = ctx.getImageData(0, 0, W, H), s = d.data, col = [1, 3, 5].map(i => parseInt(color.slice(i, i + 2), 16));
+  const g = new Float32Array(W * H), b = new Float32Array(W * H), m = new Float32Array(W * H);
+  for (let i = 0; i < W * H; i++) g[i] = .3 * s[i * 4] + .59 * s[i * 4 + 1] + .11 * s[i * 4 + 2];
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    let t = 0;
+    for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) t += g[(y + j) * W + x + i];
+    b[y * W + x] = t / 9;
+  }
+  for (let y = 2; y < H - 2; y++) for (let x = 2; x < W - 2; x++) {
+    const k = y * W + x;
+    const gx = b[k - W + 1] + 2 * b[k + 1] + b[k + W + 1] - b[k - W - 1] - 2 * b[k - 1] - b[k + W - 1];
+    const gy = b[k + W - 1] + 2 * b[k + W] + b[k + W + 1] - b[k - W - 1] - 2 * b[k - W] - b[k - W + 1];
+    m[k] = Math.hypot(gx, gy);
+  }
+  const t = Float32Array.from(m).sort()[Math.floor(m.length * (1 - keep))];
+  for (let k = 0; k < W * H; k++) {
+    const i = k * 4;
+    if (m[k] <= t) { s[i + 3] = 0; continue; }
+    s[i] = col[0]; s[i + 1] = col[1]; s[i + 2] = col[2]; s[i + 3] = Math.min(255, 110 + (m[k] - t) * 3);
+  }
+  ctx.putImageData(d, 0, 0);
+  return c;
+}
+// rycina jak portret na banknocie: ok. 55 linii na wysokość zdjęcia, grubsze w ciemnych miejscach, w najciemniejszych dodatkowe
+// ukośne kreski; reszta przezroczysta (pod spodem papier)
+function engraveCanvas(img, ratio, W, ink) {
+  const [c, ctx, , H] = fxCrop(img, ratio, W), d = ctx.getImageData(0, 0, W, H), s = d.data, col = [1, 3, 5].map(i => parseInt(ink.slice(i, i + 2), 16)), P = H / 55;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = (y * W + x) * 4, lum = (.3 * s[i] + .59 * s[i + 1] + .11 * s[i + 2]) / 255, dk = Math.max(0, Math.min(1, (1 - lum) * 1.35 + .04));
+    const pos = ((y + Math.sin(x / W * 9) * P * .35) % P + P) % P, line = Math.abs(pos - P / 2) < dk * P * .5;
+    const hatch = dk > .6 && ((x + y) % Math.max(3, Math.round(P * 1.2))) < (dk - .6) * P * 1.5;
+    if (line || hatch) { s[i] = col[0]; s[i + 1] = col[1]; s[i + 2] = col[2]; s[i + 3] = 255; } else s[i + 3] = 0;
+  }
+  ctx.putImageData(d, 0, 0);
+  return c;
+}
+// Glitch "zepsuty plik": bloki 8 x 8 przesunięte w bok, z odwróconymi albo przesuniętymi kolorami, i kilka pasów z powtórzonym
+// wierszem. Zdjęcie jest RUCHOME: liczymy 4 różne wersje uszkodzeń; pierwsza leży na stałe, a trzy pozostałe (.gt-fr) co chwilę
+// błyskają nad nią w różnych momentach - więc elementy uszkodzenia ciągle się zmieniają (sama animacja opacity - tania)
+function corruptCanvas(img, ratio) {
+  const [c, ctx, W, H] = fxCrop(img, ratio, 192), d = ctx.getImageData(0, 0, W, H), s = d.data, o = new Uint8ClampedArray(s);
+  for (let by = 0; by < H; by += 8) {
+    const bad = Math.random() < .3, shift = bad ? Math.floor(rand(-40, 40)) : 0, mode = Math.floor(rand(0, 3));
+    for (let bx = 0; bx < W; bx += 8) {
+      if (!bad && Math.random() > .05) continue;
+      for (let y = by; y < Math.min(H, by + 8); y++) for (let x = bx; x < Math.min(W, bx + 8); x++) {
+        const sx = Math.min(W - 1, Math.max(0, x + shift)), i = (y * W + x) * 4, j = (y * W + sx) * 4;
+        if (mode === 0) { s[i] = o[j + 2]; s[i + 1] = o[j]; s[i + 2] = o[j + 1]; }
+        else if (mode === 1) { s[i] = o[j]; s[i + 1] = o[j + 1] * .3; s[i + 2] = o[j + 2] * 1.6; }
+        else { s[i] = 255 - o[j]; s[i + 1] = 255 - o[j + 1]; s[i + 2] = 255 - o[j + 2]; }
+      }
+    }
+  }
+  for (let n = 0; n < 4; n++) {
+    const y0 = Math.floor(rand(0, H - 12)), hh = Math.floor(rand(3, 12));
+    for (let y = y0; y < y0 + hh; y++) for (let x = 0; x < W; x++) for (let k = 0; k < 3; k++) s[(y * W + x) * 4 + k] = o[(y0 * W + x) * 4 + k];
+  }
+  ctx.putImageData(d, 0, 0);
+  return c;
+}
+function glitchPhoto(img, ratio, key) {
+  try {
+    let frames = FX_CACHE.get(key);
+    if (!frames) { frames = Array.from({ length: 4 }, () => corruptCanvas(img, ratio).toDataURL("image/jpeg", .85)); FX_CACHE.set(key, frames); }
+    img.src = frames[0];
+    for (let k = 1; k < 4; k++) img.insertAdjacentHTML("afterend", `<img class="gt-fr" src="${frames[k]}" alt="" draggable="false" style="animation-delay:-${(k * 1.07).toFixed(2)}s">`);
+  } catch (e) { /* nie udało się przerysować - zostaje zwykłe zdjęcie */ }
+}
+// giloszowana rozeta jak na banknocie (hipotrochoida), viewBox 0 0 100 100
+function rosetteSVG(color, R = 46, r = 13, dd = 30, turns = 13) {
+  let d = "";
+  for (let k = 0; k <= 1400; k++) {
+    const t = k / 1400 * Math.PI * 2 * turns, x = 50 + (R - r) * Math.cos(t) + dd * Math.cos((R - r) / r * t) * .5, y = 50 + (R - r) * Math.sin(t) - dd * Math.sin((R - r) / r * t) * .5;
+    d += (k ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
+  }
+  return `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="${d}" fill="none" stroke="${color}" stroke-width=".35"/></svg>`;
+}
+let DOLLAR_BG = null;   // jedno tło (giloszowane rozety) dla wszystkich kart Dolarowych
+function dollarBG() {
+  return DOLLAR_BG ||= `<i class="mn-guil"></i><i class="mn-ros big">${rosetteSVG("#1f4a2a55", 46, 11, 34, 11)}</i><i class="mn-ros a">${rosetteSVG("#1f4a2a88")}</i><i class="mn-ros b">${rosetteSVG("#1f4a2a88")}</i>`;
+}
+function neonCanvas(img, ratio) {
+  const [c, ctx, W, H] = fxCrop(img, ratio, 210), d = ctx.getImageData(0, 0, W, H), s = d.data;
+  const g = new Float32Array(W * H), b = new Float32Array(W * H), m = new Float32Array(W * H);
+  for (let i = 0; i < W * H; i++) g[i] = .3 * s[i * 4] + .59 * s[i * 4 + 1] + .11 * s[i * 4 + 2];
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    let t = 0;
+    for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) t += g[(y + j) * W + x + i];
+    b[y * W + x] = t / 9;
+  }
+  for (let y = 2; y < H - 2; y++) for (let x = 2; x < W - 2; x++) {
+    const k = y * W + x;
+    const gx = b[k - W + 1] + 2 * b[k + 1] + b[k + W + 1] - b[k - W - 1] - 2 * b[k - 1] - b[k + W - 1];
+    const gy = b[k + W - 1] + 2 * b[k + W] + b[k + W + 1] - b[k - W - 1] - 2 * b[k - W] - b[k - W + 1];
+    m[k] = Math.hypot(gx, gy);
+  }
+  const t = Float32Array.from(m).sort()[Math.floor(m.length * .87)];
+  for (let k = 0; k < W * H; k++) {
+    const i = k * 4;
+    if (m[k] <= t) { s[i + 3] = 0; continue; }
+    const r = s[i], gg = s[i + 1], bb = s[i + 2];
+    const col = r > bb + 30 ? (gg > r * .8 ? [255, 230, 60] : [255, 60, 220]) : [60, 230, 255];
+    s[i] = col[0]; s[i + 1] = col[1]; s[i + 2] = col[2]; s[i + 3] = Math.min(255, 130 + (m[k] - t) * 3);
+  }
+  ctx.putImageData(d, 0, 0);
+  return c;
+}
+function heatCanvas(img, ratio) {
+  const [c, ctx, W, H] = fxCrop(img, ratio, 70), d = ctx.getImageData(0, 0, W, H), s = d.data;
+  const ramp = t => {
+    t = Math.max(0, Math.min(1, t));
+    let k = 1;
+    while (k < HEAT_RAMP.length - 1 && HEAT_RAMP[k][0] < t) k++;
+    const [p0, a] = HEAT_RAMP[k - 1], [p1, b] = HEAT_RAMP[k], f = (t - p0) / (p1 - p0);
+    return a.map((v, i) => v + (b[i] - v) * f);
+  };
+  for (let i = 0; i < s.length; i += 4) {
+    const r = s[i], g = s[i + 1], b = s[i + 2], lum = (.3 * r + .59 * g + .11 * b) / 255;
+    const skin = Math.max(0, Math.min(1, (r - b - 25) / 90)) * (r >= g ? 1 : .5), out = ramp(.12 + .18 * lum + .72 * skin * (.55 + .45 * lum));
+    s[i] = out[0]; s[i + 1] = out[1]; s[i + 2] = out[2];
+  }
+  ctx.putImageData(d, 0, 0);
+  return c;
+}
+function pxPhoto(img) {
+  if (img.dataset.px) return;
+  img.dataset.px = "1";
+  const ratio = img.closest(".sc-art") ? 63 / 88 : 1 / .96, key = `${img.src}|${ratio}`;
+  if (PX_CACHE.has(key)) { img.src = PX_CACHE.get(key); return; }
+  try {
+    const w = 58, h = Math.round(w / ratio), c = document.createElement("canvas"), nw = img.naturalWidth, nh = img.naturalHeight;
+    c.width = w; c.height = h;
+    let sx = 0, sy = 0, sw = nw, sh = nh;
+    if (nw / nh > ratio) { sw = nh * ratio; sx = (nw - sw) / 2; } else { sh = nw / ratio; sy = (nh - sh) * .18; }
+    const ctx = c.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+    const d = ctx.getImageData(0, 0, w, h), px = d.data, q = v => Math.round(Math.max(0, Math.min(255, v)) / 51) * 51;
+    for (let i = 0; i < px.length; i += 4) {
+      const t = (PX_BAYER[(Math.floor(i / 4 / w) % 4) * 4 + (i / 4) % 4] / 16 - .5) * 12;
+      px[i] = q(px[i] + t); px[i + 1] = q(px[i + 1] + t); px[i + 2] = q(px[i + 2] + t);
+    }
+    ctx.putImageData(d, 0, 0);
+    const url = c.toDataURL();
+    PX_CACHE.set(key, url);
+    img.src = url;
+  } catch (e) { /* nie udało się przerysować - zostaje zwykłe zdjęcie */ }
+}
+// Witrażowa (lampa Tiffany "ważka"): zdjęcie podzielone na ok. 500 kawałków szkła - komórki Woronoja z lekko przesuniętej
+// siatki punktów, każdy kawałek w uśrednionym, nasyconym kolorze zdjęcia, jaśniejszy w środku, rozdzielone ołowiem.
+// Wynik w pamięci (GL_CACHE); tło z trójkątów szkła w chłodnych barwach - jedno SVG dla wszystkich kart (glassShards).
+const GL_CACHE = new Map();
+function glassPhoto(img) {
+  if (img.dataset.gl) return;
+  img.dataset.gl = "1";
+  const ratio = img.closest(".sc-art") ? 63 / 88 : 1 / .96, key = `${img.src}|${ratio}`;
+  if (GL_CACHE.has(key)) { img.src = GL_CACHE.get(key); return; }
+  try {
+    const W = 320, H = Math.round(W / ratio), c = document.createElement("canvas"), nw = img.naturalWidth, nh = img.naturalHeight;
+    c.width = W; c.height = H;
+    let sx = 0, sy = 0, sw = nw, sh = nh;
+    if (nw / nh > ratio) { sw = nh * ratio; sx = (nw - sw) / 2; } else { sh = nw / ratio; sy = (nh - sh) * .18; }
+    const ctx = c.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
+    const d = ctx.getImageData(0, 0, W, H), s = d.data, cols = 22, rows = Math.max(2, Math.round(cols / ratio));
+    const cw = W / cols, ch = H / rows, seeds = [];
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++)
+      seeds.push([(i + .5 + rand(-.4, .4)) * cw, (j + .5 + rand(-.4, .4)) * ch, rand(-.06, .06)]);
+    const cell = new Int32Array(W * H), dist = new Float32Array(W * H);
+    for (let y = 0; y < H; y++) {
+      const gj = Math.min(rows - 1, Math.floor(y / ch));
+      for (let x = 0; x < W; x++) {
+        const gi = Math.min(cols - 1, Math.floor(x / cw));
+        let best = 0, bd = 1e12;
+        for (let j = Math.max(0, gj - 1); j <= Math.min(rows - 1, gj + 1); j++)
+          for (let i = Math.max(0, gi - 1); i <= Math.min(cols - 1, gi + 1); i++) {
+            const k = j * cols + i, dx = x - seeds[k][0], dy = y - seeds[k][1], dd = dx * dx + dy * dy;
+            if (dd < bd) { bd = dd; best = k; }
+          }
+        cell[y * W + x] = best;
+        dist[y * W + x] = Math.min(1, Math.sqrt(bd) / cw);
+      }
+    }
+    const sum = new Float64Array(seeds.length * 4);
+    for (let i = 0; i < W * H; i++) { const k = cell[i] * 4; sum[k] += s[i * 4]; sum[k + 1] += s[i * 4 + 1]; sum[k + 2] += s[i * 4 + 2]; sum[k + 3]++; }
+    const col = seeds.map((_, k) => {
+      const n = sum[k * 4 + 3] || 1, r = sum[k * 4] / n, g = sum[k * 4 + 1] / n, b = sum[k * 4 + 2] / n, gray = (r + g + b) / 3;
+      return [gray + (r - gray) * 1.55 + 8, gray + (g - gray) * 1.55 + 8, gray + (b - gray) * 1.55 + 8];
+    });
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = y * W + x, k = cell[i];
+      const lead = (x + 1 < W && cell[i + 1] !== k) || (y + 1 < H && cell[i + W] !== k) || (x > 0 && cell[i - 1] !== k) || (y > 0 && cell[i - W] !== k);
+      if (lead) { s[i * 4] = 34; s[i * 4 + 1] = 28; s[i * 4 + 2] = 22; continue; }
+      const f = (1.18 - dist[i] * .36 + seeds[k][2] + Math.sin((x + y * .6) * .9 + k) * .025) * (1 + rand(-.04, .04));
+      s[i * 4] = col[k][0] * f; s[i * 4 + 1] = col[k][1] * f; s[i * 4 + 2] = col[k][2] * f;
+    }
+    ctx.putImageData(d, 0, 0);
+    const url = c.toDataURL("image/jpeg", .9);
+    GL_CACHE.set(key, url);
+    img.src = url;
+  } catch (e) { /* nie udało się przerysować - zostaje zwykłe zdjęcie */ }
+}
+let GLASS_SHARDS = null;
+function glassShards() {
+  if (GLASS_SHARDS) return GLASS_SHARDS;
+  const pal = ["#2f7fc0", "#3fa0a0", "#4f8a5a", "#6a5aa8", "#2a5a8a", "#8ac0c0", "#e8a33a"], cols = 14, rows = 20, P = [];
+  for (let j = 0; j <= rows; j++) {
+    P.push([]);
+    for (let i = 0; i <= cols; i++) {
+      const ex = i === 0 || i === cols, ey = j === 0 || j === rows;
+      P[j].push([i / cols * 63 + (ex ? 0 : rand(-1.4, 1.4)), j / rows * 88 + (ey ? 0 : rand(-1.4, 1.4))]);
+    }
+  }
+  let out = "";
+  const pt = a => `${a[0].toFixed(1)} ${a[1].toFixed(1)}`;
+  const tri = (a, b, c) => { out += `<path d="M${pt(a)}L${pt(b)}L${pt(c)}Z" fill="${pal[Math.floor(rand(0, pal.length))]}" opacity="${rand(.78, 1).toFixed(2)}"/>`; };
+  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+    const a = P[j][i], b = P[j][i + 1], c = P[j + 1][i + 1], d = P[j + 1][i];
+    if (Math.random() < .5) { tri(a, b, c); tri(a, c, d); } else { tri(a, b, d); tri(b, c, d); }
+  }
+  GLASS_SHARDS = `<svg viewBox="0 0 63 88" preserveAspectRatio="none" aria-hidden="true"><g stroke="#2a1d12" stroke-width=".7" stroke-linejoin="round">${out}</g></svg>`;
+  return GLASS_SHARDS;
+}
+// pasek postaci nad nazwą (Pikselowa): poziom i pasek HP zależne od punktów życia karty
+function pxStatus(p, variant) {
+  if (variantParts(variant).includes("dollar")) return '<div class="mn-head">THE UNITED STATES OF SCAMBOX</div>';   // nagłówek banknotu
+  if (!variantParts(variant).includes("pixel")) return "";
+  return `<div class="px-status"><span>LV ${Math.min(99, Math.max(1, Math.round(p.hp / 3)))}</span><span class="px-bar"><i style="width:${Math.min(100, Math.max(12, p.hp / 2.5)).toFixed(0)}%"></i></span></div>`;
+}
 
 // Karty specjalne - wariant Jokerowa "Talia Kasynowa" (joker-talia.css): karta do gry na zielonym suknie - na szerokich
 // marginesach indeksy JOKER z czapką błazna (symbol SVG #jk-hat w templates/index.html) i stosy żetonów; nic nie zasłania zdjęcia.
@@ -437,15 +733,15 @@ function cardHTML(pid, variant = "normal") {
   <div class="card r-${p.rarity} ${vClass(variant)}${p.style ? " vs-" + p.style : ""}${abils.length > 1 ? " two-atk" : ""}${abils.length > 2 ? ` atk-${abils.length}` : ""}" data-pid="${p.id}" data-variant="${variant}"${flagStyle(p, variant)}>
     <div class="card-inner">
       ${baseVariant(variant) === "reverse" ? '<div class="rev-foil"></div>' : ""}
-      ${galaxyBG(variant)}${devilBG(variant)}${mlgBG(variant)}${variantBG(variant)}
+      ${galaxyBG(variant)}${devilBG(variant)}${mlgBG(variant)}${variantBG(variant)}${pxStatus(p, variant)}
       <div class="card-head">
         <span class="card-name">${esc(p.name)}</span>
         <span class="card-hp"><small>HP</small>${p.hp}</span>
         <span class="card-type">${type.icon}</span>
       </div>
-      <div class="card-photo"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false">${galaxyPhoto(variant)}${halloweenPhoto(variant)}${mlgPhoto(variant)}${variantPhoto(variant)}</div>
+      <div class="card-photo"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false"${photoFx(variant)}>${galaxyPhoto(variant)}${halloweenPhoto(variant)}${mlgPhoto(variant)}${variantPhoto(variant, p)}</div>
       <div class="card-sub${p.subtitle ? " has-subtitle" : ""}">${p.subtitle ? esc(p.subtitle)
-        : variantParts(variant).includes("vintage") ? VINTAGE_STAMP : `${type.name} · ${esc(crate.short)}`}</div>
+        : variantSub(p, variant) || `${type.name} · ${esc(crate.short)}`}</div>
       ${abils.map((a, i) => `<div class="card-attack${i ? " atk2" : ""}${a.kind !== "off" ? " " + a.kind : ""}">
         <span class="atk-cost">${a.kind === "off" ? cost + (i ? type.icon : "") : S.cfg.abilityKinds[a.kind]?.icon || ""}</span>
         <span class="atk-name">${esc(a.name)}</span>
@@ -474,7 +770,7 @@ function secretCardHTML(p, variant) {
   return `
   <div class="card r-secret ${vClass(variant)}" data-pid="${p.id}" data-variant="${variant}"${flagStyle(p, variant)}>
     <div class="sc">
-      <div class="sc-art"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false">${variantPhoto(variant)}</div>
+      <div class="sc-art"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false"${photoFx(variant)}>${variantPhoto(variant, p)}</div>
       ${galaxyBG(variant)}${devilBG(variant)}${halloweenPhoto(variant)}${mlgBG(variant)}${mlgPhoto(variant)}${variantBG(variant)}
       <div class="sc-halo"></div>
       <div class="sc-stars"></div>
@@ -556,7 +852,7 @@ function tiltMove(e) {
   const b = zone ? zone.getBoundingClientRect() : flatRect(card);
   const px = Math.min(1, Math.max(0, (e.clientX - b.left) / b.width));
   const py = Math.min(1, Math.max(0, (e.clientY - b.top) / b.height));
-  const fancy = card.matches(".r-secret, .v-holo, .v-reverse, .v-gold, .v-silver, .v-bronze, .v-pearl, .v-vintage, .v-marble, .v-toxic, .v-diamond, .v-emerald, .v-ruby, .v-amethyst, .v-bw, .v-clear, .v-negative, .v-sketch, .v-galaxy, .v-mlg");
+  const fancy = card.matches(".r-secret, .v-holo, .v-reverse, .v-gold, .v-silver, .v-bronze, .v-pearl, .v-vintage, .v-marble, .v-toxic, .v-pixel, .v-popart, .v-glass, .v-neon, .v-thermal, .v-blueprint, .v-glitch, .v-dollar, .v-diamond, .v-emerald, .v-ruby, .v-amethyst, .v-bw, .v-clear, .v-negative, .v-sketch, .v-galaxy, .v-mlg");
   const strength = card.closest(".viewer") ? 1.5 : fancy || card.closest(".modal") ? 1 : 0.6;
   card.classList.add("tilting");
   card.style.setProperty("--rx", ((0.5 - py) * 16 * strength).toFixed(2) + "deg");
@@ -1265,7 +1561,10 @@ function showResults(afterEpic = false) {
       ruby: ["#ff1744", "#ff8a9c", "#ffd0d8", "#ffffff"], amethyst: ["#9b3dff", "#c99bff", "#ecdcff", "#ffffff"], clear: ["#ffffff", "#e0f7ff", "#bfefff"],
       negative: ["#000000", "#ffffff", "#7a7a7a", "#00e5ff"], gold: ["#ffc531", "#fff3b0", "#fff"], holo: ["#9ff6ff", "#ff9ff3", "#fff"],
       silver: ["#e6ebf2", "#b8c2d0", "#ffffff"], bronze: ["#cd7f32", "#f0b27a", "#ffe0c0"], pearl: ["#ffffff", "#ffd1e4", "#d3fff1", "#d3e2ff"],
-      vintage: ["#efe4cb", "#b8913d", "#6b4c22"], marble: ["#ffffff", "#d9d4c8", "#d4af37"], toxic: ["#5dff1f", "#b6ff3a", "#ffd400", "#0c1407"], reverse: ["#c9d6ff", "#ffffff", "#9ff6ff"], bw: ["#ffffff", "#111111", "#888888"],
+      vintage: ["#efe4cb", "#b8913d", "#6b4c22"], marble: ["#ffffff", "#d9d4c8", "#d4af37"], toxic: ["#5dff1f", "#b6ff3a", "#ffd400", "#0c1407"],
+      pixel: ["#3a5bd0", "#ffffff", "#7dff5a", "#ffe13b"], glass: ["#2f7fc0", "#3fa0a0", "#6a5aa8", "#e8a33a", "#ffffff"],
+      neon: ["#ff3df0", "#3de0ff", "#ffe63c", "#ffffff"], thermal: ["#2a0a6a", "#d8303a", "#f07a1a", "#ffd23f", "#fffbe8"],
+      blueprint: ["#1f3a7a", "#e8f4ff", "#4a8ad8"], glitch: ["#ff2b5a", "#00e5ff", "#ffffff", "#7a2bff"], dollar: ["#2a6a3a", "#eef3e2", "#1f4a2a", "#b8d8a0"], popart: ["#ffe100", "#e8202f", "#ff4fa0", "#2fd0ff", "#7cff4a"], reverse: ["#c9d6ff", "#ffffff", "#9ff6ff"], bw: ["#ffffff", "#111111", "#888888"],
       rzulty: ["#ffe600", "#fff6a0", "#ffffff"], flag: ["#ffffff", "#dc143c", "#ffcf3f"], halloween: ["#ff7a00", "#1a0a12", "#8a2be2", "#ffd84a"],
       lantern: ["#ffb347", "#ff7a00", "#fff1c1", "#3a1a06"], devil: ["#ff1a1a", "#b3001b", "#ffcf5a", "#120002"],
       sketch: ["#1b1712", "#f4ecd8", "#6b5d4a"], galaxy: ["#7b4dff", "#1fb6ff", "#ff4fd8", "#ffffff"],

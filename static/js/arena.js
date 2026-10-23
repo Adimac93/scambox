@@ -418,7 +418,8 @@ async function arKoFx(units) {
 const AR_ENTER_COLORS = {
   normal: ["#ffffff", "#c9d6ff"], bw: ["#000", "#fff", "#888"], reverse: RAINBOW, silver: ["#e6ebf2", "#b8c2d0", "#fff"],
   bronze: ["#cd7f32", "#f0b27a", "#fff"], pearl: ["#fff", "#ffd1e4", "#d3fff1", "#d3e2ff"], vintage: ["#efe4cb", "#b8913d", "#6b4c22"],
-  marble: ["#fff", "#d9d4c8", "#d4af37"], toxic: ["#5dff1f", "#b6ff3a", "#ffd400"], holo: RAINBOW, gold: GOLDS, clear: ["#ffffff", "#e0f7ff", "#bfefff"], emerald: ["#00c853", "#6dffb0", "#fff"],
+  marble: ["#fff", "#d9d4c8", "#d4af37"], toxic: ["#5dff1f", "#b6ff3a", "#ffd400"],
+  pixel: ["#3a5bd0", "#fff", "#7dff5a", "#ffe13b"], glass: ["#2f7fc0", "#3fa0a0", "#6a5aa8", "#e8a33a"], neon: ["#ff3df0", "#3de0ff", "#ffe63c"], thermal: ["#d8303a", "#f07a1a", "#ffd23f"], blueprint: ["#1f3a7a", "#e8f4ff", "#4a8ad8"], glitch: ["#ff2b5a", "#00e5ff", "#fff"], dollar: ["#2a6a3a", "#eef3e2", "#b8d8a0"], popart: ["#ffe100", "#e8202f", "#ff4fa0", "#2fd0ff"], holo: RAINBOW, gold: GOLDS, clear: ["#ffffff", "#e0f7ff", "#bfefff"], emerald: ["#00c853", "#6dffb0", "#fff"],
   ruby: ["#ff1744", "#ff8a9c", "#fff"], amethyst: ["#9b3dff", "#c99bff", "#fff"], diamond: ["#e8fbff", "#9ff6ff", "#c9b8ff", "#fff"], negative: ["#000", "#fff", "#00e5ff"],
   royal: ["#ffd75e", "#fff3c4", "#e0115f", "#1e5bff", "#12b85c", "#9b30ff"], flag: ["#ffffff", "#ff3b3b", "#3b6bff", "#ffd54a"],
   rzulty: ["#ffe600", "#fff59d", "#ffd000", "#ffffff"], mlg: ["#9cff00", "#ffe100", "#ff7a00", "#ff2bd6", "#00e5ff"],

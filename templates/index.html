@@ -35,6 +35,9 @@
   <!-- wariant Rysunkowy: zdjęcie jak szkic ołówkiem - szarość rozjaśniona odwróconym, rozmytym obrazem ("color dodge"),
        potem przyciemnione kreski (gamma) -->
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <!-- wariant Pikselowy na małych kafelkach i ikonach: bloki 5 x 5 px (na kartach piksele liczy pxPhoto w app.js) -->
+    <filter id="pxTile" x="0" y="0" width="100%" height="100%"><feFlood x="2" y="2" height="1" width="1"/><feComposite width="5" height="5"/>
+      <feTile result="a"/><feComposite in="SourceGraphic" in2="a" operator="in"/><feMorphology operator="dilate" radius="2"/></filter>
     <filter id="inkSketch" color-interpolation-filters="sRGB" x="0" y="0" width="100%" height="100%">
       <feColorMatrix type="saturate" values="0" result="g"/>
       <feColorMatrix in="g" type="matrix" values="-1 0 0 0 1  0 -1 0 0 1  0 0 -1 0 1  0 0 0 1 0" result="inv"/>
