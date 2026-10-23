@@ -3,7 +3,7 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
-use sqlx::{Executor, PgConnection, PgPool};
+use sqlx::{PgConnection, PgPool};
 
 use crate::config::Config;
 
@@ -28,7 +28,9 @@ pub async fn connect(cfg: &Config) -> anyhow::Result<PgPool> {
             Box::pin(async move {
                 // tabele gry w schemacie DB_SCHEMA (jeśli ustawiony) - nazwa sprawdzona w Config::load
                 if let Some(s) = schema {
-                    conn.execute(format!("CREATE SCHEMA IF NOT EXISTS {s}; SET search_path TO {s}").as_str()).await?;
+                    sqlx::raw_sql(sqlx::AssertSqlSafe(format!("CREATE SCHEMA IF NOT EXISTS {s}; SET search_path TO {s}")))
+                        .execute(&mut *conn)
+                        .await?;
                 }
                 Ok(())
             })
@@ -63,3 +65,4 @@ pub async fn lock_users(c: &mut Conn, ids: &[Option<i64>]) -> sqlx::Result<()> {
 pub async fn lock_me(c: &mut Conn, uid: i64) -> sqlx::Result<()> {
     lock_users(c, &[Some(uid)]).await
 }
+

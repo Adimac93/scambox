@@ -33,7 +33,8 @@ serde = { version = "1", features = ["derive", "rc"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 serde_with = { version = "3", features = ["indexmap_2"] }
 sha2 = "0.10"
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "macros"] }
+strum = { version = "0.27", features = ["derive"] }
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "macros"] }
 thiserror = "2"
 time = "0.3"
 tokio = { version = "1", features = ["full"] }
