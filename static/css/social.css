@@ -217,6 +217,11 @@ details.fsection summary { cursor: pointer; color: var(--muted); font-weight: 70
 @media (max-width: 760px) { .tb-cols { grid-template-columns: 1fr; } .t-body { grid-template-columns: 1fr; } .t-arrow { justify-self: center; transform: rotate(90deg); } }
 
 .rank-search { flex: 1 1 200px; max-width: 320px; }
+.player-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.player-stats > span { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 99px; background: var(--panel2); font-size: 14px; }
+.online-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--good); box-shadow: 0 0 8px var(--good); }
+.rank-others { margin: 10px 4px 2px; color: var(--muted); font-size: 13px; }
+.rank-row.other { opacity: .85; }
 
 @media (max-width: 700px) {
   .rank-row { grid-template-columns: 36px minmax(0, 1fr) auto auto auto; gap: 6px; padding: 8px 10px; }

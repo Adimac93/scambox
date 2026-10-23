@@ -4,7 +4,7 @@
 const AVATARS = ["😎", "🤠", "🥷", "🧙", "🦸", "🧛", "🤖", "👽", "👻", "🎃", "🐸", "🐼", "🦊", "🐯", "🦁", "🐺",
                  "🐉", "🦄", "🐙", "🦈", "🦅", "🐝", "🍕", "🌶️", "🍀", "🔥", "⚡", "💎", "👑", "🎩", "🎮", "🎲",
                  "🏆", "⚽", "🏀", "🎸", "🚀", "🛸", "🌈", "💀"];
-const PROF = { username: null, data: null, crate: null, spread: 0, rankBy: "value", rankScope: "all", rankSearch: "", rankData: null };
+const PROF = { username: null, data: null, crate: null, spread: 0, rankBy: "value", rankScope: "all", rankSearch: "", rankData: null, rankOthers: null };
 
 // ================================================================ WSPÓLNE
 
@@ -661,7 +661,12 @@ async function toggleShowcase(pid, variant) {
 async function renderRanking() {
   try { PROF.rankData = await api("/api/ranking"); } catch (e) { return toast(e.message, true); }
   const by = PROF.rankBy;
+  const r = PROF.rankData;
   $("#rankingBody").innerHTML = `
+    <div class="player-stats">
+      <span title="Gracze z otwartą grą w ciągu ostatnich 2 minut"><i class="online-dot"></i><b>${r.online.toLocaleString("pl-PL")}</b> online</span>
+      <span>👤 <b>${r.accounts.toLocaleString("pl-PL")}</b> ${plural(r.accounts, "konto", "konta", "kont")} w grze</span>
+    </div>
     <div class="rank-toolbar">
       <div class="seg" id="rankBy">${[["value", "💰 Wartość kolekcji"], ["cards", "📖 Zebrane karty"], ["opened", "📦 Otwarte skrzynki"]]
         .map(([k, n]) => `<button data-by="${k}" class="${by === k ? "active" : ""}">${n}</button>`).join("")}</div>
@@ -688,7 +693,10 @@ function renderRankList() {
   const val = p => by === "value" ? fmt(p.value)
     : by === "cards" ? `${p.unique} / ${r.totalCards} <span class="muted">(${Math.round(p.unique / Math.max(1, r.totalCards) * 100)}%)</span>`
     : `${p.opened.toLocaleString("pl-PL")} 📦`;
-  $("#rankList").innerHTML = list.map(({ p, i }) => `
+  // gracze spoza tej listy (poza rankiem albo nie-znajomi przy "Znajomi") - z wyszukiwarki na serwerze
+  const shown = new Set(ranked.map(({ p }) => p.username));
+  const others = q && PROF.rankOthers?.q === q ? PROF.rankOthers.users.filter(u => !shown.has(u.username)) : [];
+  $("#rankList").innerHTML = (list.map(({ p, i }) => `
       <div class="rank-row${p.me ? " me" : ""}${i < 3 ? " top" + (i + 1) : ""}">
         <span class="rpos">${medal(i)}</span>
         ${userLink(p)}
@@ -696,7 +704,28 @@ function renderRankList() {
         ${p.isAdmin ? '<span class="rfriend" title="Admin">👑</span>' : ""}
         <span class="rval">${val(p)}</span>
         ${by === "cards" ? `<div class="rbar"><div style="width:${p.unique / Math.max(1, r.totalCards) * 100}%"></div></div>` : ""}
-      </div>`).join("") || `<div class="empty">${q ? `Nie ma gracza „${esc(PROF.rankSearch.trim())}” w tym rankingu.` : "Brak graczy."}</div>`;
+      </div>`).join("") + (others.length ? `<h4 class="rank-others">Pozostali gracze</h4>` + others.map(u => `
+      <div class="rank-row other">
+        <span class="rpos">—</span>
+        ${userLink(u)}
+        <span class="rval muted small">${PROF.rankScope === "friends" ? "nie jest znajomym" : "poza rankingiem"}</span>
+      </div>`).join("") : ""))
+    || `<div class="empty">${q ? `Nie ma gracza „${esc(PROF.rankSearch.trim())}”.` : "Brak graczy."}</div>`;
+}
+
+// wyszukiwanie wszystkich graczy (także spoza rankingu) - z opóźnieniem, żeby nie pytać serwera przy każdej literze
+let rankSearchTimer = null;
+function searchOtherPlayers() {
+  clearTimeout(rankSearchTimer);
+  const q = PROF.rankSearch.trim().toLowerCase();
+  if (!q) return;
+  rankSearchTimer = setTimeout(async () => {
+    try {
+      const res = await api(`/api/users/search?q=${encodeURIComponent(q)}`);
+      PROF.rankOthers = { q, users: res.users };
+      if (PROF.rankSearch.trim().toLowerCase() === q && $("#rankList")) renderRankList();
+    } catch (_) {}
+  }, 250);
 }
 
 // ================================================================ PROFIL
@@ -926,7 +955,7 @@ function bindSocial() {
     if (sc) { PROF.rankScope = sc.dataset.scope; Sound.click(); renderRanking(); }
   });
   $("#rankingBody").addEventListener("input", e => {
-    if (e.target.id === "rankSearch") { PROF.rankSearch = e.target.value; renderRankList(); }
+    if (e.target.id === "rankSearch") { PROF.rankSearch = e.target.value; renderRankList(); searchOtherPlayers(); }
   });
 
   // profil

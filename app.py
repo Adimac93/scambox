@@ -436,6 +436,17 @@ def lock_me():
     db().lock_users(uid())
 
 
+# gracze online: kiedy ostatnio coś wysłali (otwarta gra odpytuje /api/me co 30 s, w ukrytej karcie nie)
+# w pamięci procesu jak katalog - po restarcie serwera licznik zaczyna od zera
+LAST_SEEN = {}
+ONLINE_SECONDS = 120
+
+
+def online_count():
+    now = time.time()
+    return sum(1 for t in list(LAST_SEEN.values()) if now - t < ONLINE_SECONDS)
+
+
 def login_required(fn):
     @functools.wraps(fn)
     def wrapper(*a, **kw):
@@ -447,6 +458,7 @@ def login_required(fn):
             if request.path.startswith("/api/"):
                 return jsonify({"error": "Zaloguj się", "login": True}), 401
             return redirect(url_for("login_page", next=request.path) if request.path != "/" else url_for("login_page"))
+        LAST_SEEN[current_user()["id"]] = time.time()
         return fn(*a, **kw)
     return wrapper
 
@@ -1813,7 +1825,8 @@ def ranking():
         b["me"] = u["id"] == uid()
         players.append(b)
     total_cards = len(catalog.PEOPLE)
-    return jsonify({"players": players, "totalCards": total_cards})
+    accounts = db().execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    return jsonify({"players": players, "totalCards": total_cards, "online": online_count(), "accounts": accounts})
 
 
 @app.get("/api/me")

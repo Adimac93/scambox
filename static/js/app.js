@@ -753,10 +753,7 @@ function shopCrates() {
 }
 
 // ---------------------------------------------------------------- karuzela skrzynek ("rotacja sklepu")
-// Środkowa skrzynka = wybrana. Karuzela sama przechodzi do następnej co SHOP_ROTATE_MS - tylko gdy jest na ekranie,
-// kursor nie jest nad sklepem i gracz przez ostatnie SHOP_IDLE_MS nie klikał w sklepie (żeby nie zmienić skrzynki pod
-// palcem tuż przed "OTWÓRZ").
-const SHOP_ROTATE_MS = 5000, SHOP_IDLE_MS = 30000;
+// Środkowa skrzynka = wybrana. Karuzela stoi - skrzynkę zmienia tylko gracz (strzałki, kafelek, przesunięcie, lista).
 function carOffset(i, sel, n) {   // przesunięcie kafelka względem wybranego, "w kółko": -n/2 ... n/2
   const half = Math.floor(n / 2);
   return ((i - sel + n + half) % n) - half;
@@ -771,20 +768,13 @@ function placeCarousel(track, sel) {
     t.classList.toggle("selected", off === 0);
   });
 }
-function shopTouched() { S.shopIdleAt = Date.now(); }
-function shopRotate(dir, manual = true) {
+function shopRotate(dir) {
   const list = shopCrates();
   if (list.length < 2) return;
-  if (manual) { shopTouched(); Sound.click(); }
+  Sound.click();
   const i = list.findIndex(c => c.id === S.crate);
   S.crate = list[(i + dir + list.length) % list.length].id;
   renderCrates();
-}
-function shopAutoRotate() {
-  const car = $("#shopCarousel"), r = car?.getBoundingClientRect();
-  if (currentView() !== "crates" || !r || S.opening || S.shopHover || document.hidden || dialogOpen() || viewerOpen() || epicOpen() ||
-      Date.now() - (S.shopIdleAt || 0) < SHOP_IDLE_MS || r.bottom < 80 || r.top > innerHeight - 120) return;
-  shopRotate(1, false);
 }
 
 function crateArtHTML(c, cls = "") {
@@ -1019,7 +1009,6 @@ async function openCrates() {
   if (S.opening) return;
   const crate = crateOf(S.crate);
   if (!crate) return;
-  shopTouched();
   const cost = (S.count - Math.min(S.chests[crate.id] || 0, S.count)) * crate.price;
   if (S.state.balance < cost) {
     Sound.error();
@@ -1676,29 +1665,25 @@ function bind() {
     const arrow = e.target.closest("[data-car]");
     if (arrow) return shopRotate(+arrow.dataset.car);
     const c = e.target.closest(".shop-tile, .car-dot"); if (!c) return;
-    shopTouched();
     if (S.crate !== c.dataset.crate) { S.crate = c.dataset.crate; Sound.click(); renderCrates(); }
     else if (c.matches(".shop-tile")) $("#buyPanel").scrollIntoView({ behavior: "smooth", block: "nearest" });
   });
   // przesunięcie palcem / myszą w bok = następna / poprzednia skrzynka
-  car.addEventListener("pointerdown", e => { swipeX = e.clientX; swiped = false; shopTouched(); });
+  car.addEventListener("pointerdown", e => { swipeX = e.clientX; swiped = false; });
   car.addEventListener("pointerup", e => {
     if (swipeX === null) return;
     const dx = e.clientX - swipeX; swipeX = null;
     if (Math.abs(dx) > 45) { swiped = true; shopRotate(dx < 0 ? 1 : -1); }
   });
-  car.addEventListener("pointerenter", () => { S.shopHover = true; });
-  car.addEventListener("pointerleave", () => { S.shopHover = false; swipeX = null; });
-  $("#buyPanel").addEventListener("pointerdown", shopTouched);   // gracz coś ustawia przy zakupie - karuzela stoi
-  $("#shopAllToggle").addEventListener("click", () => { S.shopAllOpen = !S.shopAllOpen; shopTouched(); Sound.click(); renderCrates(); });
+  car.addEventListener("pointerleave", () => { swipeX = null; });
+  $("#shopAllToggle").addEventListener("click", () => { S.shopAllOpen = !S.shopAllOpen; Sound.click(); renderCrates(); });
   $("#shopAllList").addEventListener("click", e => {
     const c = e.target.closest("[data-crate]"); if (!c) return;
-    shopTouched(); Sound.click();
+    Sound.click();
     S.crate = c.dataset.crate; S.shopAllOpen = false;   // wybrana z listy - lista się zwija, karuzela jedzie do tej skrzynki
     renderCrates();
     $("#shopCarousel").scrollIntoView({ behavior: "smooth", block: "center" });
   });
-  setInterval(shopAutoRotate, SHOP_ROTATE_MS);
   $("#countChips").addEventListener("click", e => {
     const c = e.target.closest(".chip"); if (!c) return;
     Sound.click(); setCount(+c.dataset.n);
