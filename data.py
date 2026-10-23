@@ -21,9 +21,17 @@ VARIANTS = {
     "normal":  {"name": "Zwykła",       "chance": 0.0,   "mult": 1.0},
     "bw":      {"name": "Czarno-biała", "chance": 0.05,  "mult": 1.5},
     "reverse": {"name": "Reverse Holo", "chance": 0.05,  "mult": 1.8},
+    # "off": wariant domyślnie WYŁĄCZONY - nie wypada nigdzie, dopóki admin nie włączy go (albo nie zaplanuje wydarzenia)
+    # na stronie /variants (catalog.variant_enabled, ustawienia w tabeli catalog_variants)
+    "bronze":  {"name": "Brązowa",      "chance": 0.04,  "mult": 2.0, "off": True,
+                "desc": "Karta z brązu - ciepły, ciemniejszy metal, najczęstszy z metalowych wariantów."},
     "silver":  {"name": "Srebrna",      "chance": 0.03,  "mult": 2.5},
     "holo":    {"name": "Holo",         "chance": 0.025, "mult": 3.0},
+    "pearl":   {"name": "Perłowa",      "chance": 0.015, "mult": 5.0, "off": True,
+                "desc": "Cała karta z masy perłowej - mleczna biel z różowo-miętowo-błękitnymi refleksami, które przesuwają się po karcie."},
     "gold":    {"name": "Złota",        "chance": 0.01,  "mult": 7.5},
+    "vintage": {"name": "Vintage",      "chance": 0.008, "mult": 8.5, "off": True,
+                "desc": "Fotografia z XIX wieku: zdjęcie w sepii na kremowym kartonie ze złoconym brzegiem i pieczątką atelier."},
     # wyjątkowy: tylko ze skrzynek z tym wariantem, karta musi mieć ustawiony kraj (pole "country").
     # "layer": osobna warstwa - flagowa karta może mieć DODATKOWO inny wariant (extraChance, patrz niżej)
     "flag":    {"name": "Flagowa",      "chance": 0.008, "mult": 8.0, "exclusive": True, "layer": True, "extraChance": 0.4,
@@ -51,7 +59,11 @@ VARIANTS = {
     # wariant własne grafiki (PNG) albo wbudowane (static/img/mlg/) i ustawić je, gdzie chce - strona /stickers
     "mlg":     {"name": "MLG",          "chance": 0.005, "mult": 12.0, "exclusive": True, "stickers": True,
                 "desc": "Jak montaże „MLG” z 2014: tęczowa ramka, hitmarkery, napisy WOW i 360 NO SCOPE, oko Illuminati."},
+    "marble":  {"name": "Marmurowa",    "chance": 0.005, "mult": 11.5, "off": True,
+                "desc": "Biały marmur z szarymi żyłkami i złotymi liniami, a zdjęcie zamienia się w marmurowy posąg."},
     "amethyst": {"name": "Ametystowa",  "chance": 0.0045, "mult": 12.5},   # między Szmaragdową a Rubinową
+    "toxic":   {"name": "Toksyczna",    "chance": 0.004, "mult": 13.0, "off": True,
+                "desc": "Radioaktywny szlam: ciemna karta, jarzący się zielony glut, bąbelki, kałuża i taśma ostrzegawcza."},
     "ruby":    {"name": "Rubinowa",     "chance": 0.004, "mult": 14.0},
     "royal":   {"name": "Królewska",    "chance": 0.004, "mult": 15.0, "exclusive": True,   # wyjątkowy (Skrzynia Królów)
                 "desc": "Ozdobna złota rama z ornamentami i złota korona na górze."},
@@ -89,6 +101,13 @@ for _layer in [v for v, x in VARIANTS.items() if x.get("layer")]:
             "mult": round(VARIANTS[_layer]["mult"] * _x["mult"], 2), "exclusive": True, "combo": True,
             "layers": [_layer, _base]}
 VARIANT_ORDER = sorted(VARIANTS, key=lambda v: VARIANTS[v]["mult"])   # od najtańszego do najdroższego
+# Ustawienia wariantów z panelu admina (/variants, catalog.rebuild) nadpisują w VARIANTS szansę, wagę i opis -
+# tu zostają wartości z kodu, do których wraca "Przywróć domyślne"
+VARIANT_DEFAULTS = {v: {"chance": x["chance"], "weight": x.get("weight"), "desc": x.get("desc", "")}
+                    for v, x in VARIANTS.items() if not x.get("combo")}
+VARIANT_EVENT_MAX = 40      # najwięcej wydarzeń (wariant na czas) zapisanych przy jednym wariancie
+VARIANT_BOOST_MAX = 50      # najwyższy mnożnik szansy w wydarzeniu
+VARIANT_CHANCE_MAX = 0.2    # najwyższa szansa na jeden wariant ustawiana w panelu (20%)
 # Warianty wyjątkowe ("exclusive"): wypadają TYLKO ze skrzynek, w których admin je włączył (pole skrzynki "variants"),
 # nie da się ich dostać z kontraktu ani z ulepszacza.
 EXCLUSIVE_VARIANTS = [v for v, x in VARIANTS.items() if x.get("exclusive")]

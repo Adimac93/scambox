@@ -16,6 +16,12 @@
 <body>
   <header class="topbar">
     <div class="logo">⚙️ <span>Panel admina</span></div>
+    <nav class="a-tabs">
+      <a class="active" href="/admin">📦 Skrzynki i karty</a>
+      <a href="/variants">✨ Warianty</a>
+      <a href="/stickers">🎨 Naklejki</a>
+      <a href="/mockups">🎴 Karty specjalne</a>
+    </nav>
     <div class="top-right">
       <label class="chk" title="Tajne karty są domyślnie ukryte, żeby nie zepsuć niespodzianki"><input type="checkbox" id="showSecrets"> Pokaż tajne karty</label>
       <a class="btn" href="/">← Wróć do gry</a>
@@ -40,6 +46,15 @@
           <button class="btn primary" id="newCard">+ Nowa karta</button>
         </div>
         <div id="cardList" class="a-card-grid"></div>
+      </div>
+
+      <div class="panel">
+        <div class="a-cards-head">
+          <h3>✨ Warianty</h3>
+          <a class="btn primary" href="/variants">✨ Otwórz zakładkę wariantów</a>
+        </div>
+        <p class="muted small">Podgląd każdego wariantu na karcie, włączanie i wyłączanie, szanse oraz wydarzenia — wariant na określony
+          czas we wszystkich albo w wybranych skrzynkach. Tam też propozycje nowych wariantów do wyboru.</p>
       </div>
 
       <div class="panel">

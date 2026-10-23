@@ -25,7 +25,7 @@ from data import (ABILITY_KINDS, ARENA, ARENA_EFFECT_TARGETS, ARENA_EFFECTS, ARE
                   MAX_ABILITY_EFFECTS, MAX_EXTRA_ABILITIES, CONTRACT_SIZE, CONTRACT_VARIANT_BONUS, CRATE_PRICE, DAILY_STREAK, MAX_DEPOSIT,
                   MAX_OPEN, MONEY_CHESTS, RARITIES, RARITY_ORDER, SECRET_ODDS, SHOWCASE_SIZE,
                   STARTING_BALANCE, TYPES, UPGRADE_EDGE, UPGRADE_MAX, UPGRADE_MAX_ITEMS, VARIANT_ORDER,
-                  VARIANTS, CRATE_VARIANTS, PATCH_NOTES, MARKET, ROULETTE, ROULETTE_BETS, ROULETTE_RED, ROULETTE_WHEEL,
+                  VARIANTS, VARIANT_DEFAULTS, CRATE_VARIANTS, PATCH_NOTES, MARKET, ROULETTE, ROULETTE_BETS, ROULETTE_RED, ROULETTE_WHEEL,
                   JACKPOT, card_value, card_variants, combine_variant, SPECIAL_VARIANTS, SPECIAL_SOURCES, SPECIAL_CRATE,
                   CASINO_SPECIAL, CASINO_VARIANTS, CASINO_TOP, BLACKJACK, STICKER_VARIANTS, STICKER_LIBRARY,
                   STICKER_ANIMS)
@@ -758,10 +758,11 @@ def public_person(p, found):
 @app.route("/link/<token>")   # link do karty specjalnej - kartę odbiera przeglądarka (/api/links/<token>/claim)
 @app.route("/mockups")         # makiety kart specjalnych - tylko dla adminów
 @app.route("/stickers")        # edytor naklejek wariantów (np. MLG) - tylko dla adminów
+@app.route("/variants")        # warianty: podgląd, włączanie, szanse, wydarzenia, propozycje nowych - tylko dla adminów
 @login_required
 def index(view=None, name=None, token=None):
-    # Arena, makiety i naklejki: tylko admini
-    if (view == "arena" or request.path in ("/mockups", "/stickers")) and not current_user()["is_admin"]:
+    # Arena, makiety, naklejki i warianty: tylko admini
+    if (view == "arena" or request.path in ("/mockups", "/stickers", "/variants")) and not current_user()["is_admin"]:
         return redirect("/")
     return render_template("index.html")
 
@@ -907,6 +908,8 @@ def config():
         "rarityOrder": RARITY_ORDER,
         "variants": VARIANTS,
         "variantOrder": VARIANT_ORDER,
+        # włączone / wyłączone warianty i wydarzenia (wariant na czas w wybranych skrzynkach) - strona /variants
+        "variantCfg": {v: catalog.variant_cfg_json(v, current_user()["is_admin"]) for v in VARIANT_DEFAULTS},
         "types": TYPES,
         "abilityKinds": ABILITY_KINDS,
         # Arena (wersja testowa) - tylko admini; bez tego klucza przeglądarka chowa zakładkę i wyzwania
@@ -956,30 +959,34 @@ def state():
                     "collected": collected_list(uid())})
 
 
-def roll_variant(factor=1.0, extra=()):
-    """Wariant karty. extra = warianty wyjątkowe dostępne w tej skrzynce (bez nich: tylko zwykłe warianty).
+def roll_variant(avail, boost=None, factor=1.0):
+    """Wariant karty. avail = warianty, które mogą teraz wypaść (catalog.drop_variants dla skrzynki,
+    catalog.base_variants dla kontraktu), boost = {wariant: mnożnik szansy} z trwających wydarzeń (strona /variants).
     Wariant-warstwa (flaga) z szansą "extraChance" dostaje jeszcze jeden wariant - z tymi samymi szansami co zwykle.
     Warianty "always" (Halloweenowa / Lampionowa / Diabelska): w tej skrzynce każda karta dostaje jeden z nich
     (losowany według "weight"), a zwykły wariant losuje się normalnie - chyba że wylosowany ma "noCombo" (Lampionowa,
     Diabelska): wtedy karta ma tylko ten wariant."""
-    always = [v for v in extra if VARIANTS[v].get("always")]
+    boost = boost or {}
+    always = [v for v in avail if VARIANTS[v].get("always")]
     if always:
-        layer = rng.choices(always, weights=[VARIANTS[v].get("weight", 1) for v in always])[0]
+        layer = rng.choices(always, weights=[VARIANTS[v].get("weight", 1) * boost.get(v, 1) for v in always])[0]
         if VARIANTS[layer].get("noCombo"):
             return layer
-        return combine_variant(layer, roll_variant(factor, [v for v in extra if not VARIANTS[v].get("layer")]))
-    specials =[v for v in reversed(VARIANT_ORDER)  # najrzadsze najpierw
-                if v != "normal" and not VARIANTS[v].get("combo") and (not VARIANTS[v].get("exclusive") or v in extra)]
-    total = sum(VARIANTS[v]["chance"] for v in specials)
+        return combine_variant(layer, roll_variant([v for v in avail if not VARIANTS[v].get("layer")], boost, factor))
+
+    def chance(v):
+        return VARIANTS[v]["chance"] * boost.get(v, 1)
+    specials = [v for v in reversed(VARIANT_ORDER) if v in avail]  # najrzadsze najpierw
+    total = sum(chance(v) for v in specials)
     factor = min(factor, 0.9 / total) if total else factor
     r, acc = rng.random(), 0.0
     for v in specials:
-        acc += VARIANTS[v]["chance"] * factor
+        acc += chance(v) * factor
         if r < acc:
             if VARIANTS[v].get("layer") and rng.random() < VARIANTS[v].get("extraChance", 0):
                 bases = [b for b in specials if not VARIANTS[b].get("layer")]
                 if bases:
-                    return combine_variant(v, rng.choices(bases, weights=[VARIANTS[b]["chance"] for b in bases])[0])
+                    return combine_variant(v, rng.choices(bases, weights=[chance(b) for b in bases])[0])
             return v
     return "normal"
 
@@ -989,7 +996,7 @@ def roll(crate):
     weights = [catalog.crate_weight(crate, r) if r in present else 0 for r in RARITY_ORDER]
     rarity = rng.choices(RARITY_ORDER, weights=weights)[0]
     person = rng.choice([p for p in crate["people"] if p["rarity"] == rarity])
-    return person, roll_variant(extra=catalog.crate_variants(crate, person))
+    return person, roll_variant(*catalog.drop_variants(crate, person))
 
 
 @app.post("/api/open")
@@ -1184,7 +1191,8 @@ def contract_exec(plan):
     crate_id = rng.choice(plan["pool"])
     person = rng.choice(contract_candidates(crate_id, plan["target"], plan["max_mult"]))
     delete_items(plan["ids"])
-    item = insert_item(person["id"], roll_variant(1 + CONTRACT_VARIANT_BONUS * plan["specials"]), "contract")
+    variant = roll_variant(catalog.base_variants(), factor=1 + CONTRACT_VARIANT_BONUS * plan["specials"])
+    item = insert_item(person["id"], variant, "contract")
     add_state("contracts", 1)
     return item, crate_id or person["crate"]
 
@@ -1253,6 +1261,8 @@ def upgrade():
         return jsonify({"error": "Tej karty nie ma teraz w żadnej skrzynce w sklepie — nie da się jej wytworzyć"}), 400
     if VARIANTS[variant].get("exclusive"):
         return jsonify({"error": f"Wariant „{VARIANTS[variant]['name']}” wypada tylko ze skrzynek"}), 400
+    if variant != "normal" and variant not in catalog.base_variants():
+        return jsonify({"error": f"Wariant „{VARIANTS[variant]['name']}” jest teraz wyłączony"}), 400
     stake = sum(row_value(r) for r in rows)
     goal = card_value(target, variant)
     if goal <= stake:
@@ -2427,7 +2437,7 @@ def house_cards(value):
     z CASINO_VARIANTS - za każdym razem jedna z najdroższych, które się mieszczą (CASINO_TOP).
     Zwraca ([(karta, wariant)], reszta w pieniądzach)."""
     pool = sorted(((card_value(p, v), p, v) for p in catalog.PEOPLE.values() if p.get("forge") and p["rarity"] != "secret"
-                   for v in CASINO_VARIANTS), key=lambda x: -x[0])
+                   for v in CASINO_VARIANTS if v == "normal" or catalog.variant_enabled(v)), key=lambda x: -x[0])
     out, left = [], value
     while len(out) < ROULETTE["maxPayoutCards"]:
         fit = [x for x in pool if x[0] <= left]
@@ -3663,6 +3673,106 @@ def admin_restore_card(pid):
     return jsonify({"ok": True})
 
 
+# ---------------------------------------------------------------- ustawienia wariantów (strona /variants)
+
+def variant_settings_row(variant):
+    row = db().execute("SELECT data FROM catalog_variants WHERE id = ?", (variant,)).fetchone()
+    return (json.loads(row[0] or "{}") if row else {}).get("settings") or {}
+
+
+def save_variant_settings(variant, settings):
+    catalog.save_override(db(), "catalog_variants", variant, {"settings": catalog.clean_variant_settings(variant, settings)})
+    db().commit()
+    refresh_catalog()
+
+
+def admin_variant_json(variant):
+    """Wariant po zmianie - przeglądarka podmienia go w S.cfg (variants, variantCfg)."""
+    return {"ok": True, "variant": VARIANTS[variant], "cfg": catalog.variant_cfg_json(variant, admin=True)}
+
+
+def admin_variant_or_404(variant):
+    if variant not in VARIANT_DEFAULTS:
+        return jsonify({"error": "Nie ma takiego wariantu"}), 404
+    return None
+
+
+@app.post("/api/admin/variants/<variant>")
+@admin_required
+def admin_variant_save(variant):
+    """Włączony / wyłączony, szansa (albo waga przy wariantach "always") i opis. null = wartość z kodu (data.py)."""
+    err = admin_variant_or_404(variant)
+    if err:
+        return err
+    if VARIANTS[variant].get("special"):
+        return bad("Warianty kart specjalnych ustawia się przy samych kartach")
+    body = request.get_json(force=True) or {}
+    settings = variant_settings_row(variant)
+    for k in ("enabled", "chance", "weight", "desc"):
+        if k in body:
+            settings[k] = body[k]
+    save_variant_settings(variant, settings)
+    s = catalog.VARIANT_CFG[variant]
+    log_admin("variant_save", details=f"{VARIANTS[variant]['name']}: {'włączony' if catalog.variant_enabled(variant) else 'wyłączony'}"
+                                      f" · szansa {VARIANTS[variant]['chance'] * 100:.3g}%"
+                                      + (f" · waga {s['weight']}" if s["weight"] is not None else ""))
+    db().commit()
+    return jsonify(admin_variant_json(variant))
+
+
+@app.post("/api/admin/variants/<variant>/events")
+@admin_required
+def admin_variant_event_add(variant):
+    """Nowe wydarzenie: od - do (sekundy unix) wariant wypada z wybranych skrzynek (pusta lista = ze wszystkich)."""
+    err = admin_variant_or_404(variant)
+    if err:
+        return err
+    x = VARIANTS[variant]
+    if x.get("special"):
+        return bad("Warianty kart specjalnych nie wypadają ze skrzynek")
+    body = request.get_json(force=True) or {}
+    crates = [c for c in body.get("crates") or [] if c in catalog.CRATES and not catalog.CRATES[c]["special"]]
+    ev = catalog.clean_variant_events([{**body, "crates": crates, "id": secrets.token_hex(4)}])
+    if not ev:
+        return bad("Ustaw początek i koniec (koniec po początku)")
+    ev = ev[0]
+    if ev["end"] <= time.time():
+        return bad("To wydarzenie już by się skończyło")
+    settings, now = variant_settings_row(variant), time.time()
+    # wydarzenia skończone ponad 30 dni temu nie są już potrzebne - wystarczy jedno, żeby wariant był "w grze"
+    events = settings.get("events") or []
+    recent = [e for e in events if e.get("end", 0) > now - 30 * 86400]
+    settings["events"] = [e for e in events if e not in recent][-1:] + recent + [ev]
+    save_variant_settings(variant, settings)
+    where = ", ".join(catalog.CRATES[c]["name"] for c in ev["crates"]) or "wszystkie skrzynki"
+    log_admin("variant_event", details=f"{x['name']}: {datetime.datetime.fromtimestamp(ev['start']):%d.%m %H:%M} - "
+                                       f"{datetime.datetime.fromtimestamp(ev['end']):%d.%m %H:%M} · {where}"
+                                       + (f" · szansa ×{ev['boost']:g}" if ev["boost"] != 1 else ""))
+    db().commit()
+    return jsonify(admin_variant_json(variant))
+
+
+@app.post("/api/admin/variants/<variant>/events/<eid>/delete")
+@admin_required
+def admin_variant_event_delete(variant, eid):
+    """Usuwa zaplanowane wydarzenie; trwające - kończy teraz (zostaje w historii, żeby wariant był nadal "w grze")."""
+    err = admin_variant_or_404(variant)
+    if err:
+        return err
+    settings, now = variant_settings_row(variant), int(time.time())
+    events = []
+    for e in settings.get("events") or []:
+        if e.get("id") != eid:
+            events.append(e)
+        elif e.get("start", 0) <= now:
+            events.append(dict(e, end=max(e["start"] + 1, now)))
+    settings["events"] = events
+    save_variant_settings(variant, settings)
+    log_admin("variant_event_stop", details=VARIANTS[variant]["name"])
+    db().commit()
+    return jsonify(admin_variant_json(variant))
+
+
 # ---------------------------------------------------------------- naklejki wariantów (strona /stickers)
 # Admin nakleja na wariant (np. MLG) wbudowane grafiki albo własne pliki PNG i ustawia je na karcie. Wgrany plik od razu
 # trafia do image_cache (__stk_<wariant>__<id>.png), ale gracze widzą go dopiero po zapisaniu układu naklejek.
@@ -4063,6 +4173,8 @@ def port_in_use(port):
 
 if __name__ == "__main__":
     port = 5001 if TEST_MODE else 5000
+    if "--port" in sys.argv:   # np. --port 5002, gdy domyślny port zajmuje inny program
+        port = int(sys.argv[sys.argv.index("--port") + 1])
     # na Windowsie kilka kopii gry może słuchać na tym samym porcie - wtedy część zapytań trafia do starej wersji
     if os.environ.get("WERKZEUG_RUN_MAIN") != "true" and port_in_use(port):
         print(f"\n  !!! Gra już działa (port {port} jest zajęty) - prawdopodobnie w innym czarnym oknie.")

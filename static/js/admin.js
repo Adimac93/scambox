@@ -471,6 +471,7 @@ const LOG_ACTIONS = {
   link_create: "🔗 Nowy link do karty", link_on: "🔗 Włączył link", link_off: "🔗 Wyłączył link",
   message_add: "📢 Nowa wiadomość do graczy", message_delete: "📢 Usunięcie wiadomości",
   stickers_save: "🎨 Naklejki wariantu", stickers_card: "🎨 Naklejki jednej karty",
+  variant_save: "✨ Ustawienia wariantu", variant_event: "⏰ Wydarzenie wariantu", variant_event_stop: "⏰ Koniec wydarzenia wariantu",
 };
 
 async function loadLog() {

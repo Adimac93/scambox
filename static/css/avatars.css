@@ -15,6 +15,11 @@
   animation: ultraSpin 3s linear infinite;
 }
 .pf-av.avv-reverse::after { inset: 0; padding: 4px; border-radius: 22px; } /* profil przycina wszystko poza ramką - obwódka w środku */
+.avv-bronze img { filter: sepia(1) saturate(1.25) hue-rotate(-16deg) brightness(.96) contrast(1.15); box-shadow: 0 0 0 2px #cd7f32, 0 0 10px #cd7f32 !important; }
+.avv-pearl img { filter: sepia(.12) saturate(.85) brightness(1.08); box-shadow: 0 0 0 2px #f6dbe7, 0 0 10px #ffffff !important; }
+.avv-vintage img { filter: sepia(.9) contrast(1.12) brightness(.95) saturate(.85); box-shadow: 0 0 0 2px #b8913d, 0 0 0 4px #efe4cb !important; }
+.avv-marble img { filter: grayscale(1) brightness(1.4) contrast(.72); box-shadow: 0 0 0 2px #d4af37, 0 0 8px #ffffffaa !important; }
+.avv-toxic img { filter: grayscale(1) contrast(1.3) sepia(1) hue-rotate(45deg) saturate(4) brightness(.9); box-shadow: 0 0 0 2px #5dff1f, 0 0 12px #5dff1f !important; }
 .avv-silver img { filter: grayscale(1) brightness(1.1) contrast(1.15) sepia(.15) hue-rotate(180deg); box-shadow: 0 0 0 2px #e6ebf2, 0 0 10px #dfe6f0 !important; }
 .avv-holo::after {
   background: linear-gradient(115deg, #ff000066, #ffff0066, #00ff0066, #00ffff66, #0000ff66, #ff00ff66, #ff000066);
@@ -27,7 +32,8 @@
 .avv-clear img { opacity: .62; box-shadow: 0 0 0 2px #ffffffb0, 0 0 10px #bfefffaa !important; }
 .avv-negative img { filter: invert(1); box-shadow: 0 0 0 2px #fff, 0 0 0 4px #000, 0 0 12px #00e5ff !important; }
 .av-vname { font-size: 10px; font-weight: 900; padding: 1px 6px; border-radius: 5px; background: #000a; }
-.av-vname.vt-gold { color: #ffcf3f; } .av-vname:is(.vt-diamond, .vt-emerald, .vt-ruby, .vt-amethyst) { color: var(--gem-3); } .av-vname.vt-silver { color: #dfe6f0; }
+.av-vname.vt-gold { color: #ffcf3f; } .av-vname:is(.vt-diamond, .vt-emerald, .vt-ruby, .vt-amethyst) { color: var(--gem-3); } .av-vname.vt-silver { color: #dfe6f0; } .av-vname.vt-bronze { color: #e0985a; }
+.av-vname.vt-pearl { color: #f6dbe7; } .av-vname.vt-vintage { color: #efe2c2; } .av-vname.vt-marble { color: #f3efe6; } .av-vname.vt-toxic { color: #b6ff3a; }
 .av-vname.vt-clear { color: #e0f7ff; } .av-vname.vt-negative { color: #000; background: #fff; }
 .av-vname.vt-holo { color: #ff9ff3; } .av-vname.vt-reverse { color: #c9d6ff; } .av-vname.vt-bw { color: #fff; }
 

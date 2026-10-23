@@ -250,7 +250,7 @@ function openViewer(pid, variant = "normal") {
     const type = S.cfg.types[p.type];
     const crate = crateOf(p.crate);
     // szansa z 1 skrzynki: najlepsza ze skrzynek karty (wyjątkowe warianty tylko tam, gdzie są włączone)
-    const chance = Math.max(0, ...(p.crates || [p.crate]).filter(crateOf).map(c => rarityShare(c, p.rarity) * variantChance(crateVariants(crateOf(c), p), variant)));
+    const chance = Math.max(0, ...(p.crates || [p.crate]).filter(crateOf).map(c => rarityShare(c, p.rarity) * variantChance(crateVariants(crateOf(c), p), variant, crateOf(c))));
     // warianty, w których karta może istnieć (np. Rzulty tylko JP2), osobno połączenia z flagą; plus te, które już masz
     const mine = S.items.filter(i => i.person === pid);
     const shown = new Set([...possibleVariants(p), variant, ...mine.map(i => i.variant)]);

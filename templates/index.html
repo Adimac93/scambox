@@ -14,7 +14,7 @@
   <title>ScamBox</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Caveat:wght@700&family=Comic+Neue:wght@700&family=Creepster&family=Cinzel:wght@700;900&family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Caveat:wght@700&family=Comic+Neue:wght@700&family=Creepster&family=Cinzel:wght@700;900&family=IM+Fell+English:ital@0;1&family=Ma+Shan+Zheng&family=Orbitron:wght@500;900&family=Poiret+One&family=Racing+Sans+One&family=Rye&family=Share+Tech+Mono&family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ asset('css/style.css') }}">
   <link rel="stylesheet" href="{{ asset('css/fx.css') }}">
   <link rel="stylesheet" href="{{ asset('css/cards2.css') }}">
@@ -28,6 +28,8 @@
   <link rel="stylesheet" href="{{ asset('css/market.css') }}">
   <link rel="stylesheet" href="{{ asset('css/casino.css') }}">
   <link rel="stylesheet" href="{{ asset('css/stickers.css') }}">
+  <link rel="stylesheet" href="{{ asset('css/variants.css') }}">
+  <link rel="stylesheet" href="{{ asset('css/variant-mockups.css') }}">
 </head>
 <body>
   <!-- wariant Rysunkowy: zdjęcie jak szkic ołówkiem - szarość rozjaśniona odwróconym, rozmytym obrazem ("color dodge"),
@@ -269,6 +271,9 @@
     <!-- EDYTOR NAKLEJEK WARIANTÓW (tylko admini, /stickers) -->
     <section class="view" id="view-stickers"><div id="stickersBody"></div></section>
 
+    <!-- WARIANTY: podgląd, włączanie, szanse, wydarzenia, propozycje nowych (tylko admini, /variants) -->
+    <section class="view" id="view-variants"><div id="variantsBody"></div></section>
+
     <!-- KUŹNIA -->
     <section class="view" id="view-forge">
       <div class="forge-toolbar">
@@ -324,6 +329,8 @@
   <script src="{{ asset('js/arena.js') }}"></script>
   <script src="{{ asset('js/hof.js') }}"></script>
   <script src="{{ asset('js/stickers.js') }}"></script>
+  <script src="{{ asset('js/variant-mockups.js') }}"></script>
+  <script src="{{ asset('js/variants.js') }}"></script>
   <script src="{{ asset('js/app.js') }}"></script>
 </body>
 </html>

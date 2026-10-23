@@ -15,7 +15,7 @@ const MAX_BULK_CONTRACTS = 50;  // tyle przyjmie serwer w jednym zapytaniu
 const PICK_LIMIT = 300;
 // ulubione karty (⭐) i karty specjalne nie trafiają do kuźni
 const forgeItems = () => S.items.filter(i => !i.fav && !isSpecialCard(i.person));
-const PICK_TAGS = { bw: "B&W", reverse: "REV", silver: "SILV", holo: "HOLO", gold: "GOLD", flag: "🏳️", halloween: "🎃", lantern: "🏮", devil: "😈", joker: "🃏", jeans: "👖", clear: "🫧", sketch: "✒️", emerald: "💚", amethyst: "💜", ruby: "❤️", mlg: "🎯", royal: "👑", diamond: "💎", galaxy: "🌌", negative: "◐", rzulty: "💛" };
+const PICK_TAGS = { bw: "B&W", reverse: "REV", bronze: "BRNZ", silver: "SILV", holo: "HOLO", pearl: "🦪", gold: "GOLD", vintage: "📷", marble: "🏛️", toxic: "☢️", flag: "🏳️", halloween: "🎃", lantern: "🏮", devil: "😈", joker: "🃏", jeans: "👖", clear: "🫧", sketch: "✒️", emerald: "💚", amethyst: "💜", ruby: "❤️", mlg: "🎯", royal: "👑", diamond: "💎", galaxy: "🌌", negative: "◐", rzulty: "💛" };
 
 function pickHTML(item, { sel = false, extra = "" } = {}) {
   const p = person(item.person);
@@ -43,8 +43,8 @@ function renderForge() {
 // ================================================================ KONTRAKT
 
 function contractVariantChance(specials) {
-  // kontrakt nie daje wariantów wyjątkowych (Królewski, Flagowy) - te wypadają tylko ze skrzynek
-  const base = S.cfg.variantOrder.filter(v => isSpecial(v) && !isExclusive(v)).reduce((a, v) => a + S.cfg.variants[v].chance, 0);
+  // kontrakt nie daje wariantów wyjątkowych (Królewski, Flagowy) - te wypadają tylko ze skrzynek - ani wyłączonych
+  const base = S.cfg.variantOrder.filter(v => isSpecial(v) && !isExclusive(v) && variantOn(v)).reduce((a, v) => a + S.cfg.variants[v].chance, 0);
   return Math.min(0.9, base * (1 + S.cfg.contractVariantBonus * specials));
 }
 
@@ -410,7 +410,8 @@ function allTargets() {
   const out = [];
   // tylko karty ze skrzynek, które są teraz w sklepie (bez tajnych)
   Object.values(S.cfg.people).filter(p => p.rarity !== "secret" && p.forge).forEach(p => {
-    S.cfg.variantOrder.filter(v => !isExclusive(v))  // wariantów wyjątkowych nie da się ulepszyć - tylko ze skrzynek
+    // wariantów wyjątkowych nie da się ulepszyć - tylko ze skrzynek; wyłączonych (strona /variants) też nie
+    S.cfg.variantOrder.filter(v => !isExclusive(v) && (v === "normal" || variantOn(v)))
       .forEach(v => out.push({ key: `${p.id}|${v}`, person: p.id, variant: v, value: cardValue(p.id, v) }));
   });
   return out.sort((a, b) => a.value - b.value || person(a.person).name.localeCompare(person(b.person).name, "pl"));
@@ -472,7 +473,7 @@ function renderUpgrader() {
       <h3>Cel</h3>
       <div class="upg-filters">
         <input type="text" id="uSearch" placeholder="🔍 Szukaj…" value="${esc(u.search)}">
-        <select id="uVariant">${[["all", "Wszystkie"], ...S.cfg.variantOrder.filter(v => !isExclusive(v)).map(v => [v, variantName(v)])].map(([v, n]) =>
+        <select id="uVariant">${[["all", "Wszystkie"], ...S.cfg.variantOrder.filter(v => !isExclusive(v) && (v === "normal" || variantOn(v))).map(v => [v, variantName(v)])].map(([v, n]) =>
           `<option value="${v}"${u.variant === v ? " selected" : ""}>${n}</option>`).join("")}</select>
         ${sortSelectHTML(u.sortTarget, 'data-fsort="target"', UNIQUE_SORTS)}
       </div>

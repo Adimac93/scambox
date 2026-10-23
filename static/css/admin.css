@@ -158,3 +158,10 @@ fieldset.a-special { border-color: #19e6ff66; }
 .a-msg-body { white-space: pre-wrap; font-size: 13px; }
 .a-msg-state { font-size: 12px; font-weight: 700; }
 .a-msg-state.now { color: var(--good, #3ddc84); } .a-msg-state.later { color: #19e6ff; } .a-msg-state.past { color: var(--muted); }
+
+/* zakładki panelu admina: ta strona + strony adminów w grze (/variants, /stickers, /mockups) */
+.a-tabs { display: flex; gap: 4px; flex-wrap: wrap; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 4px; }
+.a-tabs a { color: var(--muted); text-decoration: none; font-weight: 700; font-size: 14px; padding: 7px 12px; border-radius: 9px; white-space: nowrap; }
+.a-tabs a:hover { color: var(--text); }
+.a-tabs a.active { background: var(--panel2); color: var(--text); box-shadow: 0 2px 6px #0006; }
+@media (max-width: 900px) { .topbar:has(.a-tabs) { flex-wrap: wrap; } .a-tabs { order: 3; width: 100%; overflow-x: auto; flex-wrap: nowrap; } }

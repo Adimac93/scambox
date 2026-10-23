@@ -10,6 +10,7 @@ Karta może należeć do kilku skrzynek: pole "crates" (lista), "crate" to skrzy
 """
 import json
 import re
+import time
 
 import data
 
@@ -46,8 +47,134 @@ def clean_country(raw):
 def crate_variants(crate, person=None):
     """Warianty wyjątkowe, które mogą wypaść z tej skrzynki (dla tej karty: flagowy tylko z ustawionym krajem,
     plus warianty przypisane do samej karty, np. Rzulty)."""
-    out = [v for v in crate.get("variants") or [] if v != "flag" or person is None or person.get("country")]
+    out = [v for v in crate.get("variants") or [] if (v != "flag" or person is None or person.get("country"))
+           and variant_released(v)]
     return out + (data.card_variants(person["id"]) if person is not None else [])
+
+
+# ---------------------------------------------------------------- ustawienia wariantów (strona /variants)
+# Admin może wariant wyłączyć / włączyć (wyłączony nie wypada nigdzie: skrzynki, kontrakt, ulepszacz, kasyno - karty, które
+# gracze już mają, zostają), zmienić szansę / wagę i opis oraz zaplanować WYDARZENIA: od - do wariant wypada ze wszystkich
+# albo z wybranych skrzynek (także wyłączony albo wyjątkowy spoza tej skrzynki), opcjonalnie z większą szansą ("boost").
+
+def clean_variant_events(raw):
+    """Wydarzenia wariantu: [{"id", "start", "end" (sekundy unix), "crates": [] = wszystkie skrzynki, "boost", "note"}]."""
+    out, seen = [], set()
+    for e in raw if isinstance(raw, list) else []:
+        if not isinstance(e, dict) or not STICKER_ID_RE.match(str(e.get("id") or "")) or e["id"] in seen:
+            continue
+        start, end = _int(e.get("start"), 0, 4 * 10 ** 9), _int(e.get("end"), 0, 4 * 10 ** 9)
+        if start is None or end is None or end <= start:
+            continue
+        seen.add(e["id"])
+        out.append({"id": e["id"], "start": start, "end": end,
+                    "crates": [c for c in dict.fromkeys(e.get("crates") or []) if isinstance(c, str)][:100],
+                    "boost": _num(e.get("boost"), 1, data.VARIANT_BOOST_MAX, 1),
+                    "note": str(e.get("note") or "").strip()[:80]})
+    return sorted(out, key=lambda e: e["start"])[-data.VARIANT_EVENT_MAX:]
+
+
+def clean_variant_settings(v, raw):
+    """Ustawienia wariantu z panelu: {"enabled", "chance", "weight", "desc", "events"} - None = jak w kodzie (data.py)."""
+    raw = raw if isinstance(raw, dict) else {}
+    x = data.VARIANTS[v]
+    out = {"enabled": raw["enabled"] if isinstance(raw.get("enabled"), bool) else None,
+           # "released": wariant był już kiedyś włączony - nawet wyłączony zostaje w klaserze (gracze mogą mieć te karty)
+           "released": bool(raw.get("released")) or raw.get("enabled") is True,
+           "chance": None, "weight": None,
+           "desc": str(raw["desc"]).strip()[:300] if isinstance(raw.get("desc"), str) else None,
+           "events": [] if x.get("special") else clean_variant_events(raw.get("events"))}
+    if raw.get("chance") is not None and not x.get("always") and not x.get("special"):
+        try:
+            out["chance"] = max(0.0, min(data.VARIANT_CHANCE_MAX, float(raw["chance"])))
+        except (TypeError, ValueError):
+            pass
+    if raw.get("weight") is not None and x.get("always"):
+        out["weight"] = _int(raw.get("weight"), 1, 10000)
+    return out
+
+
+def variant_enabled(v):
+    """Czy wariant w ogóle wypada (poza wydarzeniami): ustawienie admina, a bez niego - "off" w data.py."""
+    on = VARIANT_CFG.get(v, {}).get("enabled")
+    return (not data.VARIANTS[v].get("off")) if on is None else on
+
+
+def variant_events(v):
+    return VARIANT_CFG.get(v, {}).get("events") or []
+
+
+def variant_event(v, crate_id, now=None):
+    """Trwające teraz wydarzenie wariantu w tej skrzynce (albo None)."""
+    now = time.time() if now is None else now
+    return next((e for e in variant_events(v)
+                 if e["start"] <= now < e["end"] and (not e["crates"] or crate_id in e["crates"])), None)
+
+
+def variant_released(v, now=None):
+    """Wariant był już w grze (karty mogą istnieć): jest w grze od początku (bez "off"), był kiedyś włączony
+    albo jakieś jego wydarzenie już się zaczęło."""
+    now = time.time() if now is None else now
+    return (not data.VARIANTS[v].get("off") or VARIANT_CFG.get(v, {}).get("released") or variant_enabled(v)
+            or any(e["start"] <= now for e in variant_events(v)))
+
+
+def _variant_fits(v, person):
+    """Wariant może być na tej karcie: warianty z "cards" tylko na swoich kartach, flagowy tylko z krajem,
+    warianty kart specjalnych i połączenia nigdy (połączenia powstają z warstw)."""
+    x = data.VARIANTS[v]
+    if v == "normal" or x.get("combo") or x.get("special"):
+        return False
+    if x.get("cards") and (person is None or person["id"] not in x["cards"]):
+        return False
+    return v != "flag" or person is None or bool(person.get("country"))
+
+
+def drop_variants(crate, person=None, now=None):
+    """Warianty, które mogą TERAZ wypaść z tej skrzynki (dla tej karty) i mnożniki szansy z trwających wydarzeń:
+    ([warianty], {wariant: mnożnik}). Zwykłe - gdy włączone; wyjątkowe - gdy włączone w skrzynce i w ogóle;
+    każdy wariant z trwającym wydarzeniem w tej skrzynce - zawsze."""
+    avail, boost, own = [], {}, set(crate.get("variants") or [])
+    for v in data.VARIANT_ORDER:
+        if not _variant_fits(v, person):
+            continue
+        x, ev = data.VARIANTS[v], variant_event(v, crate.get("id"), now)
+        if ev:
+            if ev["boost"] != 1:
+                boost[v] = ev["boost"]
+        elif not variant_enabled(v) or (x.get("exclusive") and not x.get("cards") and v not in own):
+            continue
+        avail.append(v)
+    return avail, boost
+
+
+def base_variants():
+    """Warianty z kontraktu, cele ulepszacza i wygrane w kasynie: włączone, nie wyjątkowe."""
+    return [v for v in data.VARIANT_ORDER if _variant_fits(v, None) and not data.VARIANTS[v].get("exclusive")
+            and variant_enabled(v)]
+
+
+def event_variants(person, now=None):
+    """Warianty, które trafiły na tę kartę dzięki wydarzeniom (już rozpoczętym) w jej skrzynkach."""
+    now, crates = time.time() if now is None else now, set(person.get("crates") or [])
+    return {v for v in VARIANT_CFG if _variant_fits(v, person)
+            and any(e["start"] <= now and (not e["crates"] or crates & set(e["crates"])) for e in variant_events(v))}
+
+
+def variant_cfg_json(v, admin=False):
+    """Ustawienia wariantu dla przeglądarki: włączony i wydarzenia (gracze: trwające i rozpoczęte - żeby wiedzieć,
+    że wariant był już w grze; admini: wszystkie, z zapisanymi ustawieniami i wartościami z kodu)."""
+    now = time.time()
+    events = variant_events(v)
+    if not admin:
+        events = [e for e in events if e["start"] <= now]
+        events = [e for e in events if e["end"] > now] or events[-1:]
+    out = {"enabled": variant_enabled(v), "released": bool(variant_released(v)), "events": events}
+    if admin:
+        cfg = VARIANT_CFG.get(v, {})
+        out.update(saved={k: cfg.get(k) for k in ("enabled", "chance", "weight", "desc")},
+                   defaults=data.VARIANT_DEFAULTS.get(v), off=bool(data.VARIANTS[v].get("off")))
+    return out
 
 
 def photo_variants(pid):
@@ -68,17 +195,19 @@ def is_special(person):
 
 
 def possible_variants(person):
-    """Warianty, w których ta karta może istnieć: zwykłe zawsze, wyjątkowe tylko z jej skrzynek (flagowy - z krajem),
+    """Warianty, w których ta karta może istnieć: zwykłe (włączone albo już kiedyś w grze), wyjątkowe tylko z jej skrzynek
+    i z wydarzeń w jej skrzynkach (flagowy - z krajem),
     własne warianty karty (np. Rzulty tylko dla Jana Pawła II) i połączenia flagi z każdym z nich ("flag+gold")
     (Lampionowa / Diabelska - "noCombo" - bez połączeń). Karta specjalna - tylko jej jeden wariant."""
     if is_special(person):
         return [person["fixedVariant"]]
-    extra = set(data.card_variants(person["id"]))
+    extra = set(data.card_variants(person["id"])) | event_variants(person)
     for c in person.get("crates") or []:
         if c in CRATES:
             extra |= set(crate_variants(CRATES[c], person))
+    # zwykłe warianty - jeśli są (albo były) w grze: Brązowy, wyłączony od początku, nie pojawia się w klaserze
     base = [v for v in data.VARIANT_ORDER if not data.VARIANTS[v].get("combo")
-            and (not data.VARIANTS[v].get("exclusive") or v in extra)]
+            and (v == "normal" or v in extra or (not data.VARIANTS[v].get("exclusive") and variant_released(v)))]
     combos = {data.combine_variant(layer, b) for layer in base
               if data.VARIANTS[layer].get("layer") and not data.VARIANTS[layer].get("noCombo")
               for b in base if b != "normal" and not data.VARIANTS[b].get("layer")}
@@ -182,11 +311,13 @@ HIDDEN_CRATES = {}  # wbudowane, ukryte przez admina
 HIDDEN_CARDS = {}
 STICKERS = {}       # wariant -> naklejki od admina (clean_stickers), tylko warianty z "stickers" w data.VARIANTS
 STICKER_CARDS = {}  # wariant -> {karta: zmiany naklejek na tej karcie (clean_card_stickers)}
+VARIANT_CFG = {}    # wariant -> ustawienia z panelu (clean_variant_settings): włączony, szansa, opis, wydarzenia
 
 
 def init_tables(conn):
-    # catalog_variants: zmiany wariantów z panelu admina - na razie naklejki (id = klucz wariantu):
-    # {"stickers": [standardowe naklejki], "cards": {karta: {"edits": {...}, "extra": [...]}}}
+    # catalog_variants: zmiany wariantów z panelu admina (id = klucz wariantu) - naklejki (/stickers)
+    # {"stickers": [standardowe naklejki], "cards": {karta: {"edits": {...}, "extra": [...]}}} i ustawienia (/variants)
+    # {"settings": {"enabled", "chance", "weight", "desc", "events": [...]}}
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS catalog_crates (id TEXT PRIMARY KEY, data TEXT NOT NULL DEFAULT '{}', deleted INTEGER NOT NULL DEFAULT 0);
         CREATE TABLE IF NOT EXISTS catalog_cards  (id TEXT PRIMARY KEY, data TEXT NOT NULL DEFAULT '{}', deleted INTEGER NOT NULL DEFAULT 0);
@@ -215,12 +346,21 @@ def crate_weight(crate, rarity):
 
 
 def rebuild(conn):
-    global CRATES, PEOPLE, HIDDEN_CRATES, HIDDEN_CARDS, STICKERS, STICKER_CARDS
+    global CRATES, PEOPLE, HIDDEN_CRATES, HIDDEN_CARDS, STICKERS, STICKER_CARDS, VARIANT_CFG
     crates, people, hidden_crates, hidden_cards = {}, {}, {}, {}
-    STICKERS, STICKER_CARDS = {}, {}
+    STICKERS, STICKER_CARDS, variant_cfg = {}, {}, {}
+    for v, d in data.VARIANT_DEFAULTS.items():   # ustawienia z panelu nakładamy zawsze na wartości z kodu
+        data.VARIANTS[v]["chance"], data.VARIANTS[v]["desc"] = d["chance"], d["desc"]
+        if d["weight"] is not None:
+            data.VARIANTS[v]["weight"] = d["weight"]
     for row in conn.execute("SELECT id, data FROM catalog_variants WHERE deleted = 0"):
+        d = json.loads(row[1] or "{}")
+        if row[0] in data.VARIANT_DEFAULTS and "settings" in d:
+            variant_cfg[row[0]] = vs = clean_variant_settings(row[0], d["settings"])
+            for k in ("chance", "weight", "desc"):
+                if vs[k] is not None:
+                    data.VARIANTS[row[0]][k] = vs[k]
         if row[0] in data.STICKER_VARIANTS:
-            d = json.loads(row[1] or "{}")
             STICKERS[row[0]] = clean_stickers(d.get("stickers"))
             cards = {pid: clean_card_stickers(own) for pid, own in (d.get("cards") or {}).items()}
             STICKER_CARDS[row[0]] = {pid: own for pid, own in cards.items() if own}
@@ -335,7 +475,7 @@ def rebuild(conn):
         # kuźnia (kontrakt, ulepszacz) i wygrane w kasynie: tylko karty ze skrzynek, które są teraz w sklepie
         p["forge"] = any(crates[c]["shop"] for c in p["crates"])
 
-    CRATES, PEOPLE = crates, final_people
+    CRATES, PEOPLE, VARIANT_CFG = crates, final_people, variant_cfg
     HIDDEN_CRATES, HIDDEN_CARDS = hidden_crates, hidden_cards
 
 

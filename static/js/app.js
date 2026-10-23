@@ -9,7 +9,7 @@ const fmt = n => Math.round(n).toLocaleString("pl-PL") + " gr";   // waluta gry:
 
 const COUNT_CHIPS = [1, 2, 3, 5, 10, 15, 20];
 const INV_PAGE = 120;
-const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", silver: "SILVER", holo: "HOLO", gold: "GOLDEN", flag: "FLAG", halloween: "🎃 HALLOWEEN", lantern: "🏮 LAMPION", devil: "😈 DEVIL", joker: "🃏 JOKER", jeans: "👖 DŻINS", clear: "🫧 CLEAR", sketch: "✒️ SKETCH", emerald: "💚 EMERALD", amethyst: "💜 AMETHYST", ruby: "❤️ RUBY", mlg: "🎯 MLG", royal: "👑 ROYAL", diamond: "💎 DIAMOND", galaxy: "🌌 GALAXY", negative: "◐ NEGATIVE", rzulty: "💛 RZULTY" };
+const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", bronze: "BRONZE", silver: "SILVER", holo: "HOLO", pearl: "🦪 PEARL", gold: "GOLDEN", vintage: "📷 1887", marble: "🏛️ MARBLE", toxic: "☢️ TOXIC", flag: "FLAG", halloween: "🎃 HALLOWEEN", lantern: "🏮 LAMPION", devil: "😈 DEVIL", joker: "🃏 JOKER", jeans: "👖 DŻINS", clear: "🫧 CLEAR", sketch: "✒️ SKETCH", emerald: "💚 EMERALD", amethyst: "💜 AMETHYST", ruby: "❤️ RUBY", mlg: "🎯 MLG", royal: "👑 ROYAL", diamond: "💎 DIAMOND", galaxy: "🌌 GALAXY", negative: "◐ NEGATIVE", rzulty: "💛 RZULTY" };
 const GEMS = ["emerald", "amethyst", "ruby", "diamond"];  // warianty z kamieniami szlachetnymi - wspólny wygląd, inne kolory
 
 const S = {
@@ -60,24 +60,40 @@ function isExclusive(v) { return !!S.cfg.variants[v]?.exclusive; }
 // (flagowy - tylko dla kart z ustawionym krajem)
 // (warianty z polem "cards", np. Rzulty, należą do konkretnych kart - nie do skrzynki)
 // (połączenia "flag+gold" nie wypadają osobno - patrz variantChance)
+// (jak catalog.drop_variants: wyłączone warianty nie wypadają, a trwające wydarzenie włącza wariant w swoich skrzynkach)
 function crateVariants(crate, p = null) {
   return S.cfg.variantOrder.filter(v => {
     if (!isSpecial(v)) return false;
     const V = S.cfg.variants[v];
-    if (V.combo) return false;
-    if (!V.exclusive) return true;
-    if (V.cards) return !!p && V.cards.includes(p.id);
-    return (crate?.variants || []).includes(v) && (v !== "flag" || !p || p.country);
+    if (V.combo || V.special) return false;
+    if (V.cards && !(p && V.cards.includes(p.id))) return false;
+    if (v === "flag" && p && !p.country) return false;
+    if (variantEvent(v, crate?.id)) return true;
+    if (!variantOn(v)) return false;
+    return !V.exclusive || !!V.cards || (crate?.variants || []).includes(v);
   });
 }
+// Ustawienia wariantów ze strony /variants (catalog.variant_cfg_json): włączony / wyłączony i wydarzenia - od-do wariant
+// wypada ze wszystkich albo z wybranych skrzynek (e.crates puste = wszystkie), boost = mnożnik szansy
+function variantOn(v) { return S.cfg.variantCfg?.[v]?.enabled ?? !S.cfg.variants[v]?.off; }
+function variantEvent(v, crateId, now = Date.now() / 1000) {
+  return (S.cfg.variantCfg?.[v]?.events || []).find(e => e.start <= now && now < e.end && (!e.crates.length || e.crates.includes(crateId))) || null;
+}
+// wariant już był w grze (włączony kiedykolwiek albo po wydarzeniu) - tylko takie pokazujemy w klaserze
+function variantReleased(v) { return S.cfg.variantCfg?.[v]?.released ?? !S.cfg.variants[v]?.off; }
+// szansa na wariant z mnożnikiem trwającego wydarzenia w tej skrzynce
+function vChance(v, crate) { return S.cfg.variants[v].chance * (variantEvent(v, crate?.id)?.boost || 1); }
 // Warianty, w których ta karta może istnieć (jak catalog.possible_variants): zwykłe zawsze, wyjątkowe tylko z jej skrzynek,
 // własne warianty karty (Rzulty - tylko Jan Paweł II) i połączenia flagi z każdym z nich
 function possibleVariants(p) {
   if (isSpecialCard(p)) return [p.fixedVariant];   // karta specjalna istnieje tylko w jednym wariancie
-  const extra = new Set();
-  (p.crates || [p.crate]).forEach(c => { if (crateOf(c)) crateVariants(crateOf(c), p).forEach(v => extra.add(v)); });
-  const V = S.cfg.variants;
-  const base = S.cfg.variantOrder.filter(v => !V[v].combo && (!V[v].exclusive || extra.has(v)));
+  const extra = new Set(), V = S.cfg.variants, crates = p.crates || [p.crate], now = Date.now() / 1000;
+  crates.forEach(c => { if (crateOf(c)) (crateOf(c).variants || []).forEach(v => { if ((v !== "flag" || p.country) && variantReleased(v)) extra.add(v); }); });
+  S.cfg.variantOrder.forEach(v => {   // własne warianty karty i warianty z wydarzeń (już rozpoczętych) w jej skrzynkach
+    if (V[v].cards?.includes(p.id) || (!V[v].special && (v !== "flag" || p.country) && (S.cfg.variantCfg?.[v]?.events || [])
+      .some(e => e.start <= now && (!e.crates.length || e.crates.some(c => crates.includes(c)))))) extra.add(v);
+  });
+  const base = S.cfg.variantOrder.filter(v => !V[v].combo && (v === "normal" || extra.has(v) || (!V[v].exclusive && variantReleased(v))));
   const combos = new Set(base.filter(l => V[l].layer && !V[l].noCombo).flatMap(l => base.filter(b => b !== "normal" && !V[b].layer).map(b => `${l}+${b}`)));
   return S.cfg.variantOrder.filter(v => base.includes(v) || combos.has(v));
 }
@@ -95,27 +111,28 @@ function vClass(v, prefix = "v-") {
 function vtClass(v) { return isCombo(v) ? `vt-${baseVariant(v)} vt-combo vt-l-${variantParts(v)[0]}` : `vt-${v || "normal"}`; }
 // ikony warstw (przy połączonych wariantach)
 const LAYER_ICONS = { flag: "🏳️", halloween: "🎃", lantern: "🏮", devil: "😈" };
-// szansa na wariant przy wypadnięciu karty (avail = warianty możliwe w skrzynce, z crateVariants)
-function variantChance(avail, v) {
-  const V = S.cfg.variants;
+// szansa na wariant przy wypadnięciu karty (avail = warianty możliwe w skrzynce, z crateVariants; crate - do wydarzeń)
+function variantChance(avail, v, crate = null) {
+  const V = S.cfg.variants, ch = x => vChance(x, crate);
   // warianty "always" (halloweenowe): w tej skrzynce każda karta ma jeden z nich (wg "weight"), zwykły losuje się normalnie
   const always = avail.filter(x => V[x].always);
   if (always.length) {
-    const share = x => always.includes(x) ? (V[x].weight || 1) / always.reduce((a, y) => a + (V[y].weight || 1), 0) : 0;
-    const bases = avail.filter(x => !V[x].layer), rest = 1 - bases.reduce((a, x) => a + V[x].chance, 0);
+    const w = x => (V[x].weight || 1) * (variantEvent(x, crate?.id)?.boost || 1);
+    const share = x => always.includes(x) ? w(x) / always.reduce((a, y) => a + w(y), 0) : 0;
+    const bases = avail.filter(x => !V[x].layer), rest = 1 - bases.reduce((a, x) => a + ch(x), 0);
     // "noCombo" (Lampionowa, Diabelska): karta ma tylko ten wariant, bez zwykłego
     if (!isCombo(v)) return share(v) * (V[v]?.noCombo ? 1 : rest);
     const layer = variantParts(v)[0];
-    return bases.includes(baseVariant(v)) && !V[layer].noCombo ? share(layer) * V[baseVariant(v)].chance : 0;
+    return bases.includes(baseVariant(v)) && !V[layer].noCombo ? share(layer) * ch(baseVariant(v)) : 0;
   }
-  if (!isSpecial(v)) return 1 - avail.reduce((a, x) => a + V[x].chance, 0);
+  if (!isSpecial(v)) return 1 - avail.reduce((a, x) => a + ch(x), 0);
   if (isCombo(v)) {
     const [layer, base] = variantParts(v);
-    const bases = avail.filter(x => !V[x].layer), tot = bases.reduce((a, x) => a + V[x].chance, 0);
-    return avail.includes(layer) && bases.includes(base) && tot ? V[layer].chance * V[layer].extraChance * V[base].chance / tot : 0;
+    const bases = avail.filter(x => !V[x].layer), tot = bases.reduce((a, x) => a + ch(x), 0);
+    return avail.includes(layer) && bases.includes(base) && tot ? ch(layer) * V[layer].extraChance * ch(base) / tot : 0;
   }
   if (!avail.includes(v)) return 0;
-  return V[v].chance * (1 - (V[v].extraChance || 0));
+  return ch(v) * (1 - (V[v].extraChance || 0));
 }
 // rodzaje zdolności: ofensywna, defensywna, lecząca, ekonomiczna
 const KIND_ICONS = { off: "⚔", def: "🛡", heal: "💚", eco: "🪙" };
@@ -233,8 +250,9 @@ function variantLayers(v, p = null) {
     if (x === "halloween") html += halloweenDeco();
     if (x === "lantern") html += lanternDeco();
     if (x === "devil") html += devilDeco();
+    if (x === "toxic") html += toxicDeco();
     if (x === "holo") html += '<div class="holo-layer"></div>';
-    if (x === "gold" || x === "silver") html += '<div class="gold-sheen"></div>';
+    if (x === "gold" || x === "silver" || x === "bronze") html += '<div class="gold-sheen"></div>';
     if (x === "clear") html += '<div class="clear-sheen"></div>';
     // nad kartą: migoczące gwiazdy i co jakiś czas spadająca gwiazda (każda karta w innym momencie i miejscu)
     if (x === "galaxy") html += `<div class="galaxy-stars"></div><div class="galaxy-shoot" style="--sd:-${rand(0, 11).toFixed(1)}s;--st:${Math.round(rand(4, 50))}%;--sl:${Math.round(rand(-30, 10))}%"><i></i></div>`;
@@ -314,6 +332,33 @@ function devilBG(variant) {
 }
 function devilDeco() { return `<div class="dv-out">${hwUse("dv-horn", "dv-horn l")}${hwUse("dv-horn", "dv-horn r")}</div>`; }
 
+// Perłowa, Vintage, Marmurowa, Toksyczna: tło w środku karty (pod napisami - .vx-bg) i nakładki na zdjęcie (.vx-photo,
+// na tajnej karcie w .sc-art). Perłowa: masa perłowa przesuwająca się po karcie i perłowy połysk zdjęcia; Vintage: ziarno,
+// rysy i winieta starej fotografii; Marmurowa: zdjęcie jak biały posąg; Toksyczna: jarzący się szlam i bąbelki.
+function variantBG(variant) {
+  const parts = variantParts(variant);
+  let html = "";
+  if (parts.includes("pearl")) html += '<i class="pl-nacre"></i>';
+  if (parts.includes("toxic")) html += `<i class="tx-glow"></i>${Array.from({ length: 7 }, () =>
+    `<i class="tx-bub" style="left:${rand(10, 85).toFixed(0)}%;--s:${rand(.5, 1.5).toFixed(2)};animation-delay:-${rand(0, 9).toFixed(1)}s;animation-duration:${rand(5, 10).toFixed(1)}s"></i>`).join("")}`;
+  return html ? `<div class="vx-bg">${html}</div>` : "";
+}
+function variantPhoto(variant) {
+  const parts = variantParts(variant);
+  let html = "";
+  if (parts.includes("pearl")) html += '<i class="vx-photo pl-sheen"></i>';
+  if (parts.includes("vintage")) html += '<i class="vx-photo vp-grain"></i><i class="vx-photo vp-scratch"></i><i class="vx-photo vp-vignette"></i>';
+  if (parts.includes("marble")) html += '<i class="vx-photo mr-statue"></i>';
+  if (parts.includes("toxic")) html += '<i class="vx-photo tx-photo"></i>';
+  return html;
+}
+// Toksyczna: kałuża jarzącego się szlamu na dole karty
+function toxicDeco() {
+  return '<div class="tx-puddle"><svg viewBox="0 0 66 6" preserveAspectRatio="none" aria-hidden="true"><path d="M0 1.6 Q10 -.2 20 1.2 T40 .8 T58 .4 T66 1.2 V6 H0Z"/></svg></div>';
+}
+// Vintage: zamiast "typ · skrzynka" pieczątka atelier fotograficznego (podtytuł z panelu admina ma pierwszeństwo)
+const VINTAGE_STAMP = "Atelier ScamBox · Warszawa · 1887";
+
 // Karty specjalne - wariant Jokerowa "Talia Kasynowa" (joker-talia.css): karta do gry na zielonym suknie - na szerokich
 // marginesach indeksy JOKER z czapką błazna (symbol SVG #jk-hat w templates/index.html) i stosy żetonów; nic nie zasłania zdjęcia.
 function jokerDeco() {
@@ -392,14 +437,15 @@ function cardHTML(pid, variant = "normal") {
   <div class="card r-${p.rarity} ${vClass(variant)}${p.style ? " vs-" + p.style : ""}${abils.length > 1 ? " two-atk" : ""}${abils.length > 2 ? ` atk-${abils.length}` : ""}" data-pid="${p.id}" data-variant="${variant}"${flagStyle(p, variant)}>
     <div class="card-inner">
       ${baseVariant(variant) === "reverse" ? '<div class="rev-foil"></div>' : ""}
-      ${galaxyBG(variant)}${devilBG(variant)}${mlgBG(variant)}
+      ${galaxyBG(variant)}${devilBG(variant)}${mlgBG(variant)}${variantBG(variant)}
       <div class="card-head">
         <span class="card-name">${esc(p.name)}</span>
         <span class="card-hp"><small>HP</small>${p.hp}</span>
         <span class="card-type">${type.icon}</span>
       </div>
-      <div class="card-photo"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false">${galaxyPhoto(variant)}${halloweenPhoto(variant)}${mlgPhoto(variant)}</div>
-      <div class="card-sub${p.subtitle ? " has-subtitle" : ""}">${p.subtitle ? esc(p.subtitle) : `${type.name} · ${esc(crate.short)}`}</div>
+      <div class="card-photo"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false">${galaxyPhoto(variant)}${halloweenPhoto(variant)}${mlgPhoto(variant)}${variantPhoto(variant)}</div>
+      <div class="card-sub${p.subtitle ? " has-subtitle" : ""}">${p.subtitle ? esc(p.subtitle)
+        : variantParts(variant).includes("vintage") ? VINTAGE_STAMP : `${type.name} · ${esc(crate.short)}`}</div>
       ${abils.map((a, i) => `<div class="card-attack${i ? " atk2" : ""}${a.kind !== "off" ? " " + a.kind : ""}">
         <span class="atk-cost">${a.kind === "off" ? cost + (i ? type.icon : "") : S.cfg.abilityKinds[a.kind]?.icon || ""}</span>
         <span class="atk-name">${esc(a.name)}</span>
@@ -428,8 +474,8 @@ function secretCardHTML(p, variant) {
   return `
   <div class="card r-secret ${vClass(variant)}" data-pid="${p.id}" data-variant="${variant}"${flagStyle(p, variant)}>
     <div class="sc">
-      <div class="sc-art"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false"></div>
-      ${galaxyBG(variant)}${devilBG(variant)}${halloweenPhoto(variant)}${mlgBG(variant)}${mlgPhoto(variant)}
+      <div class="sc-art"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false">${variantPhoto(variant)}</div>
+      ${galaxyBG(variant)}${devilBG(variant)}${halloweenPhoto(variant)}${mlgBG(variant)}${mlgPhoto(variant)}${variantBG(variant)}
       <div class="sc-halo"></div>
       <div class="sc-stars"></div>
       ${baseVariant(variant) === "reverse" ? '<div class="rev-foil"></div>' : ""}
@@ -510,7 +556,7 @@ function tiltMove(e) {
   const b = zone ? zone.getBoundingClientRect() : flatRect(card);
   const px = Math.min(1, Math.max(0, (e.clientX - b.left) / b.width));
   const py = Math.min(1, Math.max(0, (e.clientY - b.top) / b.height));
-  const fancy = card.matches(".r-secret, .v-holo, .v-reverse, .v-gold, .v-silver, .v-diamond, .v-emerald, .v-ruby, .v-amethyst, .v-bw, .v-clear, .v-negative, .v-sketch, .v-galaxy, .v-mlg");
+  const fancy = card.matches(".r-secret, .v-holo, .v-reverse, .v-gold, .v-silver, .v-bronze, .v-pearl, .v-vintage, .v-marble, .v-toxic, .v-diamond, .v-emerald, .v-ruby, .v-amethyst, .v-bw, .v-clear, .v-negative, .v-sketch, .v-galaxy, .v-mlg");
   const strength = card.closest(".viewer") ? 1.5 : fancy || card.closest(".modal") ? 1 : 0.6;
   card.classList.add("tilting");
   card.style.setProperty("--rx", ((0.5 - py) * 16 * strength).toFixed(2) + "deg");
@@ -525,7 +571,7 @@ document.documentElement.addEventListener("pointerleave", () => { tiltEvent = nu
 // zasłania całą stronę - wtedy body.covered chowa stronę pod spodem (style.css: WYDAJNOŚĆ), żeby przeglądarka nie liczyła
 // animacji setek niewidocznych kart. Wszystkie te nakładki są dodawane bezpośrednio do <body>.
 const COVERS = ["body > #stage:not([hidden])", "body > .epic", "body > .sreveal", "body > .forge-anim", "body > .money-stage",
-                "body > .jp-anim", "body > .viewer"].join(", ");
+                "body > .jp-anim", "body > .viewer", "body > .vr-zoom"].join(", ");
 function updateCovered() { document.body.classList.toggle("covered", !!document.querySelector(COVERS)); }
 function watchCovers() {
   const mo = new MutationObserver(updateCovered);
@@ -687,7 +733,7 @@ function setupInstall() {
 // każda zakładka ma swój adres (/inventory...), profil gracza: /player/<nazwa>; "/" = skrzynki
 const VIEW_PATHS = { crates: "/crates", binder: "/binder", inventory: "/inventory", forge: "/forge", market: "/market", casino: "/casino",
                      friends: "/friends", ranking: "/ranking", arena: "/arena", mockups: "/mockups",
-                     stickers: "/stickers" };
+                     stickers: "/stickers", variants: "/variants" };
 
 function viewPath(view) {
   if (view === "inventory" && S.inv.mode === "hof") return "/inventory/hall-of-fame";
@@ -715,7 +761,7 @@ function showRoute(how = "none") {
 // how: "push" - nowy wpis w historii (kliknięcie), "replace" - podmiana (start), "none" - bez zmian (wstecz/dalej)
 function switchView(view, how = "push") {
   if (view === "arena" && !S.cfg.arena) view = "crates";  // Arena: na razie tylko dla adminów
-  if ((view === "mockups" || view === "stickers") && !S.me?.isAdmin) view = "crates";
+  if ((view === "mockups" || view === "stickers" || view === "variants") && !S.me?.isAdmin) view = "crates";
   const path = viewPath(view);
   if (how !== "none" && location.pathname !== path) history[how === "replace" ? "replaceState" : "pushState"](null, "", path);
   const tab = $(`.tab[data-view="${view}"]`);
@@ -736,6 +782,7 @@ function switchView(view, how = "push") {
   if (view === "arena") renderArena();
   if (view === "mockups") renderMockups();
   if (view === "stickers") renderStickers();
+  if (view === "variants") renderVariants();
   else document.body.classList.remove("hs-open");  // walka w Arenie zajmuje cały ekran tylko w jej zakładce
   updateSellbar();
 }
@@ -874,10 +921,11 @@ function renderCrates() {
   const pctTxt = x => (x * 100).toLocaleString("pl-PL", { maximumFractionDigits: x < 0.001 ? 3 : 2 }) + "%";
   // warianty "always" (halloweenowe): każda karta ma jeden z nich - pokazujemy udział każdego
   const always = crateVariants(crate).filter(v => S.cfg.variants[v].always);
-  const alwaysW = always.reduce((a, v) => a + (S.cfg.variants[v].weight || 1), 0);
+  const aw = v => (S.cfg.variants[v].weight || 1) * (variantEvent(v, crate.id)?.boost || 1);
+  const alwaysW = always.reduce((a, v) => a + aw(v), 0);
   const comboTxt = v => S.cfg.variants[v].noCombo ? "nie łączy się z innymi wariantami" : "łączy się z innymi wariantami";
   const alwaysTxt = v => always.length > 1
-    ? `${pctTxt((S.cfg.variants[v].weight || 1) / alwaysW)} kart (każda karta ma jeden z ${always.length} wariantów halloweenowych, ${comboTxt(v)})`
+    ? `${pctTxt(aw(v) / alwaysW)} kart (każda karta ma jeden z ${always.length} wariantów halloweenowych, ${comboTxt(v)})`
     : `100% — każda karta (${comboTxt(v)})`;
   $("#odds").innerHTML = rs.map(r => {
     const R = S.cfg.rarities[r];
@@ -886,9 +934,12 @@ function renderCrates() {
   }).join("") + `<div class="odds-variants">${crateVariants(crate).map(v => {
     const V = S.cfg.variants[v];
     const flags = v === "flag" ? crate.people.filter(id => person(id).country).length : null;
-    return `<span class="odd odd-v vt-${v}"><b>${isExclusive(v) ? "✨ " : ""}${V.name}</b> ${V.always ? alwaysTxt(v) : pctTxt(V.chance)} · wartość ×${String(V.mult).replace(".", ",")}${
+    const ev = variantEvent(v, crate.id);   // wydarzenie: wariant na czas (strona /variants)
+    const evTxt = ev ? ` · ⏰ do ${new Date(ev.end * 1000).toLocaleString("pl-PL", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}${
+      ev.boost !== 1 ? ` (szansa ×${String(ev.boost).replace(".", ",")})` : ""}` : "";
+    return `<span class="odd odd-v vt-${v}${ev ? " odd-event" : ""}"><b>${ev ? "⏰ " : isExclusive(v) ? "✨ " : ""}${V.name}</b> ${V.always ? alwaysTxt(v) : pctTxt(vChance(v, crate))}${evTxt} · wartość ×${String(V.mult).replace(".", ",")}${
       flags !== null ? ` · ${flags} ${plural(flags, "karta", "karty", "kart")} z flagą` : ""}${
-      V.extraChance ? ` · ${Math.round(V.extraChance * 100)}% z dodatkowym wariantem (wartości się mnożą)` : ""}${isExclusive(v) ? " · tylko w tej skrzynce" : ""}</span>`;
+      V.extraChance ? ` · ${Math.round(V.extraChance * 100)}% z dodatkowym wariantem (wartości się mnożą)` : ""}${isExclusive(v) && !ev ? " · tylko w tej skrzynce" : ""}</span>`;
   }).join("")}</div>`;
   $("#contentsGrid").innerHTML = crate.people.map(id => cardHTML(id)).join("");
 }
@@ -1213,7 +1264,8 @@ function showResults(afterEpic = false) {
       diamond: ["#e8fbff", "#9ff6ff", "#c9b8ff", "#ffffff"], emerald: ["#00c853", "#6dffb0", "#c6ffe0", "#ffffff"],
       ruby: ["#ff1744", "#ff8a9c", "#ffd0d8", "#ffffff"], amethyst: ["#9b3dff", "#c99bff", "#ecdcff", "#ffffff"], clear: ["#ffffff", "#e0f7ff", "#bfefff"],
       negative: ["#000000", "#ffffff", "#7a7a7a", "#00e5ff"], gold: ["#ffc531", "#fff3b0", "#fff"], holo: ["#9ff6ff", "#ff9ff3", "#fff"],
-      silver: ["#e6ebf2", "#b8c2d0", "#ffffff"], reverse: ["#c9d6ff", "#ffffff", "#9ff6ff"], bw: ["#ffffff", "#111111", "#888888"],
+      silver: ["#e6ebf2", "#b8c2d0", "#ffffff"], bronze: ["#cd7f32", "#f0b27a", "#ffe0c0"], pearl: ["#ffffff", "#ffd1e4", "#d3fff1", "#d3e2ff"],
+      vintage: ["#efe4cb", "#b8913d", "#6b4c22"], marble: ["#ffffff", "#d9d4c8", "#d4af37"], toxic: ["#5dff1f", "#b6ff3a", "#ffd400", "#0c1407"], reverse: ["#c9d6ff", "#ffffff", "#9ff6ff"], bw: ["#ffffff", "#111111", "#888888"],
       rzulty: ["#ffe600", "#fff6a0", "#ffffff"], flag: ["#ffffff", "#dc143c", "#ffcf3f"], halloween: ["#ff7a00", "#1a0a12", "#8a2be2", "#ffd84a"],
       lantern: ["#ffb347", "#ff7a00", "#fff1c1", "#3a1a06"], devil: ["#ff1a1a", "#b3001b", "#ffcf5a", "#120002"],
       sketch: ["#1b1712", "#f4ecd8", "#6b5d4a"], galaxy: ["#7b4dff", "#1fb6ff", "#ff4fd8", "#ffffff"],

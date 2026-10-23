@@ -325,6 +325,35 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
 .pick.v-silver img { filter: grayscale(1) brightness(1.1) contrast(1.1); }
 .pick.v-silver { box-shadow: inset 0 0 0 2px #dfe6f0, inset 0 -26px 26px -18px var(--rc); }
 
+/* Brązowa - jak Srebrna i Złota, ale z ciepłego, ciemniejszego brązu (najczęstsza z trzech metalowych) */
+.var-tag.vt-bronze, .ph.vt-bronze { background: linear-gradient(90deg, #6b3410, #f6c08e, #a65e2a); color: #2a1204; text-shadow: none; box-shadow: 0 0 .6em #e0985a; }
+.vdot.vt-bronze { background: #cd7f32; }
+.odd.odd-v.vt-bronze { border-left-color: #cd7f32; }
+.card.v-bronze {
+  --frame: linear-gradient(115deg, #5a2e0e, #e8a86a 18%, #8c4a1c 36%, #ffd2a1 50%, #7a3d12 66%, #d9915a 84%, #5a2e0e);
+  box-shadow: 0 6px 18px #000a, 0 0 22px #cd7f32aa;
+}
+.card.v-bronze::before { background: var(--frame); background-size: 250% 250%; animation: goldShift 3.2s ease-in-out infinite; }
+.card.v-bronze .card-inner {
+  background: repeating-linear-gradient(90deg, #ffffff12 0 1px, transparent 1px 3px),
+              linear-gradient(160deg, #f3c9a0, #b8723d 35%, #efc196 55%, #8e4f22 80%, #e0a676);
+  color: #2e1405;
+}
+.card.v-bronze .card-photo img, .r-secret.v-bronze .sc-art img { filter: sepia(1) saturate(1.25) hue-rotate(-16deg) brightness(.96) contrast(1.15); }
+.card.v-bronze .card-name { background: linear-gradient(180deg, #6a3410, #2a1204); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.card.v-bronze .card-sub, .card.v-bronze .card-stats, .card.v-bronze .card-foot { color: #3d1c06; }
+.card.v-bronze .card-photo { border-image: linear-gradient(135deg, #ffd2a1, #8c4a1c, #f0b27a, #5a2e0e) 1; }
+.card.v-bronze .gold-sheen { opacity: .75; }
+.pick.v-bronze img { filter: sepia(1) saturate(1.2) hue-rotate(-16deg) contrast(1.1); }
+.pick.v-bronze { box-shadow: inset 0 0 0 2px #cd7f32, inset 0 -26px 26px -18px var(--rc); }
+.pick.v-bronze::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(115deg, transparent 30%, #ffffff45 45%, transparent 60%); background-size: 250% 100%;
+  animation: photoGlint 3s ease-in-out infinite;
+}
+/* wariant z trwającego wydarzenia (strona /variants) w zawartości skrzynki */
+.odd.odd-v.odd-event { outline: 1px dashed #ffcf3f88; outline-offset: -1px; }
+
 /* Kamienie szlachetne: Szmaragdowa (zielona), Rubinowa (czerwona), Diamentowa (lodowy błękit).
    Jeden wygląd - pryzmatyczna ramka, fasety, zabarwione zdjęcie, błyski - kolory z własnych zmiennych --gem-* */
 .v-diamond, .vt-diamond, .avv-diamond {
@@ -1019,6 +1048,122 @@ a.icon-btn { display: grid; place-items: center; text-decoration: none; }
   96%, 100% { transform: translateY(0); opacity: 0; }
 }
 @keyframes vsBlink { 50% { opacity: 0; } }
+
+/* ============================================================ PERŁOWA, VINTAGE, MARMUROWA, TOKSYCZNA (strona /variants: makiety
+   wybrane przez adminów; domyślnie wyłączone - "off" w data.py). Tło w środku karty: .vx-bg (variantBG w app.js),
+   nakładki na zdjęcie: .vx-photo (variantPhoto), kałuża Toksycznej: .tx-puddle (toxicDeco). Faktury z filtrów SVG. */
+:root {
+  --tx-grain: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .55 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  --tx-paper: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='.035' numOctaves='4' seed='7' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .45  0 0 0 0 .3  0 0 0 0 .12  0 0 0 .5 -.12'/></filter><rect width='100%25' height='100%25' filter='url(%23p)'/></svg>");
+  --tx-veins: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='560'><filter id='m' x='0' y='0'><feTurbulence type='turbulence' baseFrequency='.006 .016' numOctaves='5' seed='11'/><feColorMatrix values='0 0 0 0 .35  0 0 0 0 .35  0 0 0 0 .38  -11 0 0 0 1.15'/></filter><rect width='100%25' height='100%25' filter='url(%23m)'/></svg>");
+  --tx-veins-soft: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='560'><filter id='m' x='0' y='0'><feTurbulence type='turbulence' baseFrequency='.01 .022' numOctaves='4' seed='3'/><feColorMatrix values='0 0 0 0 .45  0 0 0 0 .44  0 0 0 0 .44  -4 0 0 0 .8'/></filter><rect width='100%25' height='100%25' filter='url(%23m)'/></svg>");
+  --tx-veins-gold: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='560'><filter id='m' x='0' y='0'><feTurbulence type='turbulence' baseFrequency='.004 .012' numOctaves='4' seed='5'/><feColorMatrix values='0 0 0 0 .86  0 0 0 0 .68  0 0 0 0 .25  -14 0 0 0 1.25'/></filter><rect width='100%25' height='100%25' filter='url(%23m)'/></svg>");
+  --tx-waves: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='w'><feTurbulence type='fractalNoise' baseFrequency='.004 .045' numOctaves='3' seed='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  2.2 0 0 0 -1'/></filter><rect width='100%25' height='100%25' filter='url(%23w)'/></svg>");
+}
+.vx-bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; border-radius: inherit; }
+.vx-bg > i, .vx-photo { position: absolute; display: block; pointer-events: none; }
+.vx-photo { inset: 0; z-index: 1; }
+.card:is(.v-pearl, .v-toxic) .card-inner > :where(:not(.vx-bg, .galaxy-bg, .dv-bg, .mlg-bg)) { position: relative; z-index: 1; }
+.r-secret .vx-bg { z-index: 1; mix-blend-mode: screen; opacity: .55; }
+
+/* tagi, kropki, zawartość skrzynki */
+.var-tag.vt-pearl, .ph.vt-pearl { background: linear-gradient(90deg, #ffffff, #f6dbe7, #d6eef6, #ffffff); background-size: 200% 100%; color: #6a5864; text-shadow: none; box-shadow: 0 0 .7em #fff; animation: rainbowSlide 4s linear infinite; }
+.var-tag.vt-vintage, .ph.vt-vintage { background: #efe2c2; color: #4a3015; border: 1px solid #6b4c22; font-family: "IM Fell English", Georgia, serif; font-weight: 400; letter-spacing: .12em; text-shadow: none; box-shadow: .1em .1em 0 #0004; }
+.var-tag.vt-marble, .ph.vt-marble { background: linear-gradient(90deg, #b8932c, #f6e7a9, #b8932c); color: #3d2c06; font-family: Cinzel, Georgia, serif; letter-spacing: .1em; text-shadow: none; box-shadow: 0 0 .5em #d4af3788; }
+.var-tag.vt-toxic, .ph.vt-toxic { background: #0c1407; color: #b6ff3a; border: 1px solid #5dff1f; box-shadow: 0 0 .8em #5dff1f; text-shadow: 0 0 .4em #5dff1f; }
+.vdot.vt-pearl { background: linear-gradient(135deg, #ffffff, #f6dbe7, #d6eef6); } .vdot.vt-vintage { background: #b8913d; }
+.vdot.vt-marble { background: linear-gradient(135deg, #ffffff, #c9c4b8); } .vdot.vt-toxic { background: #5dff1f; box-shadow: 0 0 6px #5dff1f; }
+.odd.odd-v.vt-pearl { border-left-color: #f6dbe7; } .odd.odd-v.vt-vintage { border-left-color: #b8913d; }
+.odd.odd-v.vt-marble { border-left-color: #f3efe6; } .odd.odd-v.vt-toxic { border-left-color: #5dff1f; }
+
+/* Perłowa - masa perłowa: mleczna biel z pastelowymi refleksami, które powoli przesuwają się po karcie */
+.card.v-pearl {
+  --frame: linear-gradient(135deg, #fffaf6, #e9dfe6 20%, #ffffff 35%, #d8e6ef 50%, #fbeef2 65%, #e6e0f2 80%, #fffaf6);
+  box-shadow: 0 6px 18px #000a, 0 0 22px #fff1f5aa;
+}
+.card.v-pearl::before { background: var(--frame); background-size: 260% 260%; animation: goldShift 7s ease-in-out infinite; }
+.card.v-pearl .card-inner { background: linear-gradient(165deg, #fffdfb, #f4ece9 40%, #fbf7f4 60%, #ece6ee); color: #4a3f48; }
+.card.v-pearl .card-photo { border-image: linear-gradient(135deg, #ffffff, #ead9e3, #d6e9f1, #ffffff, #e7def4) 1; }
+.card.v-pearl .card-photo > img, .r-secret.v-pearl .sc-art img { filter: sepia(.12) saturate(.85) brightness(1.06); }
+.card.v-pearl .card-name { color: #5c4d58; }
+.card.v-pearl :is(.card-sub, .card-stats, .card-foot) { color: #6d5f69; }
+.pl-nacre { inset: -30%; opacity: .72; mix-blend-mode: multiply; animation: plSwirl 16s linear infinite; will-change: transform;
+  background: repeating-linear-gradient(115deg, #ffd1e4 0%, #d3fff1 5%, #d3e2ff 10%, #fff0cf 15%, #ffd1e4 20%); }
+.pl-nacre::after { content: ""; position: absolute; inset: 0; background: var(--tx-waves); background-size: 60% 60%; mix-blend-mode: screen; opacity: .9; }
+@keyframes plSwirl { to { transform: translate(14%, 6%) rotate(8deg); } }
+.pl-sheen { mix-blend-mode: soft-light; background: linear-gradient(125deg, #ffc9df, #c9fff0 30%, #c9dcff 60%, #fff0c9); }
+.pl-sheen::after { content: ""; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 35%, #ffffffbb 48%, transparent 60%) 0 0 / 250% 100%; animation: photoGlint 3.4s ease-in-out infinite; mix-blend-mode: overlay; }
+.r-secret.v-pearl .vx-bg { mix-blend-mode: soft-light; opacity: .9; }
+.r-secret.v-pearl .sc-border { background: conic-gradient(from var(--ang, 0deg), #ffffff, #f6dbe7, #d6eef6, #fff3d6, #e7def4, #ffffff); }
+.pick.v-pearl img { filter: sepia(.12) saturate(.85) brightness(1.08); }
+.pick.v-pearl { box-shadow: inset 0 0 0 2px #f6dbe7, 0 0 8px #ffffff66, inset 0 -26px 26px -18px var(--rc); }
+
+/* Vintage - karta gabinetowa z XIX wieku: zdjęcie w sepii na kremowym kartonie, złocony brzeg, pieczątka atelier */
+.card.v-vintage { --frame: linear-gradient(135deg, #b8913d, #f6e2a4 30%, #9c7a2f 60%, #e9d08f); --spin: initial; border-radius: 6%/4.3%; }
+.card.v-vintage .card-inner { background: var(--tx-paper), linear-gradient(170deg, #f3e9d2, #e7d8b6); color: #4a3015; }
+.card.v-vintage .card-name { font-family: "IM Fell English", Georgia, serif; font-weight: 400; font-size: 1.15em; }
+.card.v-vintage .atk-name { font-family: "IM Fell English", Georgia, serif; font-weight: 400; font-size: .78em; }
+.card.v-vintage :is(.card-stats, .card-foot, :where(.card-stats b)) { color: #5a3d1c; }
+.card.v-vintage .card-photo { border: .12em solid #b8913d; border-image: none; box-shadow: 0 0 0 .25em #efe4cb, 0 0 0 .32em #b8913d88; margin: 4% 4% 0; }
+.card.v-vintage .card-photo > img, .r-secret.v-vintage .sc-art img { filter: sepia(.9) contrast(1.12) brightness(.95) saturate(.85); animation: vpFlicker 5s steps(1) infinite; }
+@keyframes vpFlicker { 0%, 100% { filter: sepia(.9) contrast(1.12) brightness(.95) saturate(.85); } 47% { filter: sepia(.9) contrast(1.14) brightness(1.02) saturate(.85); } 48% { filter: sepia(.9) contrast(1.1) brightness(.9) saturate(.85); } }
+.card.v-vintage .card-sub { font-family: "IM Fell English", Georgia, serif; font-style: italic; font-size: .52em; color: #6b4c22; background: none; letter-spacing: .03em; }
+.card.v-vintage .card-attack { border-color: #6b4c2233; }
+.vp-grain { background: var(--tx-grain) 0 0 / 120px; mix-blend-mode: multiply; opacity: .45; animation: vpGrain .5s steps(3) infinite; }
+@keyframes vpGrain { 33% { background-position: 37px 61px; } 66% { background-position: 83px 19px; } }
+.vp-scratch { will-change: transform; background:
+  linear-gradient(93deg, transparent 22%, #fff7 22.3%, transparent 22.6%), linear-gradient(88deg, transparent 63%, #0005 63.2%, transparent 63.5%),
+  linear-gradient(91deg, transparent 80%, #fff5 80.15%, transparent 80.3%), radial-gradient(circle at 30% 70%, #fff8 0 .4%, transparent .6%), radial-gradient(circle at 72% 24%, #0006 0 .5%, transparent .7%);
+  animation: vpJump 1.2s steps(1) infinite; }
+@keyframes vpJump { 50% { transform: translateX(7%); } 75% { transform: translateX(-11%) scaleY(-1); } }
+.vp-vignette { background: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 45%, #3a1f0899 85%, #1e0e03dd); }
+.r-secret.v-vintage .sc-border { background: linear-gradient(135deg, #b8913d, #f6e2a4 30%, #9c7a2f 60%, #e9d08f); animation: none; }
+.r-secret.v-vintage :is(.sc-name) { font-family: "IM Fell English", Georgia, serif; font-weight: 400; }
+.pick.v-vintage img { filter: sepia(.9) contrast(1.1); }
+.pick.v-vintage { box-shadow: inset 0 0 0 2px #b8913d, inset 0 -26px 26px -18px var(--rc); }
+
+/* Marmurowa - biały marmur Carrara z szarymi i złotymi żyłkami, zdjęcie jak biały posąg */
+.card.v-marble { --frame: linear-gradient(135deg, #b8932c, #f6e7a9 25%, #a88220 50%, #f6e7a9 75%, #b8932c); --spin: initial; box-shadow: 0 6px 18px #000a, 0 0 18px #f6e7a955; }
+.card.v-marble .card-inner { background: var(--tx-veins-gold) 0 0 / 150% auto, var(--tx-veins) 0 0 / 120% auto, linear-gradient(160deg, #fdfcf9, #ecebe6 50%, #f8f7f3); color: #3d3a33; }
+.card.v-marble .card-name { font-family: Cinzel, Georgia, serif; font-weight: 900; letter-spacing: .03em;
+  background: linear-gradient(180deg, #4a4538, #1f1c16); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.card.v-marble .atk-name { font-family: Cinzel, Georgia, serif; }
+.card.v-marble .card-photo { border-image: linear-gradient(135deg, #f6e7a9, #a88220, #fff3c4, #8a6a14) 1; }
+.card.v-marble .card-sub { background: linear-gradient(90deg, transparent, #d4af3733, transparent); }
+.card.v-marble .card-photo > img, .r-secret.v-marble .sc-art img { filter: grayscale(1) brightness(1.4) contrast(.72) blur(.2px); }
+.mr-statue { background: linear-gradient(180deg, #fbf8f1, #ddd6c8); mix-blend-mode: color; }
+.mr-statue::before { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse 60% 70% at 50% 35%, transparent 40%, #b9b09e66); mix-blend-mode: multiply; }
+.mr-statue::after { content: ""; position: absolute; inset: 0; background: var(--tx-veins-soft) 0 0 / 160% auto; mix-blend-mode: multiply; opacity: .45; }
+.r-secret.v-marble .sc-border { background: linear-gradient(135deg, #b8932c, #f6e7a9 25%, #a88220 50%, #f6e7a9 75%, #b8932c); animation: none; }
+.r-secret.v-marble .sc-name { font-family: Cinzel, Georgia, serif; }
+.pick.v-marble img { filter: grayscale(1) brightness(1.35) contrast(.75); }
+.pick.v-marble { box-shadow: inset 0 0 0 2px #d4af37, inset 0 -26px 26px -18px var(--rc); }
+
+/* Toksyczna - radioaktywny szlam: ciemna karta, neonowa zieleń, bąbelki, kałuża i taśma ostrzegawcza zamiast podpisu */
+.card.v-toxic { --frame: linear-gradient(160deg, #2a3a1c, #0c1407 50%, #233016); --spin: initial; box-shadow: 0 6px 18px #000c, 0 0 28px #5dff1f88; }
+.card.v-toxic .card-inner { background: radial-gradient(130% 70% at 50% 115%, #2f6b0a, #0e1a08 60%, #070b05); color: #b6ff3a; }
+.card.v-toxic :is(.card-name, .card-stats, :where(.card-stats b), .card-foot, .atk-dmg, .card-value) { color: #b6ff3a; text-shadow: 0 0 .4em #5dff1f; }
+.card.v-toxic .card-hp { color: #ff5d3a; }
+.card.v-toxic .card-attack { border-color: #5dff1f44; }
+.card.v-toxic .card-type { background: #0e1a08; box-shadow: 0 0 0 .1em #5dff1f88; }
+.card.v-toxic .card-photo { border-image: linear-gradient(135deg, #b6ff3a, #1f5f00, #5dff1f, #0e2a02) 1; box-shadow: 0 0 1em #5dff1f66; }
+.card.v-toxic .card-photo > img, .r-secret.v-toxic .sc-art img { filter: grayscale(1) contrast(1.35) brightness(.95); }
+.card.v-toxic .card-sub { background: repeating-linear-gradient(45deg, #ffd400 0 2.2cqw, #111 2.2cqw 4.4cqw); margin-inline: -5.5%; padding: .3em 0;
+  color: #000; text-shadow: 0 0 .3em #ffd400, 0 0 .3em #ffd400; font-weight: 900; }
+.tx-photo { background: linear-gradient(180deg, #9cff4a, #1f8f00); mix-blend-mode: multiply; }
+.tx-photo::after { content: ""; position: absolute; inset: 0; background: radial-gradient(70% 50% at 50% 100%, #5dff1f66, transparent); animation: txPulse 2.4s ease-in-out infinite; }
+.tx-glow { left: -10%; right: -10%; bottom: -12%; height: 45%; background: radial-gradient(50% 50% at 50% 70%, #5dff1f88, transparent 70%); animation: txPulse 2.4s ease-in-out infinite; }
+@keyframes txPulse { 50% { opacity: .55; } }
+.tx-bub { bottom: 2%; width: 5%; aspect-ratio: 1; border-radius: 50%; will-change: transform, opacity;
+  background: radial-gradient(circle at 35% 30%, #eaffb0, #5dff1f 55%, #1f8f00); box-shadow: 0 0 6px #5dff1f; animation: txRise ease-in infinite; }
+@keyframes txRise { 0% { transform: translateY(0) scale(.4); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(-40cqw) scale(var(--s, 1)); opacity: 0; } }
+.tx-puddle { position: absolute; left: -2%; right: -2%; bottom: -1.5%; height: 7%; z-index: 2; pointer-events: none; filter: drop-shadow(0 0 1cqw #5dff1f); }
+.tx-puddle svg { width: 100%; height: 100%; display: block; }
+.tx-puddle path { fill: #5dff1f; }
+.r-secret.v-toxic .sc-border { background: conic-gradient(from var(--ang, 0deg), #0c1407, #5dff1f, #b6ff3a, #1f5f00, #0c1407); }
+.r-secret.v-toxic :is(.sc-name, .sc-hp) { color: #b6ff3a !important; text-shadow: 0 0 .4em #5dff1f; }
+.pick.v-toxic img { filter: grayscale(1) contrast(1.3) sepia(1) hue-rotate(45deg) saturate(4) brightness(.9); }
+.pick.v-toxic { box-shadow: inset 0 0 0 2px #5dff1f, 0 0 10px #5dff1f66, inset 0 -26px 26px -18px var(--rc); }
 
 /* ============================================================ WYDAJNOŚĆ
    Tajne i flagowe karty mają własne tło (czarne / flaga) - bez animowanej ramki w ::before (style.css). */

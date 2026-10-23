@@ -1,0 +1,89 @@
+/* ============================================================ WARIANTY (/variants, tylko admini, variants.js)
+   po lewej lista wariantów ze statusem, po prawej podgląd karty + ustawienia, gdzie wypada, wydarzenia, inne karty */
+.vr-tabs { margin-bottom: 16px; }
+.vr-tabs button { cursor: pointer; }
+.vr-wrap { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 18px; align-items: start; }
+.vr-list { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; display: flex; flex-direction: column; gap: 14px; padding: 12px; }
+.vr-group { display: flex; flex-direction: column; gap: 4px; }
+.vr-group-t { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 0 4px 2px; }
+.vr-item {
+  display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 10px; cursor: pointer; text-align: left;
+  background: var(--panel2); border: 1px solid transparent; color: var(--text); font: inherit; font-size: 13px;
+}
+.vr-item:hover { border-color: var(--line); }
+.vr-item.active { border-color: var(--accent); box-shadow: 0 0 0 3px #ffcf3f22; }
+.vr-item .vdot { flex: none; margin: 0; }
+.vr-iname { flex: 1; min-width: 0; font-weight: 700; display: flex; flex-direction: column; }
+.vr-iname small, .vr-ist small { font-weight: 400; color: var(--muted); font-size: 11px; }
+.vr-ist { font-size: 11px; white-space: nowrap; text-align: right; display: flex; flex-direction: column; }
+.vr-item.st-off { opacity: .62; }
+.vr-item.st-off .vr-ist { color: #ff8a9c; }
+.vr-item.st-on .vr-ist { color: #7dffa8; }
+.vr-item.st-live .vr-ist { color: #ffcf3f; }
+.vr-item.st-special .vr-ist { color: var(--muted); }
+
+.vr-main { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.vr-top { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
+.vr-tools { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+.vr-tools label { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.vr-stage { display: flex; justify-content: center; padding: 50px 10px 30px; }
+.vr-stage .card { width: min(340px, 100%); --cw: min(340px, 100%); }
+.vr-title { display: flex; align-items: center; gap: 6px; }
+.vr-title .vdot { width: 14px; height: 14px; }
+
+.vr-form { display: flex; flex-direction: column; gap: 12px; }
+.vr-form > label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; color: var(--muted); }
+.vr-form textarea { resize: vertical; font: inherit; }
+.vr-switch { display: flex !important; flex-direction: row !important; align-items: center; gap: 10px; padding: 10px; border-radius: 12px; background: var(--panel2); border: 1px solid var(--line); cursor: pointer; color: var(--text) !important; }
+.vr-switch input { width: 20px; height: 20px; accent-color: #3ddc84; flex: none; }
+.vr-switch span { display: flex; flex-direction: column; font-size: 14px; }
+.vr-facts { display: flex; flex-direction: column; gap: 4px; font-size: 13px; padding: 8px 10px; border-left: 3px solid var(--line); }
+.vr-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.vr-crates { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.vr-crate { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; background: var(--panel2); border: 1px solid var(--line); opacity: .6; }
+.vr-crate.yes { opacity: 1; border-color: #3ddc8466; }
+.vr-cico { width: 34px; height: 34px; flex: none; border-radius: 8px; display: grid; place-items: center; font-size: 18px; background: var(--crate-bg); border: 2px solid #0006; }
+.vr-cname { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 13px; }
+.vr-cname small { color: var(--muted); font-size: 11px; }
+.vr-cpct { font-weight: 700; font-variant-numeric: tabular-nums; font-size: 13px; }
+.vr-crate.yes .vr-cpct { color: #7dffa8; }
+
+.vr-events { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.vr-ev { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; background: var(--panel2); border: 1px solid var(--line); }
+.vr-ev.ev-live { border-color: #ffcf3f; box-shadow: 0 0 12px #ffcf3f33; }
+.vr-ev.ev-ended { opacity: .55; }
+.vr-ev-st { font-weight: 700; font-size: 13px; width: 112px; flex: none; }
+.vr-ev-when { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 13px; }
+.vr-ev-when small { color: var(--muted); }
+.vr-evform { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--line); padding-top: 12px; }
+.vr-evform h4 { margin: 0; }
+.vr-evgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.vr-evgrid label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; color: var(--muted); }
+.vr-durs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.vr-evcrates { display: flex; flex-direction: column; gap: 6px; }
+.vr-cchecks { display: flex; flex-wrap: wrap; gap: 6px 14px; padding-left: 26px; font-size: 13px; }
+
+.vr-others { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 30px 16px; padding-top: 20px; }
+.vr-other { cursor: pointer; }
+.vr-other .card { width: 100%; --cw: 100%; }
+
+/* propozycje nowych wariantów (makiety: variant-mockups.css) */
+.vr-prop-intro { max-width: 900px; }
+.vr-prop .mock-card { cursor: zoom-in; }
+.vr-prop .mock-card .card { width: 100%; --cw: 100%; }
+.vr-prop figcaption b { font-size: 14px; }
+.vr-zoom {
+  position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center; gap: 40px; padding: 30px;
+  background: radial-gradient(circle at 40% 50%, #1d2440, #05070d 75%);
+}
+.vr-zoom-stage .card { width: min(400px, 80vw); --cw: min(400px, 80vw); }
+.vr-zoom-info { max-width: 380px; }
+.vr-zoom-info h2 { font-family: Bungee, Rubik, sans-serif; font-weight: 400; font-size: 22px; margin: 0 0 8px; }
+.vr-zoom-nav { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 1100px) { .vr-top { grid-template-columns: 1fr; } }
+@media (max-width: 900px) {
+  .vr-wrap { grid-template-columns: 1fr; }
+  .vr-list { position: static; max-height: 320px; }
+  .vr-zoom { flex-direction: column; gap: 16px; overflow: auto; justify-content: flex-start; }
+}
