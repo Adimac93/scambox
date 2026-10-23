@@ -9,7 +9,7 @@ const fmt = n => Math.round(n).toLocaleString("pl-PL") + " gr";   // waluta gry:
 
 const COUNT_CHIPS = [1, 2, 3, 5, 10, 15, 20];
 const INV_PAGE = 120;
-const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", bronze: "BRONZE", silver: "SILVER", holo: "HOLO", pearl: "🦪 PEARL", gold: "GOLDEN", vintage: "📷 1887", marble: "🏛️ MARBLE", toxic: "☢️ TOXIC", pixel: "👾 PIXEL", popart: "💥 POP!", glass: "⛪ VITRAIL", neon: "💡 NEON", thermal: "🌡️ THERMAL", blueprint: "📐 BLUEPRINT", glitch: "▓ GL1TCH", dollar: "💵 $50", flag: "FLAG", halloween: "🎃 HALLOWEEN", lantern: "🏮 LAMPION", devil: "😈 DEVIL", joker: "🃏 JOKER", jeans: "👖 DŻINS", clear: "🫧 CLEAR", sketch: "✒️ SKETCH", emerald: "💚 EMERALD", amethyst: "💜 AMETHYST", ruby: "❤️ RUBY", mlg: "🎯 MLG", royal: "👑 ROYAL", diamond: "💎 DIAMOND", galaxy: "🌌 GALAXY", negative: "◐ NEGATIVE", rzulty: "💛 RZULTY" };
+const VARIANT_TAGS = { bw: "B&W", reverse: "REVERSE", bronze: "BRONZE", silver: "SILVER", holo: "HOLO", pearl: "🦪 PEARL", gold: "GOLDEN", vintage: "📷 1887", marble: "🏛️ MARBLE", slime: "🟢 SLIME", matte: "MATTE", racing: "🏁 RETRO", bismuth: "🌈 BISMUTH", digital: "💻 DIGITAL", cyber: "🌃 CYBER", fade: "🎨 FADE", wanted: "🤠 WANTED", artdeco: "ART DÉCO", cheese: "🧀 CHEESE", aero: "🫧 AERO", greek: "🏺 GREEK", african: "🌍 AFRICA", honey: "🍯 HONEY", street: "🎨 STREET", chinese: "🏮 CHINA", moro: "🪖 MORO", beer: "🍺 BEER", neon: "💡 NEON", emo: "🖤 EMO", electric: "⚡ VOLT", synthwave: "📼 SYNTH", motor: "🏎️ MOTO", toxic: "☢️ TOXIC", pixel: "👾 PIXEL", popart: "💥 POP!", glass: "⛪ VITRAIL", thermal: "🌡️ THERMAL", blueprint: "📐 BLUEPRINT", glitch: "▓ GL1TCH", dollar: "💵 $50", mosaic: "🧱 MOSAIC", flag: "FLAG", halloween: "🎃 HALLOWEEN", lantern: "🏮 LAMPION", devil: "😈 DEVIL", joker: "🃏 JOKER", jeans: "👖 DŻINS", clear: "🫧 CLEAR", sketch: "✒️ SKETCH", emerald: "💚 EMERALD", amethyst: "💜 AMETHYST", ruby: "❤️ RUBY", mlg: "🎯 MLG", royal: "👑 ROYAL", diamond: "💎 DIAMOND", galaxy: "🌌 GALAXY", negative: "◐ NEGATIVE", rzulty: "💛 RZULTY" };
 const GEMS = ["emerald", "amethyst", "ruby", "diamond"];  // warianty z kamieniami szlachetnymi - wspólny wygląd, inne kolory
 
 const S = {
@@ -252,6 +252,7 @@ function variantLayers(v, p = null) {
     if (x === "devil") html += devilDeco();
     if (x === "toxic") html += toxicDeco();
     if (x === "blueprint" && p) html += `<div class="bpr-title">PROJ. ${esc(p.name.toUpperCase())}<br>SKALA 1:1 · ARK. ${p.number || 1}/${crateOf(p.crate)?.people.length || 96}</div>`;
+    if (VX_DECO[x]) html += VX_DECO[x](p);
     if (x === "holo") html += '<div class="holo-layer"></div>';
     if (x === "gold" || x === "silver" || x === "bronze") html += '<div class="gold-sheen"></div>';
     if (x === "clear") html += '<div class="clear-sheen"></div>';
@@ -261,7 +262,7 @@ function variantLayers(v, p = null) {
     if (x === "joker") html += jokerDeco();
     if (x === "jeans") html += jeansDeco();
     if (GEMS.includes(x)) html += '<div class="diamond-layer"></div><div class="diamond-glints"><i></i><i></i><i></i><i></i><i></i></div>';
-    html += stickersHTML(x, stickerList(x, p));
+    if (S.cfg.variants[x]?.stickers !== "under") html += stickersHTML(x, stickerList(x, p));   // "under" - pod zdjęciem (underStickersHTML)
   }
   parts.forEach((x, i) => {
     const cls = `var-tag vt-${x}${i ? " vt-second" : ""}`;
@@ -346,6 +347,7 @@ function variantBG(variant) {
   if (parts.includes("dollar")) html += dollarBG();
   if (parts.includes("toxic")) html += `<i class="tx-glow"></i>${Array.from({ length: 7 }, () =>
     `<i class="tx-bub" style="left:${rand(10, 85).toFixed(0)}%;--s:${rand(.5, 1.5).toFixed(2)};animation-delay:-${rand(0, 9).toFixed(1)}s;animation-duration:${rand(5, 10).toFixed(1)}s"></i>`).join("")}`;
+  for (const x of parts) if (VX_BG[x]) html += VX_BG[x]();
   return html ? `<div class="vx-bg">${html}</div>` : "";
 }
 function variantPhoto(variant, p) {
@@ -361,6 +363,7 @@ function variantPhoto(variant, p) {
   if (parts.includes("vintage")) html += '<i class="vx-photo vp-grain"></i><i class="vx-photo vp-scratch"></i><i class="vx-photo vp-vignette"></i>';
   if (parts.includes("marble")) html += '<i class="vx-photo mr-statue"></i>';
   if (parts.includes("toxic")) html += '<i class="vx-photo tx-photo"></i>';
+  for (const x of parts) if (VX_PHOTO[x]) html += typeof VX_PHOTO[x] === "function" ? VX_PHOTO[x]() : VX_PHOTO[x];
   return html;
 }
 // Toksyczna: kałuża jarzącego się szlamu na dole karty
@@ -369,15 +372,6 @@ function toxicDeco() {
 }
 // Vintage: zamiast "typ · skrzynka" pieczątka atelier fotograficznego (podtytuł z panelu admina ma pierwszeństwo)
 const VINTAGE_STAMP = "Atelier ScamBox · Warszawa · 1887";
-// własna linia pod zdjęciem zamiast "typ · skrzynka" (Vintage - pieczątka, Dolarowa - nominał i numer seryjny, Glitch - błąd)
-function variantSub(p, variant) {
-  const parts = variantParts(variant);
-  if (parts.includes("vintage")) return VINTAGE_STAMP;
-  if (parts.includes("dollar")) return `FIFTY · <b>C ${String(p.number || 1).padStart(4, "0")} ${String(cardValue(p.id)).slice(0, 4).padStart(4, "0")} D</b>`;
-  if (parts.includes("glitch")) return `${S.cfg.types[p.type].name} · ${esc(crateOf(p.crate).short)} <b>▓ERR 0x2137</b>`;
-  return "";
-}
-
 // Pikselowa (16-bitowa gra RPG): zdjęcie przerysowane w canvasie - zmniejszone do 58 pikseli szerokości (wykadrowane jak
 // w ramce zdjęcia), 6 poziomów na kanał z lekkim ditheringiem - i pokazane powiększone (image-rendering: pixelated).
 // Wynik w pamięci (PX_CACHE), żeby ta sama karta w ekwipunku nie liczyła się kilka razy.
@@ -410,6 +404,7 @@ const FX_KINDS = {
   neon: img => neonCanvas(img, ...fxArgs(img)), thermal: img => heatCanvas(img, ...fxArgs(img)),
   blueprint: img => linesCanvas(img, fxArgs(img)[0], "#e8f4ff"),
   dollar: img => engraveCanvas(img, ...fxArgs(img), "#1f4a2a"),
+  mosaic: img => mosaicCanvas(img, fxArgs(img)[0]),
 };
 const fxArgs = img => [img.closest(".sc-art") ? 63 / 88 : 1 / .96, Math.max(120, Math.round((img.parentElement?.offsetWidth || 150) * (window.devicePixelRatio || 1)))];
 function fxPhoto(img, kind) {
@@ -460,6 +455,25 @@ function engraveCanvas(img, ratio, W, ink) {
     if (line || hatch) { s[i] = col[0]; s[i + 1] = col[1]; s[i + 2] = col[2]; s[i + 3] = 255; } else s[i + 3] = 0;
   }
   ctx.putImageData(d, 0, 0);
+  return c;
+}
+// Mozaikowa: zdjęcie zmniejszone do 34 kolumn, każde pole przemalowane na najbliższy kolor klocka i narysowane jako klocek z nopkiem
+const BRICK_PAL = ["#c91a09", "#0055bf", "#f2cd37", "#237841", "#ffffff", "#05131d", "#fe8a18", "#a0a5a9", "#6c6e68", "#582a12", "#d09168", "#e4cd9e", "#e4adc8", "#9bd7d6", "#bbe90b"]
+  .map(h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)));
+function mosaicCanvas(img, ratio) {
+  const cols = 34, cell = 10, [, sctx, , rows] = fxCrop(img, ratio, cols), d = sctx.getImageData(0, 0, cols, rows).data;
+  const c = document.createElement("canvas"); c.width = cols * cell; c.height = rows * cell;
+  const g = c.getContext("2d"), shade = (col, f) => `rgb(${col.map(v => Math.round(Math.min(255, v * f))).join(",")})`;
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+    const i = (y * cols + x) * 4, r = (d[i] - 128) * 1.12 + 128, gg = (d[i + 1] - 128) * 1.12 + 128, b = (d[i + 2] - 128) * 1.12 + 128;
+    let best = 0, bd = 1e9;
+    BRICK_PAL.forEach((p, k) => { const dd = 2 * (r - p[0]) ** 2 + 4 * (gg - p[1]) ** 2 + 3 * (b - p[2]) ** 2; if (dd < bd) { bd = dd; best = k; } });
+    const col = BRICK_PAL[best], px = x * cell, py = y * cell, cx = px + cell / 2, cy = py + cell / 2;
+    g.fillStyle = shade(col, .7); g.fillRect(px, py, cell, cell);
+    g.fillStyle = shade(col, 1); g.beginPath(); g.arc(cx, cy, cell * .38, 0, 7); g.fill();
+    g.strokeStyle = "rgba(255,255,255,.55)"; g.lineWidth = 1.2; g.beginPath(); g.arc(cx, cy, cell * .3, 3.4, 4.8); g.stroke();
+    g.strokeStyle = "rgba(0,0,0,.35)"; g.beginPath(); g.arc(cx, cy, cell * .3, .3, 1.7); g.stroke();
+  }
   return c;
 }
 // Glitch "zepsuty plik": bloki 8 x 8 przesunięte w bok, z odwróconymi albo przesuniętymi kolorami, i kilka pasów z powtórzonym
@@ -655,6 +669,255 @@ function pxStatus(p, variant) {
   return `<div class="px-status"><span>LV ${Math.min(99, Math.max(1, Math.round(p.hp / 3)))}</span><span class="px-bar"><i style="width:${Math.min(100, Math.max(12, p.hp / 2.5)).toFixed(0)}%"></i></span></div>`;
 }
 
+// ---------------------------------------------------------------- warianty z makiet (strona /variants, domyślnie wyłączone)
+// Szlamowa, Matowa czerń, Wyścigowa retro, Bizmutowa, Cyfrowa, Cyberpunk, Gradient, Wanted, Art déco, Serowa.
+// VX_BG - tło w środku karty (pod napisami, w .vx-bg), VX_PHOTO - nakładki na zdjęcie (.vx-photo), VX_DECO - nad całą kartą
+// (variantLayers), variantTop - pasek nad nazwą, variantSub - tekst zamiast "typ · skrzynka". Wygląd: sekcja w cards2.css.
+const vxN = (a, b, d = 0) => rand(a, b).toFixed(d);
+const vxSvg = (body, vb = "0 0 63 88", cls = "") => `<svg class="${cls}" viewBox="${vb}" preserveAspectRatio="none" aria-hidden="true">${body}</svg>`;
+// kapiący płyn z górnej krawędzi (losowe sople) - w jednostkach karty 63 x 88
+function vxDrips(color, hi, long = [7, 18]) {
+  let d = "M0 0 H63 V3 ", x = 63;
+  while (x > 0) {
+    const w = +vxN(3, 7, 1), len = Math.random() < 0.45 ? +vxN(...long, 1) : +vxN(3.5, 6, 1), nx = Math.max(0, x - w);
+    const mid = (x + nx) / 2, r = Math.min(w / 2, 2.2);
+    d += `L${x.toFixed(1)} 3 C${(x - w * .15).toFixed(1)} 3.5 ${(mid + r).toFixed(1)} ${(len - r * 2).toFixed(1)} ${(mid + r).toFixed(1)} ${(len - r).toFixed(1)} ` +
+      `A${r} ${r} 0 0 1 ${(mid - r).toFixed(1)} ${(len - r).toFixed(1)} C${(mid - r).toFixed(1)} ${(len - r * 2).toFixed(1)} ${(nx + w * .15).toFixed(1)} 3.5 ${nx.toFixed(1)} 3 `;
+    x = nx - +vxN(1, 4, 1);
+  }
+  d += "L0 3 Z";
+  return `<path d="${d}" fill="${color}"/><path d="${d}" fill="none" stroke="${hi}" stroke-width=".35" opacity=".7" transform="translate(-.4 -.5)"/>`;
+}
+// powierzchnia płynu na wysokości y (fala), zamknięta do dołu karty
+const vxWave = (y, amp = 1.6) => `M-1 ${y} Q7 ${y - amp} 15 ${y} T31 ${y} T47 ${y} T63 ${y} L64 ${y} V90 H-1 Z`;
+const vxFloat = (n, cls, x = [4, 92]) => Array.from({ length: n }, () =>
+  `<i class="${cls}" style="left:${vxN(...x)}%;--s:${vxN(0.5, 1.6, 2)};animation-delay:-${vxN(0, 9, 1)}s;animation-duration:${vxN(5, 11, 1)}s"></i>`).join("");
+// Cyfrowa: kolumny znaków lecące z góry na dół (jak w Matrixie)
+const DG_CHARS = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワン0123456789Z:.=*+-<>";
+const dgRain = n => Array.from({ length: n }, (_, k) => {
+  const txt = Array.from({ length: 10 + Math.floor(rand(0, 14)) }, () => esc(DG_CHARS[Math.floor(rand(0, DG_CHARS.length))])).join("<br>");
+  return `<i class="dg-col" style="left:${(k / n * 100 + rand(-1, 1)).toFixed(1)}%;animation-duration:${vxN(4, 9, 1)}s;animation-delay:-${vxN(0, 9, 1)}s;font-size:${vxN(2.6, 3.8, 1)}cqw">${txt}</i>`;
+}).join("");
+// Cyberpunk: nocne miasto z losowymi neonowymi oknami
+function cpSkyline(base = 88, colors = ["#ff2bd6", "#00e5ff", "#fcee0a"]) {
+  let out = "", x = -1;
+  while (x < 64) {
+    const w = rand(4, 9), h = rand(12, 38);
+    out += `<rect x="${x.toFixed(1)}" y="${(base - h).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="#0b0618"/>`;
+    for (let yy = base - h + 1.5; yy < base - 1; yy += 2.4)
+      for (let xx = x + 1; xx < x + w - 1; xx += 1.8)
+        if (Math.random() < 0.28) out += `<rect x="${xx.toFixed(1)}" y="${yy.toFixed(1)}" width=".9" height="1.1" fill="${colors[Math.floor(rand(0, colors.length))]}" opacity="${vxN(.5, 1, 2)}"/>`;
+    if (Math.random() < 0.3) out += `<rect x="${(x + w / 2 - .15).toFixed(1)}" y="${(base - h - 5).toFixed(1)}" width=".3" height="5" fill="#0b0618"/><circle cx="${(x + w / 2).toFixed(1)}" cy="${(base - h - 5).toFixed(1)}" r=".5" fill="#ff003c"/>`;
+    x += w + rand(-.5, 1);
+  }
+  return out;
+}
+// Serowa: dziury różnej wielkości na całym tle
+const chHoles = (n, big = [6, 16]) => Array.from({ length: n }, () =>
+  `<i class="ch-hole" style="left:${vxN(-4, 92)}%;top:${vxN(-3, 95)}%;width:${vxN(...big, 1)}%"></i>`).join("");
+// Frutiger Aero, Grecka, Afrykańska, Miodowa, Uliczna, Chińska (druga partia makiet) - kształty SVG w jednostkach karty 63 x 88.
+// Gradienty SVG potrzebują unikalnych id (ta sama karta bywa na stronie kilka razy) - vxId.
+let vxUid = 0;
+const vxId = name => `${name}${++vxUid}`;
+const vxPick = arr => arr[Math.floor(Math.random() * arr.length)];
+function vxRainbow(cx, cy, r, w = 2.2, op = .75) {
+  return ["#ff3b3b", "#ff9a1f", "#ffe13b", "#4fd12a", "#2fa8ff", "#5a4dff", "#b04dff"].map((c, k) => {
+    const rr = r - k * w;
+    return `<path d="M${cx - rr} ${cy} A${rr} ${rr} 0 0 1 ${cx + rr} ${cy}" fill="none" stroke="${c}" stroke-width="${w + .1}" opacity="${op}"/>`;
+  }).join("");
+}
+// rybka płynąca w prawo (viewBox 0 0 40 24); stripes - białe paski jak u błazenka
+const vxFish = (c1, c2, stripes = false) => `<svg viewBox="0 0 40 24" aria-hidden="true"><path d="M10 12 L1 3 L4 12 L1 21 Z" fill="${c2}"/><path d="M17 5 Q23 -2 30 5 Z" fill="${c2}"/>
+  <ellipse cx="22" cy="12" rx="14" ry="8.5" fill="${c1}"/>${stripes ? `<ellipse cx="18" cy="12" rx="1.7" ry="8" fill="#fff"/><ellipse cx="27" cy="12" rx="1.5" ry="7.3" fill="#fff"/>` : ""}
+  <ellipse cx="22" cy="8" rx="10" ry="3" fill="#fff" opacity=".35"/><circle cx="31" cy="10" r="1.8" fill="#fff"/><circle cx="31.5" cy="10" r=".9" fill="#111"/></svg>`;
+const AERO_FISH = [["#ff7a1f", "#ffb03f", true], ["#ffd23f", "#2fa8ff"], ["#3fe0c0", "#2f6bff"]];
+// błyszczące zielone wzgórze z trawą i stokrotkami (Frutiger Aero) - od wysokości y do dołu karty
+function aeMeadow(g, y = 62) {
+  let blades = "", daisies = "";
+  for (let x = -2; x < 66; x += rand(1.1, 2.2)) {
+    const yy = y - 2.6 * Math.cos((x - 31.5) / 20) + 1, h = rand(2.5, 5.5), lean = rand(-1.4, 1.4);
+    blades += `<path d="M${(x - .6).toFixed(1)} ${(yy + 1).toFixed(1)} Q${(x + lean * .5).toFixed(1)} ${(yy - h * .6).toFixed(1)} ${(x + lean).toFixed(1)} ${(yy - h).toFixed(1)} Q${(x + .2).toFixed(1)} ${(yy - h * .5).toFixed(1)} ${(x + .6).toFixed(1)} ${(yy + 1).toFixed(1)} Z" fill="${vxPick(["#5fd61c", "#7ef03a", "#3fae0e"])}"/>`;
+  }
+  for (let k = 0; k < 7; k++) {
+    const x = rand(3, 60), yy = y + rand(4, 18), r = rand(.9, 1.5);
+    daisies += `<g transform="translate(${x.toFixed(1)} ${yy.toFixed(1)})">${[0, 60, 120, 180, 240, 300].map(a => `<ellipse rx="${(r * .45).toFixed(2)}" ry="${r.toFixed(2)}" transform="rotate(${a}) translate(0 ${(-r * .7).toFixed(2)})" fill="#fff"/>`).join("")}<circle r="${(r * .45).toFixed(2)}" fill="#ffd23f"/></g>`;
+  }
+  return `<defs><radialGradient id="${g}" cx=".4" cy="0" r="1.1"><stop offset="0" stop-color="#c8ff6a"/><stop offset=".45" stop-color="#4fbf14"/><stop offset="1" stop-color="#1f7a06"/></radialGradient></defs>
+    <path d="M-3 ${y + 3} C14 ${y - 4} 48 ${y - 4} 66 ${y + 3} V92 H-3 Z" fill="url(#${g})"/>
+    <path d="M-3 ${y + 3} C14 ${y - 4} 48 ${y - 4} 66 ${y + 3}" fill="none" stroke="#e8ffb0" stroke-width=".5" opacity=".8"/>${blades}${daisies}`;
+}
+const vxBubbles = (n, cls) => Array.from({ length: n }, () =>
+  `<i class="${cls}" style="left:${vxN(4, 92)}%;--s:${vxN(0.5, 1.6, 2)};animation-delay:-${vxN(0, 9, 1)}s;animation-duration:${vxN(5, 11, 1)}s"></i>`).join("");
+// pszczoła lecąca w prawo (viewBox 0 0 24 16), skrzydła machają (.bee-wing)
+const VX_BEE = `<svg viewBox="0 0 24 16" aria-hidden="true"><ellipse class="bee-wing" cx="10" cy="4" rx="4.2" ry="3.2" fill="#ffffffcc" stroke="#9ab" stroke-width=".3"/>
+  <ellipse class="bee-wing b" cx="13" cy="4.4" rx="3.6" ry="2.8" fill="#ffffffaa" stroke="#9ab" stroke-width=".3"/>
+  <path d="M3 10 L1 10.6 L3 11.2 Z" fill="#222"/><ellipse cx="11" cy="10.5" rx="8" ry="4.6" fill="#ffc21f"/>
+  <path d="M8 6.2 C7 9 7 12 8 14.8 M11.4 6 C10.4 9 10.4 12 11.4 15 M14.8 6.4 C13.8 9 13.8 12 14.8 14.6" stroke="#222" stroke-width="1.6" fill="none"/>
+  <circle cx="19.5" cy="9.6" r="2.6" fill="#222"/><circle cx="20.4" cy="9" r=".7" fill="#fff"/><path d="M20 7.2 Q21 4.6 22.6 4.4 M19 7.2 Q19.4 4.6 20.6 3.8" stroke="#222" stroke-width=".4" fill="none"/></svg>`;
+const hnBees = n => Array.from({ length: n }, () =>
+  `<i class="hn-bee" style="--by:${vxN(8, 70)}%;animation-delay:-${vxN(0, 10, 1)}s;animation-duration:${vxN(8, 13, 1)}s">${VX_BEE}</i>`).join("");
+// chiński lampion na sznurku (x, długość sznurka) i złote chmurki xiangyun
+function cnLantern(x, len, s = 1) {
+  const y = len + 5 * s;
+  return `<path d="M${x} -1 V${len}" stroke="#e2b13c" stroke-width=".3"/><rect x="${x - 2 * s}" y="${len}" width="${4 * s}" height="${1.1 * s}" fill="#e2b13c"/>
+    <ellipse cx="${x}" cy="${y + .6 * s}" rx="${4.6 * s}" ry="${5 * s}" fill="#d81e1e"/><ellipse cx="${x}" cy="${y + .6 * s}" rx="${2.4 * s}" ry="${5 * s}" fill="none" stroke="#a30d0d" stroke-width=".35"/>
+    <ellipse cx="${x - 1.6 * s}" cy="${y - 1 * s}" rx="${1.2 * s}" ry="${2.4 * s}" fill="#ff8a6a" opacity=".5"/>
+    <rect x="${x - 2 * s}" y="${y + 5.2 * s}" width="${4 * s}" height="${1.1 * s}" fill="#e2b13c"/><path d="M${x - 1 * s} ${y + 6.3 * s} V${y + 10 * s} M${x} ${y + 6.3 * s} V${y + 10.8 * s} M${x + 1 * s} ${y + 6.3 * s} V${y + 10 * s}" stroke="#e2b13c" stroke-width=".35"/>`;
+}
+const cnCloud = (x, y, s = 1) => `<path transform="translate(${x} ${y}) scale(${s})" d="M0 4 C0 1 3 0 4.4 1.6 C5 -.4 9 -.6 9.6 1.8 C11.6 1 13.6 2.6 12.8 4.6 Z M3 3.4 a1.2 1.2 0 1 1 2 .2 M8 2.8 a1.1 1.1 0 1 1 1.8 .4" fill="none" stroke="#e2b13c" stroke-width=".55" stroke-linecap="round"/>`;
+// Piwna, Moro, Elektryczna, Neonowa, Synthwave, Emo, Motoryzacyjna (trzecia partia makiet).
+// Piwna: piana z koronką na dole i drobnymi bańkami (SVG, wysokość y w jednostkach karty), bąbelki i krople rosy
+function brFoam(y, c1 = "#fffdf6", c2 = "#efe0b8", ring = "#d9c79a") {
+  const g = vxId("brFoam");
+  let d = `M-3 -3 H66 V${y}`;
+  for (let x = 66; x > -3;) { const w = rand(1.6, 3.4); d += ` Q${(x - w / 2).toFixed(1)} ${(y + rand(.9, 2.4)).toFixed(1)} ${(x - w).toFixed(1)} ${(y + rand(-.4, .5)).toFixed(1)}`; x -= w; }
+  let s = `<defs><linearGradient id="${g}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset=".7" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs>
+    <path d="${d} Z" fill="url(#${g})"/>`;
+  for (let k = 0; k < 80; k++) {
+    const x = rand(-1, 64), yy = rand(-1, y + 1.5), r = rand(.2, .9) * (yy > y - 2.5 ? 1.5 : 1);
+    s += `<circle cx="${x.toFixed(1)}" cy="${yy.toFixed(1)}" r="${r.toFixed(2)}" fill="none" stroke="${ring}" stroke-width=".14" opacity=".75"/>`;
+    if (r > .5) s += `<circle cx="${(x - r * .35).toFixed(1)}" cy="${(yy - r * .35).toFixed(1)}" r="${(r * .22).toFixed(2)}" fill="#fff"/>`;
+  }
+  for (let k = 0; k < 9; k++) {
+    const x = rand(2, 61), r = rand(.8, 1.6);
+    s += `<circle cx="${x.toFixed(1)}" cy="${(y + rand(.2, 1.4)).toFixed(1)}" r="${r.toFixed(2)}" fill="#fff6d455" stroke="#fff" stroke-width=".18"/>`;
+  }
+  return s;
+}
+// bąbelki jak w prawdziwym szkle: łańcuszki z kilku punktów na dnie (ten sam x, równe odstępy w czasie) i pojedyncze;
+// każdy to osobna kulka z jasnym brzegiem i odblaskiem, która rośnie, przyspiesza i lekko się chwieje w drodze do piany
+function brBubbles(chains = 6, per = 5, loose = 8) {
+  const bub = (x, sz, dur, delay, sw) => `<i class="br-bub" style="left:${x}%;width:${sz}cqw;--sw:${sw}cqw;animation-duration:${dur}s;animation-delay:-${delay}s"></i>`;
+  let out = "";
+  for (let c = 0; c < chains; c++) {
+    const x = vxN(6, 92, 1), sz = rand(.7, 1.25), dur = rand(3.4, 5.4), sw = vxN(-.9, .9, 2);
+    for (let k = 0; k < per; k++) out += bub(x, (sz * rand(.85, 1.1)).toFixed(2), dur.toFixed(2), (dur * k / per).toFixed(2), sw);
+  }
+  for (let k = 0; k < loose; k++) out += bub(vxN(4, 94, 1), vxN(.5, 1.5, 2), vxN(4.5, 7.5, 2), vxN(0, 7, 2), vxN(-1.6, 1.6, 2));
+  return out;
+}
+// krople rosy na zimnym szkle; część co jakiś czas spływa w dół, zostawiając czysty ślad
+const brDew = (n, runs = 0) => Array.from({ length: n }, () =>
+  `<i class="br-drop" style="left:${vxN(0, 98)}%;top:${vxN(0, 96)}%;width:${vxN(.7, 2.2, 1)}%"></i>`).join("") +
+  Array.from({ length: runs }, () =>
+    `<i class="br-run" style="left:${vxN(3, 95)}%;top:${vxN(4, 40)}%;animation-delay:-${vxN(0, 9, 1)}s;animation-duration:${vxN(7, 12, 1)}s"></i>`).join("");
+// Moro: nieśmiertelniki z nazwą i numerem karty
+const moTags = p => `<i class="mo-tags"><b><span>${esc(p?.name || "SZEREGOWY")}</span><span>NR ${String(p?.number || 7).padStart(4, "0")}-2137</span><span>GR. KRWI 0 RH+</span></b><b></b></i>`;
+// Elektryczna: piorun - poszarpana linia od (x1, y1) do (x2, y2) z odgałęzieniami (jednostki karty)
+function elBolt(x1, y1, x2, y2, branches = 2, jag = 3) {
+  const steps = 10, pts = [[x1, y1]];
+  for (let k = 1; k < steps; k++) { const t = k / steps; pts.push([x1 + (x2 - x1) * t + rand(-jag, jag), y1 + (y2 - y1) * t + rand(-jag * .3, jag * .3)]); }
+  pts.push([x2, y2]);
+  let d = "M" + pts.map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join(" L");
+  for (let b = 0; b < branches; b++) {
+    const [bx, by] = pts[2 + Math.floor(rand(0, steps - 4))], dir = Math.random() < .5 ? -1 : 1;
+    let x = bx, y = by; d += ` M${x.toFixed(1)} ${y.toFixed(1)}`;
+    for (let k = 0; k < 4; k++) { x += dir * rand(1.5, 4); y += rand(1.5, 4); d += ` L${x.toFixed(1)} ${y.toFixed(1)}`; }
+  }
+  return d;
+}
+const elBoltSvg = (d, cls) => `<path class="el-bolt ${cls}" d="${d}"/><path class="el-core ${cls}" d="${d}"/>`;
+// Motoryzacyjna: obrotomierz dookoła okrągłego zdjęcia (zdjęcie = promień 11.5 z 20 jednostek tarczy) - podziałka 0-9
+// z czerwonym polem, cyfry i krótka wskazówka tylko na pierścieniu; na dole tarczy przerwa (bez obwódki) na podpis karty
+function mtGauge() {
+  let ticks = "";
+  for (let k = 0; k <= 45; k++) {
+    const a = (-225 + k * 6) * Math.PI / 180, big = k % 5 === 0, r1 = big ? 15.5 : 17, red = k >= 35;
+    ticks += `<path d="M${(20 + Math.cos(a) * r1).toFixed(2)} ${(20 + Math.sin(a) * r1).toFixed(2)} L${(20 + Math.cos(a) * 18.5).toFixed(2)} ${(20 + Math.sin(a) * 18.5).toFixed(2)}" stroke="${red ? "#ff2b2b" : "#f2f2f2"}" stroke-width="${big ? .8 : .35}"/>`;
+    if (big) ticks += `<text x="${(20 + Math.cos(a) * 13.6).toFixed(2)}" y="${(20 + Math.sin(a) * 13.6 + .9).toFixed(2)}" font-size="2.6" text-anchor="middle" fill="${red ? "#ff2b2b" : "#f2f2f2"}">${k / 5}</text>`;
+  }
+  const arc = a => `${(20 + Math.cos(a * Math.PI / 180) * 18.5).toFixed(2)} ${(20 + Math.sin(a * Math.PI / 180) * 18.5).toFixed(2)}`;
+  return `<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M${arc(-15)} A18.5 18.5 0 0 1 ${arc(45)}" stroke="#ff2b2b55" stroke-width="2.5" fill="none"/>
+    ${ticks}<g class="mt-needle"><path d="M20 8.3 L20 1.6" stroke="#ff4a1f" stroke-width="1.1" stroke-linecap="round"/></g></svg>`;
+}
+const VX_BG = {
+  beer: () => `<i class="br-body"></i>${brBubbles()}`,
+  electric: () => '<i class="el-clouds"></i><i class="el-rain"></i>',
+  // Synthwave: na dole tła zachodzi słońce w paski (spod paneli z napisami)
+  synthwave: () => '<i class="sw-sun"></i><i class="sw-glow"></i>',
+  emo: () => `<span class="em-drips">${vxSvg(Array.from({ length: 9 }, () => {
+    const x = rand(2, 61), l = rand(4, 13);
+    return `<path d="M${(x - .6).toFixed(1)} 0 V${l.toFixed(1)} a.6 .6 0 0 0 1.2 0 V0 Z" fill="#0a0a0a"/>`;
+  }).join(""))}</span>`,
+  aero: () => `${vxSvg(vxRainbow(10, 40, 26, 1.8, .45), "0 0 63 88", "ae-rainbow")}<i class="ae-cloud c1"></i><i class="ae-cloud c2"></i>${vxSvg(aeMeadow(vxId("aeHill")))}`,
+  greek: () => '<i class="gr-meander t"></i><i class="gr-palm"></i><i class="gr-meander b"></i>',
+  african: () => '<i class="af-kente"></i>',
+  honey: () => '<i class="hn-shine"></i>',
+  street: () => '<b class="st-wild w1">SCAM</b><b class="st-wild w2">BOX</b><i class="st-mist"></i>',
+  chinese: () => vxSvg(cnCloud(6, 40, 1) + cnCloud(42, 60, .9) + cnCloud(10, 78, .8)),
+  racing: () => '<i class="rc-band"></i><i class="rc-grain"></i>',
+  bismuth: () => '<i class="bi-iso"></i><i class="bi-iso-tint"></i>',
+  digital: () => `<span class="dg-rain">${dgRain(14)}</span>`,
+  cyber: () => `${vxSvg(cpSkyline(), "0 0 63 88", "cp-city")}<i class="cp-rain"></i>`,
+  fade: () => '<i class="fd-sheen"></i>',
+  artdeco: () => '<i class="ad-fans"></i>',
+  // ser z dziurami (makieta 1.) + trochę niebiesko-zielonej pleśni przy brzegach (makieta 3.)
+  cheese: () => `${chHoles(15)}<i class="ch-mold"></i>`,
+};
+const VX_PHOTO = {
+  // ...i kilka łańcuszków bąbelków na zdjęciu (krótsza droga do góry)
+  beer: () => `<i class="vx-photo br-amber"></i><i class="vx-photo br-bubs">${brBubbles(3, 4, 4)}</i><i class="vx-photo br-glass"></i>`,
+  electric: '<i class="vx-photo el-strike"></i>',
+  aero: '<i class="vx-photo ae-glass"></i>',
+  greek: '<i class="vx-photo gr-figure"></i>',
+  honey: '<i class="vx-photo hn-amber"></i>',
+  street: '<i class="vx-photo st-pop"></i>',
+  slime: '<i class="vx-photo sl-tint"></i>',
+  bismuth: '<i class="vx-photo bi-oxide"></i>',
+  digital: '<i class="vx-photo dg-crt"></i>',
+  cyber: '<i class="vx-photo cp-duo"></i>',
+  fade: '<i class="vx-photo fd-tint"></i>',
+};
+const VX_DECO = {
+  // Piwna: piana u góry (nazwa nad nią), oszronione szkło z kroplami rosy - część spływa
+  beer: () => `<div class="vx-deco vx-clip">${vxSvg(brFoam(11), "0 0 63 88", "br-foam")}</div><div class="vx-deco vx-clip"><i class="br-frost"></i>${brDew(46, 6)}</div>`,
+  moro: p => `<div class="vx-deco"><i class="mo-stitch"></i>${moTags(p)}</div>`,
+  // Elektryczna: dwa pioruny w losowych miejscach uderzają w swoim rytmie, przy uderzeniu karta się rozjaśnia
+  electric: () => `<div class="vx-deco vx-clip"><i class="el-flash"></i>${vxSvg(elBoltSvg(elBolt(rand(8, 20), -2, rand(14, 30), 60, 3), "s1") +
+    elBoltSvg(elBolt(rand(44, 56), -2, rand(36, 52), 50, 2), "s2"))}</div>`,
+  synthwave: () => '<div class="vx-deco vx-clip"><i class="sw-track"></i><i class="sw-lines"></i></div>',
+  emo: () => '<div class="vx-deco"><i class="em-wire"></i><i class="em-heart"></i></div>',
+  motor: () => `<div class="vx-deco"><i class="mt-gauge">${mtGauge()}</i><i class="mt-shift"></i></div>`,
+  // Frutiger Aero: szklany połysk na górnej połowie karty, rybki pływające po niebie i bańki
+  aero: () => `<div class="vx-deco"><i class="ae-gloss"></i></div><div class="vx-deco vx-clip">${AERO_FISH.map(([a, b, s], k) =>
+    `<i class="ae-fish f${k + 1}" style="animation-delay:-${vxN(0, 12, 1)}s">${vxFish(a, b, s)}</i>`).join("")}${vxBubbles(6, "ae-bubble")}</div>`,
+  // Miodowa: miód kapiący z góry i przelatujące pszczoły
+  honey: () => `<div class="vx-deco hn-drip">${vxSvg(vxDrips("#f2a20f", "#ffe08a", [8, 16]))}</div><div class="vx-deco vx-clip">${hnBees(2)}</div>`,
+  // Chińska: czerwone lampiony ze złotymi frędzlami kołyszą się u góry karty
+  chinese: () => `<div class="vx-deco cn-lanterns">${vxSvg(cnLantern(6, 3, .95) + cnLantern(57, 8, 1.1) + cnLantern(48, 1, .7))}</div>`,
+  // dolna część karty pływa w szlamie (fala + bąbelki), z góry kapie glut
+  slime: () => `<div class="vx-deco sl-flood">${vxSvg(`<path d="${vxWave(60)}" fill="#8cf04a44"/><path d="${vxWave(61.5, 1.2)}" fill="#3fbf1a40"/>`, "0 0 63 88", "sl-wave")}
+    ${vxFloat(9, "sl-bub", [6, 90])}</div><div class="vx-deco sl-drip">${vxSvg(vxDrips("#7dff3a", "#d4ffb0", [5, 9]))}</div>`,
+  matte: () => '<div class="vx-deco"><i class="mt-stitch"></i></div>',
+  racing: p => `<div class="vx-deco"><div class="rc-roundel"><b>${p?.number || 7}</b></div></div>`,
+  wanted: () => `<div class="vx-deco"><i class="ww-hole" style="left:${vxN(66, 80)}%;top:${vxN(16, 24)}%"></i><i class="ww-hole" style="left:${vxN(10, 20)}%;top:${vxN(52, 60)}%"></i>` +
+    `<i class="ww-hole small" style="left:${vxN(74, 84)}%;top:${vxN(62, 70)}%"></i></div>`,
+  artdeco: () => '<div class="vx-deco"><i class="ad-lines"></i></div>',
+  // roztopiony ser kapiący z górnej krawędzi (makieta 2.) - krótszy, żeby nie zasłaniał nazwy
+  cheese: () => `<div class="vx-deco ch-melt">${vxSvg(vxDrips("#ffc23a", "#fff1a8", [5, 9]))}</div>`,
+};
+// pasek nad nazwą: okno terminala (Cyfrowa), napis WANTED
+function variantTop(variant) {
+  const parts = variantParts(variant);
+  if (parts.includes("digital")) return '<div class="dg-bar"><i></i><i></i><i></i><span>root@scambox: ~/hack</span></div>';
+  if (parts.includes("wanted")) return '<div class="ww-title">WANTED</div>';
+  if (parts.includes("synthwave")) return '<div class="sw-osd"><span>▶ PLAY</span><span>SP 0:21:37</span></div>';
+  return "";
+}
+// tekst zamiast "typ · skrzynka" (podtytuł z panelu admina ma pierwszeństwo); null = zwykły
+function variantSub(variant, pid) {
+  const parts = variantParts(variant);
+  if (parts.includes("vintage")) return VINTAGE_STAMP;
+  // Dolarowa: nominał i numer seryjny z numeru i wartości karty; Glitch: kod błędu
+  if (parts.includes("dollar")) return `FIFTY · <b>C ${String(person(pid).number || 1).padStart(4, "0")} ${String(cardValue(pid, variant)).slice(0, 4).padStart(4, "0")} D</b>`;
+  if (parts.includes("glitch")) { const p = person(pid); return `${S.cfg.types[p.type].name} · ${esc(crateOf(p.crate).short)} <b>▓ERR 0x2137</b>`; }
+  if (parts.includes("digital")) return "$ ./access --target <b>ACCESS GRANTED</b>";
+  if (parts.includes("moro")) return "ODDZIAŁ 2137 · LAS";
+  // Wanted: nagroda (wartość karty) zaraz pod DEAD OR ALIVE
+  if (parts.includes("wanted")) return `DEAD OR ALIVE<span class="ww-reward">REWARD ${fmt(cardValue(pid, variant))}</span>`;
+  return null;
+}
+
 // Karty specjalne - wariant Jokerowa "Talia Kasynowa" (joker-talia.css): karta do gry na zielonym suknie - na szerokich
 // marginesach indeksy JOKER z czapką błazna (symbol SVG #jk-hat w templates/index.html) i stosy żetonów; nic nie zasłania zdjęcia.
 function jokerDeco() {
@@ -700,8 +963,14 @@ function mlgDeco(p) {
 // i ruch (klasy vsa-*); kolejność listy = od spodu. Obrazek w środku <i>, żeby ruch nie kasował obrotu.
 // Karta z własnymi naklejkami (edytor, tryb "Tylko ta karta") ma gotową listę w cardStickers - reszta ma standardowe.
 function stickerList(v, p) { return (p && S.cfg.cardStickers?.[v]?.[p.imgAs || p.id]) || S.cfg.variantStickers?.[v]; }
-function stickersHTML(v, list = S.cfg.variantStickers?.[v]) {
-  return list?.length ? `<div class="v-stickers">${list.map(stickerHTML).join("")}</div>` : "";
+function stickersHTML(v, list = S.cfg.variantStickers?.[v], cls = "") {
+  return list?.length ? `<div class="v-stickers${cls}">${list.map(stickerHTML).join("")}</div>` : "";
+}
+// Warianty z "stickers": "under" (np. Grecka, Afrykańska): naklejki leżą na tle karty - pod zdjęciem i napisami
+// (w .card-inner zaraz po tle wariantu; na tajnej karcie nad zdjęciem, które zajmuje całą kartę)
+function underStickersHTML(variant, p) {
+  return variantParts(variant).filter(x => S.cfg.variants[x]?.stickers === "under")
+    .map(x => stickersHTML(x, stickerList(x, p), " under")).join("");
 }
 function stickerHTML(s) {
   return `<i class="v-sticker${s.anim && s.anim !== "none" ? " vsa-" + s.anim : ""}" data-sid="${s.id}" style="${stickerStyle(s)}">` +
@@ -733,15 +1002,16 @@ function cardHTML(pid, variant = "normal") {
   <div class="card r-${p.rarity} ${vClass(variant)}${p.style ? " vs-" + p.style : ""}${abils.length > 1 ? " two-atk" : ""}${abils.length > 2 ? ` atk-${abils.length}` : ""}" data-pid="${p.id}" data-variant="${variant}"${flagStyle(p, variant)}>
     <div class="card-inner">
       ${baseVariant(variant) === "reverse" ? '<div class="rev-foil"></div>' : ""}
-      ${galaxyBG(variant)}${devilBG(variant)}${mlgBG(variant)}${variantBG(variant)}${pxStatus(p, variant)}
+      ${galaxyBG(variant)}${devilBG(variant)}${mlgBG(variant)}${variantBG(variant)}${underStickersHTML(variant, p)}
+      ${variantTop(variant)}${pxStatus(p, variant)}
       <div class="card-head">
-        <span class="card-name">${esc(p.name)}</span>
+        <span class="card-name">${variantParts(variant).includes("digital") ? `<span class="dg-type" style="--n:${[...p.name].length}">${esc(p.name)}</span>` : esc(p.name)}</span>
         <span class="card-hp"><small>HP</small>${p.hp}</span>
         <span class="card-type">${type.icon}</span>
       </div>
       <div class="card-photo"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false"${photoFx(variant)}>${galaxyPhoto(variant)}${halloweenPhoto(variant)}${mlgPhoto(variant)}${variantPhoto(variant, p)}</div>
       <div class="card-sub${p.subtitle ? " has-subtitle" : ""}">${p.subtitle ? esc(p.subtitle)
-        : variantSub(p, variant) || `${type.name} · ${esc(crate.short)}`}</div>
+        : variantSub(variant, pid) ?? `${type.name} · ${esc(crate.short)}`}</div>
       ${abils.map((a, i) => `<div class="card-attack${i ? " atk2" : ""}${a.kind !== "off" ? " " + a.kind : ""}">
         <span class="atk-cost">${a.kind === "off" ? cost + (i ? type.icon : "") : S.cfg.abilityKinds[a.kind]?.icon || ""}</span>
         <span class="atk-name">${esc(a.name)}</span>
@@ -771,7 +1041,7 @@ function secretCardHTML(p, variant) {
   <div class="card r-secret ${vClass(variant)}" data-pid="${p.id}" data-variant="${variant}"${flagStyle(p, variant)}>
     <div class="sc">
       <div class="sc-art"><img src="${imgUrl(p.id, variant)}" alt="${esc(p.name)}" loading="lazy" draggable="false"${photoFx(variant)}>${variantPhoto(variant, p)}</div>
-      ${galaxyBG(variant)}${devilBG(variant)}${halloweenPhoto(variant)}${mlgBG(variant)}${mlgPhoto(variant)}${variantBG(variant)}
+      ${galaxyBG(variant)}${devilBG(variant)}${halloweenPhoto(variant)}${mlgBG(variant)}${mlgPhoto(variant)}${variantBG(variant)}${underStickersHTML(variant, p)}
       <div class="sc-halo"></div>
       <div class="sc-stars"></div>
       ${baseVariant(variant) === "reverse" ? '<div class="rev-foil"></div>' : ""}
@@ -1561,10 +1831,19 @@ function showResults(afterEpic = false) {
       ruby: ["#ff1744", "#ff8a9c", "#ffd0d8", "#ffffff"], amethyst: ["#9b3dff", "#c99bff", "#ecdcff", "#ffffff"], clear: ["#ffffff", "#e0f7ff", "#bfefff"],
       negative: ["#000000", "#ffffff", "#7a7a7a", "#00e5ff"], gold: ["#ffc531", "#fff3b0", "#fff"], holo: ["#9ff6ff", "#ff9ff3", "#fff"],
       silver: ["#e6ebf2", "#b8c2d0", "#ffffff"], bronze: ["#cd7f32", "#f0b27a", "#ffe0c0"], pearl: ["#ffffff", "#ffd1e4", "#d3fff1", "#d3e2ff"],
-      vintage: ["#efe4cb", "#b8913d", "#6b4c22"], marble: ["#ffffff", "#d9d4c8", "#d4af37"], toxic: ["#5dff1f", "#b6ff3a", "#ffd400", "#0c1407"],
       pixel: ["#3a5bd0", "#ffffff", "#7dff5a", "#ffe13b"], glass: ["#2f7fc0", "#3fa0a0", "#6a5aa8", "#e8a33a", "#ffffff"],
       neon: ["#ff3df0", "#3de0ff", "#ffe63c", "#ffffff"], thermal: ["#2a0a6a", "#d8303a", "#f07a1a", "#ffd23f", "#fffbe8"],
-      blueprint: ["#1f3a7a", "#e8f4ff", "#4a8ad8"], glitch: ["#ff2b5a", "#00e5ff", "#ffffff", "#7a2bff"], dollar: ["#2a6a3a", "#eef3e2", "#1f4a2a", "#b8d8a0"], popart: ["#ffe100", "#e8202f", "#ff4fa0", "#2fd0ff", "#7cff4a"], reverse: ["#c9d6ff", "#ffffff", "#9ff6ff"], bw: ["#ffffff", "#111111", "#888888"],
+      blueprint: ["#1f3a7a", "#e8f4ff", "#4a8ad8"], glitch: ["#ff2b5a", "#00e5ff", "#ffffff", "#7a2bff"], dollar: ["#2a6a3a", "#eef3e2", "#1f4a2a", "#b8d8a0"], mosaic: ["#c91a09", "#f2cd37", "#0055bf", "#237841"],
+      popart: ["#ffe100", "#e8202f", "#ff4fa0", "#2fd0ff", "#7cff4a"],
+      slime: ["#7dff3a", "#c6ff6c", "#3fbf1a"], matte: ["#2a2a2a", "#5c5c5c", "#111"], racing: ["#c8202f", "#f2e6cf", "#161210"],
+      bismuth: ["#ff4fb5", "#ffd23f", "#3fe0ff", "#7a5cff"], digital: ["#3dff6e", "#0f6a26", "#eaffea"], cyber: ["#ff2bd6", "#00e5ff", "#fcee0a"],
+      fade: ["#f9e45b", "#f7a23b", "#f05ba5", "#a86bf0", "#5aa8f5"], wanted: ["#f2e2b8", "#b8955a", "#2a1608"], artdeco: ["#d4af37", "#fff3c4", "#0a0908"],
+      cheese: ["#ffd34a", "#ffe680", "#b88512"], aero: ["#4cc2ff", "#ffffff", "#7ef03a", "#ffd23f"], greek: ["#d9773a", "#140c08", "#f09a5a"],
+      african: ["#f2b705", "#0a7d3b", "#c8102e", "#1a1a1a"], honey: ["#ffd75e", "#f2a20f", "#b86a08"], street: ["#ff2bd6", "#00e5ff", "#ffe13b", "#7dff3a"],
+      chinese: ["#d81e1e", "#e2b13c", "#fff2b0"], moro: ["#4a4f2e", "#6a5a3a", "#1c1f14", "#a89a6a"], beer: ["#f7bf3a", "#fffdf6", "#cf7a0c"],
+      emo: ["#111111", "#8a0a1a", "#ff4fb0"], electric: ["#9fdcff", "#ffffff", "#4fb8ff"],
+      synthwave: ["#ff2bd6", "#00e5ff", "#ffe14a", "#6a1fb8"], motor: ["#e8202f", "#f2f2f2", "#1b1b1b"],
+      vintage: ["#efe4cb", "#b8913d", "#6b4c22"], marble: ["#ffffff", "#d9d4c8", "#d4af37"], toxic: ["#5dff1f", "#b6ff3a", "#ffd400", "#0c1407"], reverse: ["#c9d6ff", "#ffffff", "#9ff6ff"], bw: ["#ffffff", "#111111", "#888888"],
       rzulty: ["#ffe600", "#fff6a0", "#ffffff"], flag: ["#ffffff", "#dc143c", "#ffcf3f"], halloween: ["#ff7a00", "#1a0a12", "#8a2be2", "#ffd84a"],
       lantern: ["#ffb347", "#ff7a00", "#fff1c1", "#3a1a06"], devil: ["#ff1a1a", "#b3001b", "#ffcf5a", "#120002"],
       sketch: ["#1b1712", "#f4ecd8", "#6b5d4a"], galaxy: ["#7b4dff", "#1fb6ff", "#ff4fd8", "#ffffff"],

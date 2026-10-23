@@ -14,7 +14,7 @@
   <title>ScamBox</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Bungee&family=Caveat:wght@700&family=Comic+Neue:wght@700&family=Creepster&family=Cinzel:wght@700;900&family=IM+Fell+English:ital@0;1&family=Ma+Shan+Zheng&family=Orbitron:wght@500;900&family=Poiret+One&family=Press+Start+2P&family=Racing+Sans+One&family=Rye&family=Share+Tech+Mono&family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Black+Ops+One&family=Bungee&family=Caveat:wght@700&family=Comic+Neue:wght@700&family=Creepster&family=Cinzel:wght@700;900&family=IM+Fell+English:ital@0;1&family=Ma+Shan+Zheng&family=Monoton&family=Orbitron:wght@500;900&family=Permanent+Marker&family=Poiret+One&family=Press+Start+2P&family=Racing+Sans+One&family=Rye&family=Share+Tech+Mono&family=Shrikhand&family=Rubik:wght@400;500;700;900&family=Rubik+Spray+Paint&family=Special+Elite&family=Yellowtail&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ asset('css/style.css') }}">
   <link rel="stylesheet" href="{{ asset('css/fx.css') }}">
   <link rel="stylesheet" href="{{ asset('css/cards2.css') }}">
@@ -48,6 +48,14 @@
       </feComponentTransfer>
       <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0 1"/>
     </filter>
+    <!-- wariant Cyfrowy: zdjęcie rozbite na piksele (próbka co 5 px powiększona do kwadratu) -->
+    <filter id="dgPixel" x="0" y="0" width="100%" height="100%"><feFlood x="2" y="2" height="1" width="1"/><feComposite width="5" height="5"/>
+      <feTile result="a"/><feComposite in="SourceGraphic" in2="a" operator="in"/><feMorphology operator="dilate" radius="2"/></filter>
+    <!-- wariant Synthwave (VHS): czerwony kanał przesunięty w lewo, niebieski w prawo -->
+    <filter id="swRgb" color-interpolation-filters="sRGB"><feOffset in="SourceGraphic" dx="-2.5" result="l"/><feOffset in="SourceGraphic" dx="2.5" result="r"/>
+      <feColorMatrix in="l" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="lr"/><feColorMatrix in="SourceGraphic" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="g"/>
+      <feColorMatrix in="r" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="rb"/>
+      <feComposite in="lr" in2="g" operator="arithmetic" k2="1" k3="1" result="rg"/><feComposite in="rg" in2="rb" operator="arithmetic" k2="1" k3="1"/></filter>
     <!-- wariant Halloweenowy: nietoperz, dynia (lampion), czaszka, pajęczyna, pająk, cukierek -->
     <!-- Jokerowa (karty specjalne): czapka błazna w indeksach na marginesach - kolory ze zmiennych CSS (joker-talia.css) -->
     <clipPath id="jkHalfR"><rect x="100" y="0" width="100" height="120"/></clipPath>
