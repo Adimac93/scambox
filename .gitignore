@@ -20,3 +20,4 @@ secret_key.txt
 # serwer Rust
 server/target/
 server/.env
+.direnv/

@@ -1,8 +1,17 @@
 # Obraz serwera gry. Budowanie z głównego folderu repozytorium (potrzebne static/, templates/, catalog_export.json):
 #   docker build -f server/Dockerfile -t scambox .
 # Uruchomienie: DATABASE_URL, SECRET_KEY, DATA_DIR (wolumen na zdjęcia), port 8000.
-FROM rust:1-bookworm AS build
+# cargo-chef: zależności budują się w osobnej warstwie - zmiana samego kodu nie kompiluje ich od nowa.
+FROM lukemathwalker/cargo-chef:latest-rust-1-bookworm AS chef
 WORKDIR /src/server
+
+FROM chef AS planner
+COPY server/ .
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM chef AS build
+COPY --from=planner /src/server/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
 COPY server/ .
 # zapytania sqlx::query! sprawdzane z .sqlx/ (cargo sqlx prepare) - bez bazy przy budowaniu
 ENV SQLX_OFFLINE=true
@@ -17,5 +26,4 @@ COPY templates ./templates
 COPY custom_images ./custom_images
 COPY catalog_export.json ./
 ENV GAME_DIR=/app BIND=0.0.0.0 PORT=8000 COOKIE_SECURE=1 TRUST_PROXY=1 METRICS_ADDR=127.0.0.1:9100
-EXPOSE 8000
-CMD ["scambox"]
+ENTRYPOINT ["scambox"]
